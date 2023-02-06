@@ -9,7 +9,7 @@ use ndarray::{Array, IxDyn};
 
 use crate::{
   gadgets::{
-    bias_div_relu6::BiasDivRelu6Chip,
+    bias_div_floor_relu6::BiasDivFloorRelu6Chip,
     dot_prod::DotProductChip,
     gadget::{Gadget, GadgetConfig},
   },
@@ -277,7 +277,7 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
     }
 
     // Compute the bias + div + relu
-    let bdr_chip = BiasDivRelu6Chip::<F>::construct(gadget_config.clone());
+    let bdr_chip = BiasDivFloorRelu6Chip::<F>::construct(gadget_config.clone());
     let tmp = vec![zero.clone()];
     let outp = bdr_chip.forward(
       layouter.namespace(|| "bias_div_relu"),

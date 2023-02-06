@@ -9,7 +9,7 @@ use ndarray::{Array, IxDyn};
 
 use crate::{
   gadgets::{
-    add_pairs::AddPairsChip, adder::AdderChip, bias_div_relu6::BiasDivRelu6Chip,
+    add_pairs::AddPairsChip, adder::AdderChip, bias_div_floor_relu6::BiasDivFloorRelu6Chip,
     dot_prod::DotProductChip, gadget::GadgetConfig,
   },
   layers::{
@@ -176,7 +176,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
     let mut gadget_config = GadgetConfig::default();
     gadget_config = AddPairsChip::<F>::configure(meta, gadget_config);
     gadget_config = AdderChip::<F>::configure(meta, gadget_config);
-    gadget_config = BiasDivRelu6Chip::<F>::configure(meta, gadget_config);
+    gadget_config = BiasDivFloorRelu6Chip::<F>::configure(meta, gadget_config);
     gadget_config = DotProductChip::<F>::configure(meta, gadget_config);
 
     ModelConfig {

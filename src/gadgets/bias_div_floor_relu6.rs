@@ -11,18 +11,18 @@ use crate::gadgets::gadget::convert_to_u64;
 
 use super::gadget::{Gadget, GadgetConfig, GadgetType};
 
-type BiasDivRelu6Config = GadgetConfig;
+type BiasDivFloorRelu6Config = GadgetConfig;
 
 const NUM_COLS_PER_OP: usize = 5;
 const SHIFT_MIN_VAL: i64 = -(1 << 30);
 
-pub struct BiasDivRelu6Chip<F: FieldExt> {
-  config: BiasDivRelu6Config,
+pub struct BiasDivFloorRelu6Chip<F: FieldExt> {
+  config: BiasDivFloorRelu6Config,
   _marker: PhantomData<F>,
 }
 
-impl<F: FieldExt> BiasDivRelu6Chip<F> {
-  pub fn construct(config: BiasDivRelu6Config) -> Self {
+impl<F: FieldExt> BiasDivFloorRelu6Chip<F> {
+  pub fn construct(config: BiasDivFloorRelu6Config) -> Self {
     Self {
       config,
       _marker: PhantomData,
@@ -131,7 +131,7 @@ impl<F: FieldExt> BiasDivRelu6Chip<F> {
   }
 }
 
-impl<F: FieldExt> Gadget<F> for BiasDivRelu6Chip<F> {
+impl<F: FieldExt> Gadget<F> for BiasDivFloorRelu6Chip<F> {
   fn name(&self) -> String {
     "BiasDivRelu6".to_string()
   }
