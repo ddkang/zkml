@@ -22,6 +22,7 @@ pub struct GadgetConfig {
   pub tables: HashMap<GadgetType, Vec<TableColumn>>,
   pub maps: HashMap<GadgetType, Vec<HashMap<i64, i64>>>,
   pub scale_factor: u64,
+  pub shift_min_val: i64, // MUST be divisible by 2 * scale_factor
   pub num_rows: usize,
   pub min_val: i64,
   pub max_val: i64,
