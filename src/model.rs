@@ -1,10 +1,11 @@
-use std::{collections::HashMap, marker::PhantomData};
+use std::{collections::HashMap, marker::PhantomData, sync::Mutex};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value},
   halo2curves::FieldExt,
   plonk::{Advice, Circuit, Column, ConstraintSystem, Error},
 };
+use lazy_static::lazy_static;
 use ndarray::{Array, IxDyn};
 
 use crate::{
@@ -18,6 +19,10 @@ use crate::{
   },
   utils::loader::{load_model_msgpack, ModelMsgpack},
 };
+
+lazy_static! {
+  pub static ref GADGET_CONFIG: Mutex<GadgetConfig> = Mutex::new(GadgetConfig::default());
+}
 
 #[derive(Clone, Debug)]
 pub struct ModelCircuit<F: FieldExt> {
@@ -89,8 +94,19 @@ impl<F: FieldExt> ModelCircuit<F> {
     Ok(constants)
   }
 
-  pub fn generate_from_file(config_file: &str) -> ModelCircuit<F> {
-    let config: ModelMsgpack = load_model_msgpack(config_file);
+  pub fn generate_from_file(config_file: &str, inp_file: &str) -> ModelCircuit<F> {
+    let config: ModelMsgpack = load_model_msgpack(config_file, inp_file);
+
+    let gadget = &GADGET_CONFIG;
+    *gadget.lock().unwrap() = GadgetConfig {
+      scale_factor: config.global_sf as u64,
+      shift_min_val: config.global_sf * 128,
+      min_val: -(1 << (config.k - 1)),
+      max_val: (1 << (config.k - 1)) - 10,
+      num_rows: (1 << config.k) - 10,
+      num_cols: config.num_cols as usize,
+      ..gadget.lock().unwrap().clone()
+    };
 
     let to_value = |x: i64| {
       let bias = 1 << 31;
@@ -100,6 +116,7 @@ impl<F: FieldExt> ModelCircuit<F> {
 
     let match_layer = |x: &str| match x {
       "Conv2D" => LayerType::Conv2D,
+      "AveragePool2D" => LayerType::AvgPool2D,
       _ => panic!("unknown op"),
     };
 
@@ -173,8 +190,12 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
 
   fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
     // FIXME: decide which gadgets to make
-    // FIXME: default is wrong
-    let mut gadget_config = GadgetConfig::default();
+    let mut gadget_config = crate::model::GADGET_CONFIG.lock().unwrap().clone();
+    let columns = (0..gadget_config.num_cols)
+      .map(|_| meta.advice_column())
+      .collect::<Vec<_>>();
+    gadget_config.columns = columns;
+
     gadget_config = AddPairsChip::<F>::configure(meta, gadget_config);
     gadget_config = AdderChip::<F>::configure(meta, gadget_config);
     gadget_config = BiasDivRoundRelu6Chip::<F>::configure(meta, gadget_config);
