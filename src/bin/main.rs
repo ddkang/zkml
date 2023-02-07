@@ -5,12 +5,13 @@ use zkml::{
 };
 
 fn main() {
-  let config_fname = "/home/ddkang/zkml/zkml-public/examples/mnist/mnist.msgpack";
-  let inp_fname = "/home/ddkang/zkml/zkml-public/examples/mnist/five.bin";
-  let config: ModelMsgpack = load_model_msgpack(config_fname, inp_fname);
+  let config_fname = std::env::args().nth(1).expect("config file path");
+  let inp_fname = std::env::args().nth(2).expect("input file path");
+
+  let config: ModelMsgpack = load_model_msgpack(&config_fname, &inp_fname);
   println!("{:?}", config);
 
-  let circuit = ModelCircuit::<Fp>::generate_from_file(config_fname, inp_fname);
+  let circuit = ModelCircuit::<Fp>::generate_from_file(&config_fname, &inp_fname);
   println!("{:?}", circuit);
 
   let outp = vec![];
