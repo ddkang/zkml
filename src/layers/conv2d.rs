@@ -128,16 +128,17 @@ impl<F: FieldExt> Conv2DChip<F> {
     &self,
     tensors: Vec<Array<G, IxDyn>>,
     zero: G,
-  ) -> (Vec<Vec<G>>, Vec<Vec<G>>) {
-    assert_eq!(tensors.len(), 2);
+  ) -> (Vec<Vec<G>>, Vec<Vec<G>>, Vec<G>) {
+    assert_eq!(tensors.len(), 3);
 
     let conv_config = &Self::param_vec_to_config(self.config.layer_params.clone());
 
     let input = tensors[0].clone();
     let weights = tensors[1].clone();
+    let biases = tensors[2].clone();
 
-    let h: usize = input.shape()[0];
-    let w: usize = input.shape()[1];
+    let h: usize = input.shape()[1];
+    let w: usize = input.shape()[2];
 
     let ch: usize = weights.shape()[1];
     let cw: usize = weights.shape()[2];
@@ -165,12 +166,14 @@ impl<F: FieldExt> Conv2DChip<F> {
 
     let mut inp_cells = vec![];
     let mut weights_cells = vec![];
+    let mut biases_cells = vec![];
     let mut row_idx = 0;
     for i in 0..oh {
       for j in 0..ow {
         for chan_out in 0..weights.shape()[0] {
           inp_cells.push(vec![]);
           weights_cells.push(vec![]);
+          biases_cells.push(biases[[chan_out]].clone());
 
           for ci in 0..weights.shape()[1] {
             for cj in 0..weights.shape()[2] {
@@ -189,18 +192,19 @@ impl<F: FieldExt> Conv2DChip<F> {
       }
     }
 
-    (inp_cells, weights_cells)
+    (inp_cells, weights_cells, biases_cells)
   }
 
   pub fn splat_depthwise<G: Clone>(
     &self,
     tensors: Vec<Array<G, IxDyn>>,
     zero: G,
-  ) -> (Vec<Vec<G>>, Vec<Vec<G>>) {
+  ) -> (Vec<Vec<G>>, Vec<Vec<G>>, Vec<G>) {
     let input = tensors[0].clone();
     let weights = tensors[1].clone();
+    let biases = tensors[2].clone();
 
-    assert_eq!(tensors.len(), 2);
+    assert_eq!(tensors.len(), 3);
     assert_eq!(input.shape().len(), 4);
     assert_eq!(weights.shape().len(), 4);
     assert_eq!(input.shape()[0], 1);
@@ -245,7 +249,8 @@ impl<F: FieldExt> Conv2DChip<F> {
       }
     }
 
-    (inp_cells, weight_cells)
+    // TODO: fix this
+    (inp_cells, weight_cells, vec![])
   }
 }
 
@@ -260,28 +265,42 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
     let conv_config = &Self::param_vec_to_config(self.config.layer_params.clone());
     let zero = constants.get(&0).unwrap().clone();
 
-    let (splat_inp, splat_weights) = match conv_config.conv_type {
+    println!("tensors: {:?}", tensors.len());
+    for tensor in tensors {
+      println!("tensor: {:?}", tensor.shape());
+    }
+
+    let (splat_inp, splat_weights, splat_biases) = match conv_config.conv_type {
       ConvLayerEnum::Conv2D => self.splat(tensors.clone(), zero.clone()),
       ConvLayerEnum::DepthwiseConv2D => self.splat_depthwise(tensors.clone(), zero.clone()),
     };
+    println!("splat_inp: {:?}", splat_inp.len());
+    println!("splat_weights: {:?}", splat_weights.len());
 
     // Do the dot products
     let dot_prod_chip = DotProductChip::<F>::construct(gadget_config.clone());
     let mut outp_flat = vec![];
-    for (inp_vec, weight_vec) in splat_inp.iter().zip(splat_weights.iter()) {
+    let mut biases = vec![];
+    for ((inp_vec, weight_vec), bias) in splat_inp
+      .iter()
+      .zip(splat_weights.iter())
+      .zip(splat_biases.iter())
+    {
       let vec_inputs = vec![inp_vec.clone(), weight_vec.clone()];
       let constants = vec![zero.clone()];
       let outp =
         dot_prod_chip.forward(layouter.namespace(|| "dot_prod"), &vec_inputs, &constants)?;
       outp_flat.push(outp[0].clone());
+      biases.push(bias.clone());
     }
+    println!("outp_flat: {:?}", outp_flat.len());
 
     // Compute the bias + div + relu
     let bdr_chip = BiasDivRoundRelu6Chip::<F>::construct(gadget_config.clone());
     let tmp = vec![zero.clone()];
     let outp = bdr_chip.forward(
       layouter.namespace(|| "bias_div_relu"),
-      &vec![outp_flat],
+      &vec![outp_flat, biases],
       &tmp,
     )?;
 

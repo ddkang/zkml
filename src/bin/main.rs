@@ -9,10 +9,8 @@ fn main() {
   let inp_fname = std::env::args().nth(2).expect("input file path");
 
   let config: ModelMsgpack = load_model_msgpack(&config_fname, &inp_fname);
-  println!("{:?}", config);
 
   let circuit = ModelCircuit::<Fp>::generate_from_file(&config_fname, &inp_fname);
-  println!("{:?}", circuit);
 
   let outp = vec![];
   let prover = MockProver::run(config.k.try_into().unwrap(), &circuit, vec![outp.clone()]).unwrap();

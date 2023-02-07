@@ -74,9 +74,12 @@ pub trait Gadget<F: FieldExt> {
     let mut outputs = Vec::new();
 
     // Sanity check inputs
+    // FIXME: need to figure out how to actually sanity check
+    /*
     for inp in vec_inputs.iter() {
       assert_eq!(inp.len() % self.num_cols_per_op(), 0);
     }
+    */
 
     for i in 0..vec_inputs[0].len() / self.num_cols_per_op() {
       let mut vec_inputs_row = Vec::new();

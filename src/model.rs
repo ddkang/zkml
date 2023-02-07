@@ -27,7 +27,7 @@ lazy_static! {
 #[derive(Clone, Debug)]
 pub struct ModelCircuit<F: FieldExt> {
   pub dag_config: DAGLayerConfig,
-  pub tensors: Vec<Array<Value<F>, IxDyn>>,
+  pub tensors: HashMap<i64, Array<Value<F>, IxDyn>>,
   pub _marker: PhantomData<F>,
 }
 
@@ -42,23 +42,28 @@ impl<F: FieldExt> ModelCircuit<F> {
     &self,
     mut layouter: impl Layouter<F>,
     columns: &Vec<Column<Advice>>,
-    tensors: &Vec<Array<Value<F>, IxDyn>>,
+    tensors: &HashMap<i64, Array<Value<F>, IxDyn>>,
   ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
     let tensors = layouter.assign_region(
       || "asssignment",
       |mut region| {
-        let mut assigned_tensors = Vec::new();
-        let idx = 0;
-        for tensor in tensors {
+        let cell_idx = 0;
+        let mut assigned_tensors = vec![];
+        for (tensor_idx, tensor) in tensors {
+          let tensor_idx = *tensor_idx as usize;
           let mut flat = vec![];
           for val in tensor.iter() {
-            let row_idx = idx / columns.len();
-            let col_idx = idx % columns.len();
+            let row_idx = cell_idx / columns.len();
+            let col_idx = cell_idx % columns.len();
             let cell = region.assign_advice(|| "assignment", columns[col_idx], row_idx, || *val)?;
             flat.push(cell);
           }
           let tensor = Array::from_shape_vec(tensor.shape(), flat).unwrap();
-          assigned_tensors.push(tensor);
+          // TODO: is there a non-stupid way to do this?
+          while assigned_tensors.len() <= tensor_idx {
+            assigned_tensors.push(tensor.clone());
+          }
+          assigned_tensors[tensor_idx] = tensor;
         }
         Ok(assigned_tensors)
       },
@@ -98,6 +103,7 @@ impl<F: FieldExt> ModelCircuit<F> {
     let config: ModelMsgpack = load_model_msgpack(config_file, inp_file);
 
     let gadget = &GADGET_CONFIG;
+    let cloned_gadget = gadget.lock().unwrap().clone();
     *gadget.lock().unwrap() = GadgetConfig {
       scale_factor: config.global_sf as u64,
       shift_min_val: config.global_sf * 128,
@@ -105,7 +111,7 @@ impl<F: FieldExt> ModelCircuit<F> {
       max_val: (1 << (config.k - 1)) - 10,
       num_rows: (1 << config.k) - 10,
       num_cols: config.num_cols as usize,
-      ..gadget.lock().unwrap().clone()
+      ..cloned_gadget
     };
 
     let to_value = |x: i64| {
@@ -120,12 +126,12 @@ impl<F: FieldExt> ModelCircuit<F> {
       _ => panic!("unknown op"),
     };
 
-    let mut tensors = vec![];
+    let mut tensors = HashMap::new();
     for flat in config.tensors {
       let value_flat = flat.data.iter().map(|x| to_value(*x)).collect::<Vec<_>>();
       let shape = flat.shape.iter().map(|x| *x as usize).collect::<Vec<_>>();
       let tensor = Array::from_shape_vec(IxDyn(&shape), value_flat).unwrap();
-      tensors.push(tensor);
+      tensors.insert(flat.idx, tensor);
     }
 
     let dag_config = {
@@ -194,7 +200,13 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
     let columns = (0..gadget_config.num_cols)
       .map(|_| meta.advice_column())
       .collect::<Vec<_>>();
+    for col in columns.iter() {
+      meta.enable_equality(*col);
+    }
     gadget_config.columns = columns;
+
+    gadget_config.public_columns = vec![meta.instance_column()];
+    meta.enable_equality(gadget_config.public_columns[0]);
 
     gadget_config = AddPairsChip::<F>::configure(meta, gadget_config);
     gadget_config = AdderChip::<F>::configure(meta, gadget_config);
@@ -222,6 +234,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
       &constants,
       &config.gadget_config,
     )?;
+    println!("result: {:?}", _result);
 
     Ok(())
   }
