@@ -28,21 +28,13 @@ impl<F: FieldExt> BiasDivRoundRelu6Chip<F> {
     }
   }
 
-  pub fn get_map(
-    scale_factor: u64,
-    min_val: i64,
-    max_val: i64,
-    div_outp_min_val: i64,
-  ) -> HashMap<i64, i64> {
+  pub fn get_map(scale_factor: u64, min_val: i64, max_val: i64) -> HashMap<i64, i64> {
     let div_val = scale_factor;
-    let min_val = min_val;
-    let max_val = max_val;
-    let div_outp_min_val = div_outp_min_val;
     let range = max_val - min_val;
 
     let mut map = HashMap::new();
     for i in 0..range {
-      let shifted = i + div_outp_min_val;
+      let shifted = i + min_val;
       let val = shifted.clamp(0, 6 * div_val as i64);
       map.insert(i as i64, val);
     }
@@ -122,7 +114,6 @@ impl<F: FieldExt> BiasDivRoundRelu6Chip<F> {
       gadget_config.scale_factor,
       gadget_config.min_val,
       gadget_config.max_val,
-      gadget_config.div_outp_min_val,
     );
     maps.insert(GadgetType::DotProduct, vec![relu_map]);
 
@@ -133,10 +124,6 @@ impl<F: FieldExt> BiasDivRoundRelu6Chip<F> {
       maps,
       ..gadget_config
     }
-  }
-
-  pub fn num_inputs_per_row(&self) -> usize {
-    self.config.columns.len() / NUM_COLS_PER_OP
   }
 }
 
@@ -149,8 +136,12 @@ impl<F: FieldExt> Gadget<F> for BiasDivRoundRelu6Chip<F> {
     NUM_COLS_PER_OP
   }
 
+  fn num_inputs_per_row(&self) -> usize {
+    self.config.columns.len() / NUM_COLS_PER_OP
+  }
+
   fn num_outputs_per_row(&self) -> usize {
-    self.num_inputs_per_row()
+    self.num_inputs_per_row() * 2
   }
 
   fn op_row(
@@ -161,7 +152,7 @@ impl<F: FieldExt> Gadget<F> for BiasDivRoundRelu6Chip<F> {
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     let div_val = self.config.scale_factor as i64;
 
-    let div_outp_min_val_i64 = -self.config.div_outp_min_val;
+    let div_outp_min_val_i64 = self.config.div_outp_min_val;
 
     let div_inp_min_val_pos_i64 = -self.config.shift_min_val;
     let div_inp_min_val_pos = F::from(div_inp_min_val_pos_i64 as u64);
@@ -191,12 +182,10 @@ impl<F: FieldExt> Gadget<F> for BiasDivRoundRelu6Chip<F> {
           });
           let div_mod_res = inp_f.map(|x: F| {
             let x_pos = x + div_inp_min_val_pos;
-            let inp = convert_to_u64(&x_pos) as i64 - div_inp_min_val_pos_i64;
-            // println!("inp: {:?}, bias: {:?}, x_pos: {:?}", inp, bias, x_pos);
+            let inp = convert_to_u64(&x_pos) as i64;
             let div_inp = 2 * inp + div_val;
-            let div_res = div_inp / (2 * div_val) - (div_inp_min_val_pos_i64 / (2 * div_val));
+            let div_res = div_inp / (2 * div_val) - div_inp_min_val_pos_i64 / div_val;
             let mod_res = div_inp % (2 * div_val);
-            // println!("div_res: {:?}, mod_res: {:?}", div_res, mod_res);
             (div_res, mod_res)
           });
           let div_res = div_mod_res.map(|x: (i64, i64)| x.0) + bias_f;
@@ -209,7 +198,6 @@ impl<F: FieldExt> Gadget<F> for BiasDivRoundRelu6Chip<F> {
               x_pos = 0;
             }
             let outp_val = relu_map.get(&(x_pos)).unwrap();
-            // println!("x: {}, x_pos: {}, outp_val: {}", x, x_pos, outp_val);
             F::from(*outp_val as u64)
           });
 

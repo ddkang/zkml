@@ -38,7 +38,7 @@ impl<F: FieldExt> AvgPool2DChip<F> {
     assert_eq!(input.shape()[0], 1);
 
     let mut splat = vec![];
-    for k in 0..input.shape()[4] {
+    for k in 0..input.shape()[3] {
       let mut tmp = vec![];
       for i in 0..input.shape()[1] {
         for j in 0..input.shape()[2] {
@@ -68,13 +68,20 @@ impl<F: FieldExt> Layer<F> for AvgPool2DChip<F> {
 
     let adder_chip = AdderChip::<F>::construct(gadget_config.clone());
     let single_inputs = vec![zero.clone()];
-    let added = adder_chip.forward(
-      layouter.namespace(|| "avg pool 2d"),
-      &splat_inp,
-      &single_inputs,
-    )?;
+    let mut added = vec![];
+    for i in 0..splat_inp.len() {
+      let tmp = adder_chip.forward(
+        layouter.namespace(|| format!("avg pool 2d {}", i)),
+        &vec![splat_inp[i].clone()],
+        &single_inputs,
+      )?;
+      added.push(tmp[0].clone());
+    }
 
-    let out = Array::from_shape_vec(IxDyn(inp.shape()), added).unwrap();
+    let mut outp_shape = inp.shape().to_vec();
+    outp_shape[1] = 1;
+    outp_shape[2] = 1;
+    let out = Array::from_shape_vec(IxDyn(&outp_shape), added).unwrap();
     Ok(vec![out])
   }
 }

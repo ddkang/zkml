@@ -54,10 +54,6 @@ impl<F: FieldExt> AdderChip<F> {
       ..gadget_config
     }
   }
-
-  pub fn num_inputs_per_row(&self) -> usize {
-    self.config.columns.len() - 1
-  }
 }
 
 // NOTE: The forward pass of the adder adds _everything_ into one cell
@@ -68,6 +64,10 @@ impl<F: FieldExt> Gadget<F> for AdderChip<F> {
 
   fn num_cols_per_op(&self) -> usize {
     self.config.columns.len()
+  }
+
+  fn num_inputs_per_row(&self) -> usize {
+    self.config.columns.len() - 1
   }
 
   fn num_outputs_per_row(&self) -> usize {

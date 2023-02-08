@@ -72,10 +72,6 @@ impl<F: FieldExt> DotProductChip<F> {
       ..gadget_config
     }
   }
-
-  pub fn num_inputs_per_row(&self) -> usize {
-    (self.config.columns.len() - 1) / 2
-  }
 }
 
 impl<F: FieldExt> Gadget<F> for DotProductChip<F> {
@@ -85,6 +81,10 @@ impl<F: FieldExt> Gadget<F> for DotProductChip<F> {
 
   fn num_cols_per_op(&self) -> usize {
     self.config.columns.len()
+  }
+
+  fn num_inputs_per_row(&self) -> usize {
+    (self.config.columns.len() - 1) / 2
   }
 
   fn num_outputs_per_row(&self) -> usize {

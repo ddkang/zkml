@@ -106,7 +106,8 @@ impl<F: FieldExt> ModelCircuit<F> {
     let cloned_gadget = gadget.lock().unwrap().clone();
     *gadget.lock().unwrap() = GadgetConfig {
       scale_factor: config.global_sf as u64,
-      shift_min_val: config.global_sf * 128,
+      shift_min_val: -(config.global_sf * config.global_sf * 1024),
+      div_outp_min_val: -(1 << (config.k - 1)),
       min_val: -(1 << (config.k - 1)),
       max_val: (1 << (config.k - 1)) - 10,
       num_rows: (1 << config.k) - 10,
@@ -234,7 +235,6 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
       &constants,
       &config.gadget_config,
     )?;
-    println!("result: {:?}", _result);
 
     Ok(())
   }

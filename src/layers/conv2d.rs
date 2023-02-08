@@ -227,12 +227,14 @@ impl<F: FieldExt> Conv2DChip<F> {
 
     let mut inp_cells = vec![];
     let mut weight_cells = vec![];
+    let mut biases_cells = vec![];
     let mut row_idx = 0;
     for i in 0..input.shape()[1] / strides.0 {
       for j in 0..input.shape()[2] / strides.1 {
         for chan_out in 0..weights.shape()[3] {
           inp_cells.push(vec![]);
           weight_cells.push(vec![]);
+          biases_cells.push(biases[[chan_out]].clone());
 
           for ci in 0..weights.shape()[1] {
             for cj in 0..weights.shape()[2] {
@@ -249,8 +251,7 @@ impl<F: FieldExt> Conv2DChip<F> {
       }
     }
 
-    // TODO: fix this
-    (inp_cells, weight_cells, vec![])
+    (inp_cells, weight_cells, biases_cells)
   }
 }
 
@@ -313,7 +314,21 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
     };
 
     let inp = &tensors[0];
-    let outp = Array::from_shape_vec(IxDyn(inp.shape()), outp).unwrap();
+    println!("inp: {:?}", inp.shape());
+    println!("outp: {:?}", outp.len());
+    let weights = &tensors[1];
+    let (oh, ow) = Self::out_hw(
+      inp.shape()[1],
+      inp.shape()[2],
+      conv_config.stride.0,
+      conv_config.stride.1,
+      weights.shape()[1],
+      weights.shape()[2],
+      conv_config.padding,
+    );
+    let oc = weights.shape()[0]; // FIXME: for Depthwise
+    let out_shape = vec![1, oh, ow, oc];
+    let outp = Array::from_shape_vec(IxDyn(&out_shape), outp).unwrap();
 
     Ok(vec![outp])
   }

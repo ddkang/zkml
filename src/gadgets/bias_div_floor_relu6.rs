@@ -125,10 +125,6 @@ impl<F: FieldExt> BiasDivFloorRelu6Chip<F> {
       ..gadget_config
     }
   }
-
-  pub fn num_inputs_per_row(&self) -> usize {
-    self.config.columns.len() / NUM_COLS_PER_OP
-  }
 }
 
 impl<F: FieldExt> Gadget<F> for BiasDivFloorRelu6Chip<F> {
@@ -138,6 +134,10 @@ impl<F: FieldExt> Gadget<F> for BiasDivFloorRelu6Chip<F> {
 
   fn num_cols_per_op(&self) -> usize {
     NUM_COLS_PER_OP
+  }
+
+  fn num_inputs_per_row(&self) -> usize {
+    self.config.columns.len() / NUM_COLS_PER_OP
   }
 
   fn num_outputs_per_row(&self) -> usize {

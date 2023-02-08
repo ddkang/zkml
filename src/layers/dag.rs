@@ -7,7 +7,7 @@ use halo2_proofs::{
 };
 use ndarray::{Array, IxDyn};
 
-use crate::gadgets::gadget::GadgetConfig;
+use crate::{gadgets::gadget::GadgetConfig, utils::helpers::print_assigned_arr};
 
 use super::{
   add::AddChip,
@@ -67,7 +67,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
       let out_idxes = &self.dag_config.out_idxes[layer_idx];
       let vec_inps = inp_idxes
         .iter()
-        .map(|idx| tensors[*idx].clone())
+        .map(|idx| tensor_map.get(idx).unwrap().clone())
         .collect::<Vec<Array<AssignedCell<F, F>, IxDyn>>>();
 
       let out = match layer_type {
@@ -109,15 +109,19 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
         }
       };
 
-      for (idx, tensor) in out_idxes.iter().enumerate() {
-        tensor_map.insert(*tensor, out[idx].clone());
+      for (idx, tensor_idx) in out_idxes.iter().enumerate() {
+        tensor_map.insert(*tensor_idx, out[idx].clone());
       }
     }
 
     let mut final_out = vec![];
     for idx in self.dag_config.final_out_idxes.iter() {
-      final_out.push(tensor_map[idx].clone());
+      final_out.push(tensor_map.get(idx).unwrap().clone());
     }
+
+    let tmp = final_out[0].iter().map(|x| x.clone()).collect::<Vec<_>>();
+    print_assigned_arr("final out", &tmp);
+
     Ok(final_out)
   }
 }

@@ -51,6 +51,8 @@ pub trait Gadget<F: FieldExt> {
 
   fn num_cols_per_op(&self) -> usize;
 
+  fn num_inputs_per_row(&self) -> usize;
+
   fn num_outputs_per_row(&self) -> usize;
 
   fn load_lookups(&self, _layouter: impl Layouter<F>) -> Result<(), Error> {
@@ -74,18 +76,15 @@ pub trait Gadget<F: FieldExt> {
     let mut outputs = Vec::new();
 
     // Sanity check inputs
-    // FIXME: need to figure out how to actually sanity check
-    /*
     for inp in vec_inputs.iter() {
-      assert_eq!(inp.len() % self.num_cols_per_op(), 0);
+      assert_eq!(inp.len() % self.num_inputs_per_row(), 0);
     }
-    */
 
-    for i in 0..vec_inputs[0].len() / self.num_cols_per_op() {
+    for i in 0..vec_inputs[0].len() / self.num_inputs_per_row() {
       let mut vec_inputs_row = Vec::new();
       for inp in vec_inputs.iter() {
         vec_inputs_row
-          .push(inp[i * self.num_cols_per_op()..(i + 1) * self.num_cols_per_op()].to_vec());
+          .push(inp[i * self.num_inputs_per_row()..(i + 1) * self.num_inputs_per_row()].to_vec());
       }
       let row_outputs = self.op_row(
         layouter.namespace(|| format!("gadget row {}", self.name())),
