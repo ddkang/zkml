@@ -1,7 +1,7 @@
 use std::{collections::HashMap, marker::PhantomData};
 
 use halo2_proofs::{
-  circuit::{AssignedCell, Layouter},
+  circuit::{AssignedCell, Layouter, Value},
   halo2curves::FieldExt,
   plonk::{ConstraintSystem, Error, Expression},
   poly::Rotation,
@@ -50,7 +50,6 @@ impl<F: FieldExt> BiasDivRoundRelu6Chip<F> {
 
     let mod_lookup = meta.lookup_table_column();
     let relu_lookup = meta.lookup_table_column();
-    let div_lookup = meta.lookup_table_column();
 
     meta.create_gate("bias_mul", |meta| {
       let s = meta.query_selector(selector);
@@ -95,7 +94,7 @@ impl<F: FieldExt> BiasDivRoundRelu6Chip<F> {
         // Constrains that output \in [0, 6 * SF]
         vec![
           (s.clone() * outp, relu_lookup),
-          (s * (div + div_outp_min_val), div_lookup),
+          (s * (div + div_outp_min_val), mod_lookup),
         ]
       });
     }
@@ -104,10 +103,7 @@ impl<F: FieldExt> BiasDivRoundRelu6Chip<F> {
     selectors.insert(GadgetType::DotProduct, vec![selector]);
 
     let mut tables = gadget_config.tables;
-    tables.insert(
-      GadgetType::DotProduct,
-      vec![mod_lookup, relu_lookup, div_lookup],
-    );
+    tables.insert(GadgetType::DotProduct, vec![mod_lookup, relu_lookup]);
 
     let mut maps = gadget_config.maps;
     let relu_map = Self::get_map(
@@ -142,6 +138,37 @@ impl<F: FieldExt> Gadget<F> for BiasDivRoundRelu6Chip<F> {
 
   fn num_outputs_per_row(&self) -> usize {
     self.num_inputs_per_row() * 2
+  }
+
+  fn load_lookups(&self, mut layouter: impl Layouter<F>) -> Result<(), Error> {
+    let map = &self.config.maps[&GadgetType::DotProduct][0];
+    let mod_lookup = self.config.tables[&GadgetType::DotProduct][0].clone();
+    let relu_lookup = self.config.tables[&GadgetType::DotProduct][1].clone();
+
+    let range = self.config.max_val - self.config.min_val;
+
+    layouter.assign_table(
+      || "bdr round lookup",
+      |mut table| {
+        for i in 0..range {
+          let val = map.get(&i).unwrap();
+          table.assign_cell(
+            || "mod lookup",
+            mod_lookup,
+            i as usize,
+            || Value::known(F::from(i as u64)),
+          )?;
+          table.assign_cell(
+            || "relu lookup",
+            relu_lookup,
+            i as usize,
+            || Value::known(F::from(*val as u64)),
+          )?;
+        }
+        Ok(())
+      },
+    )?;
+    Ok(())
   }
 
   fn op_row(

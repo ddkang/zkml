@@ -9,8 +9,9 @@ use num_bigint::BigUint;
 
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
 pub enum GadgetType {
-  Adder,
   AddPairs,
+  Adder,
+  BiasDivRoundRelu6,
   DotProduct,
 }
 

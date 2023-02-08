@@ -1,4 +1,8 @@
-use std::{collections::HashMap, marker::PhantomData, sync::Mutex};
+use std::{
+  collections::{HashMap, HashSet},
+  marker::PhantomData,
+  sync::Mutex,
+};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value},
@@ -10,8 +14,11 @@ use ndarray::{Array, IxDyn};
 
 use crate::{
   gadgets::{
-    add_pairs::AddPairsChip, adder::AdderChip, bias_div_round_relu6::BiasDivRoundRelu6Chip,
-    dot_prod::DotProductChip, gadget::GadgetConfig,
+    add_pairs::AddPairsChip,
+    adder::AdderChip,
+    bias_div_round_relu6::BiasDivRoundRelu6Chip,
+    dot_prod::DotProductChip,
+    gadget::{Gadget, GadgetConfig, GadgetType},
   },
   layers::{
     dag::{DAGLayerChip, DAGLayerConfig},
@@ -26,6 +33,7 @@ lazy_static! {
 
 #[derive(Clone, Debug)]
 pub struct ModelCircuit<F: FieldExt> {
+  pub used_gadgets: HashSet<GadgetType>,
   pub dag_config: DAGLayerConfig,
   pub tensors: HashMap<i64, Array<Value<F>, IxDyn>>,
   pub _marker: PhantomData<F>,
@@ -179,10 +187,19 @@ impl<F: FieldExt> ModelCircuit<F> {
       }
     };
 
+    // FIXME: assign these based on config
+    // Should this be in the gadget config?
+    let mut used_gadgets = HashSet::new();
+    used_gadgets.insert(GadgetType::AddPairs);
+    used_gadgets.insert(GadgetType::Adder);
+    used_gadgets.insert(GadgetType::BiasDivRoundRelu6);
+    used_gadgets.insert(GadgetType::DotProduct);
+
     ModelCircuit {
       tensors,
       _marker: PhantomData,
       dag_config,
+      used_gadgets,
     }
   }
 }
@@ -221,6 +238,29 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
   }
 
   fn synthesize(&self, config: Self::Config, mut layouter: impl Layouter<F>) -> Result<(), Error> {
+    // Assign tables
+    for gadget in self.used_gadgets.iter() {
+      match gadget {
+        GadgetType::AddPairs => {
+          let chip = AddPairsChip::<F>::construct(config.gadget_config.clone());
+          chip.load_lookups(layouter.namespace(|| "add pairs lookup"))?;
+        }
+        GadgetType::Adder => {
+          let chip = AdderChip::<F>::construct(config.gadget_config.clone());
+          chip.load_lookups(layouter.namespace(|| "adder lookup"))?;
+        }
+        GadgetType::BiasDivRoundRelu6 => {
+          let chip = BiasDivRoundRelu6Chip::<F>::construct(config.gadget_config.clone());
+          chip.load_lookups(layouter.namespace(|| "bias div round relu6 lookup"))?;
+        }
+        GadgetType::DotProduct => {
+          let chip = DotProductChip::<F>::construct(config.gadget_config.clone());
+          chip.load_lookups(layouter.namespace(|| "dot product lookup"))?;
+        }
+      }
+    }
+
+    // Assign weights and constants
     let tensors = self.assign_tensors(
       layouter.namespace(|| "assignment"),
       &config.gadget_config.columns,
@@ -228,6 +268,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
     )?;
     let constants = self.assign_constants(layouter.namespace(|| "constants"), &config)?;
 
+    // Perform the dag
     let dag_chip = DAGLayerChip::<F>::construct(self.dag_config.clone());
     let _result = dag_chip.forward(
       layouter.namespace(|| "dag"),
