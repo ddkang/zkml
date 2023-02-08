@@ -43,12 +43,12 @@ impl<F: FieldExt> BiasDivRoundRelu6Chip<F> {
 
   pub fn configure(meta: &mut ConstraintSystem<F>, gadget_config: GadgetConfig) -> GadgetConfig {
     let selector = meta.complex_selector();
-    let shift_min_val = gadget_config.shift_min_val;
     let sf = Expression::Constant(F::from(gadget_config.scale_factor));
     let two = Expression::Constant(F::from(2));
     let columns = gadget_config.columns;
 
     let mod_lookup = meta.lookup_table_column();
+    let div_lookup = meta.lookup_table_column();
     let relu_lookup = meta.lookup_table_column();
 
     meta.create_gate("bias_mul", |meta| {
@@ -89,21 +89,25 @@ impl<F: FieldExt> BiasDivRoundRelu6Chip<F> {
         let s = meta.query_selector(selector);
         let div = meta.query_advice(columns[offset + 2], Rotation::cur());
         let outp = meta.query_advice(columns[offset + 4], Rotation::cur());
-        let div_outp_min_val = Expression::Constant(F::from((-shift_min_val) as u64));
+        let div_outp_min_val = gadget_config.div_outp_min_val;
+        let div_outp_min_val = Expression::Constant(F::from((-div_outp_min_val) as u64));
 
         // Constrains that output \in [0, 6 * SF]
         vec![
+          (s.clone() * (div + div_outp_min_val), div_lookup),
           (s.clone() * outp, relu_lookup),
-          (s * (div + div_outp_min_val), mod_lookup),
         ]
       });
     }
 
     let mut selectors = gadget_config.selectors;
-    selectors.insert(GadgetType::DotProduct, vec![selector]);
+    selectors.insert(GadgetType::BiasDivRoundRelu6, vec![selector]);
 
     let mut tables = gadget_config.tables;
-    tables.insert(GadgetType::DotProduct, vec![mod_lookup, relu_lookup]);
+    tables.insert(
+      GadgetType::BiasDivRoundRelu6,
+      vec![mod_lookup, div_lookup, relu_lookup],
+    );
 
     let mut maps = gadget_config.maps;
     let relu_map = Self::get_map(
@@ -111,7 +115,7 @@ impl<F: FieldExt> BiasDivRoundRelu6Chip<F> {
       gadget_config.min_val,
       gadget_config.max_val,
     );
-    maps.insert(GadgetType::DotProduct, vec![relu_map]);
+    maps.insert(GadgetType::BiasDivRoundRelu6, vec![relu_map]);
 
     GadgetConfig {
       columns,
@@ -141,20 +145,23 @@ impl<F: FieldExt> Gadget<F> for BiasDivRoundRelu6Chip<F> {
   }
 
   fn load_lookups(&self, mut layouter: impl Layouter<F>) -> Result<(), Error> {
-    let map = &self.config.maps[&GadgetType::DotProduct][0];
-    let mod_lookup = self.config.tables[&GadgetType::DotProduct][0].clone();
-    let relu_lookup = self.config.tables[&GadgetType::DotProduct][1].clone();
+    let map = &self.config.maps[&GadgetType::BiasDivRoundRelu6][0];
+    let div_val = self.config.scale_factor;
+
+    let mod_lookup = self.config.tables[&GadgetType::BiasDivRoundRelu6][0].clone();
+    let div_lookup = self.config.tables[&GadgetType::BiasDivRoundRelu6][1].clone();
+    let relu_lookup = self.config.tables[&GadgetType::BiasDivRoundRelu6][2].clone();
 
     let range = self.config.max_val - self.config.min_val;
 
     layouter.assign_table(
-      || "bdr round lookup",
+      || "bdr round div/relu lookup",
       |mut table| {
         for i in 0..range {
           let val = map.get(&i).unwrap();
           table.assign_cell(
             || "mod lookup",
-            mod_lookup,
+            div_lookup,
             i as usize,
             || Value::known(F::from(i as u64)),
           )?;
@@ -168,6 +175,22 @@ impl<F: FieldExt> Gadget<F> for BiasDivRoundRelu6Chip<F> {
         Ok(())
       },
     )?;
+
+    layouter.assign_table(
+      || "bdr round mod lookup",
+      |mut table| {
+        for i in 0..div_val * 2 {
+          table.assign_cell(
+            || "mod lookup",
+            mod_lookup,
+            i as usize,
+            || Value::known(F::from(i as u64)),
+          )?;
+        }
+        Ok(())
+      },
+    )?;
+
     Ok(())
   }
 
@@ -189,8 +212,16 @@ impl<F: FieldExt> Gadget<F> for BiasDivRoundRelu6Chip<F> {
     assert_eq!(inp.len(), bias.len());
     assert_eq!(inp.len() % self.num_inputs_per_row(), 0);
 
-    let selector = self.config.selectors.get(&GadgetType::DotProduct).unwrap()[0];
-    let relu_map = &self.config.maps.get(&GadgetType::DotProduct).unwrap()[0];
+    let selector = self
+      .config
+      .selectors
+      .get(&GadgetType::BiasDivRoundRelu6)
+      .unwrap()[0];
+    let relu_map = &self
+      .config
+      .maps
+      .get(&GadgetType::BiasDivRoundRelu6)
+      .unwrap()[0];
 
     let outp = layouter.assign_region(
       || "",

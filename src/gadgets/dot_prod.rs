@@ -96,13 +96,17 @@ impl<F: FieldExt> Gadget<F> for DotProductChip<F> {
     &self,
     mut layouter: impl Layouter<F>,
     vec_inputs: &Vec<Vec<AssignedCell<F, F>>>,
-    _single_inputs: &Vec<AssignedCell<F, F>>,
+    single_inputs: &Vec<AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     assert_eq!(vec_inputs.len(), 2);
 
     let inp = &vec_inputs[0];
     let weights = &vec_inputs[1];
-    let selector = self.config.selectors.get(&GadgetType::Adder).unwrap()[0];
+    assert_eq!(inp.len(), weights.len());
+    assert_eq!(inp.len(), self.num_inputs_per_row());
+
+    let selector = self.config.selectors.get(&GadgetType::DotProduct).unwrap()[0];
+    let zero = single_inputs[0].clone();
 
     let output_cell = layouter.assign_region(
       || "",
@@ -122,6 +126,16 @@ impl<F: FieldExt> Gadget<F> for DotProductChip<F> {
           .enumerate()
           .map(|(i, cell)| cell.copy_advice(|| "", &mut region, weight_cols[i], 0))
           .collect::<Result<Vec<_>, _>>()?;
+
+        // All columns need to be assigned
+        if self.config.columns.len() % 2 == 0 {
+          zero.copy_advice(
+            || "",
+            &mut region,
+            self.config.columns[self.config.columns.len() - 2],
+            0,
+          )?;
+        }
 
         let e = inp
           .iter()
@@ -168,7 +182,7 @@ impl<F: FieldExt> Gadget<F> for DotProductChip<F> {
       let res = self.op_row(
         layouter.namespace(|| "dot prod"),
         &vec![inp, weights],
-        &vec![],
+        &vec![zero.clone()],
       )?;
       outputs.push(res[0].clone());
     }

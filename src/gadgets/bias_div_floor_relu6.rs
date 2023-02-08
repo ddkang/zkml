@@ -100,11 +100,11 @@ impl<F: FieldExt> BiasDivFloorRelu6Chip<F> {
     }
 
     let mut selectors = gadget_config.selectors;
-    selectors.insert(GadgetType::DotProduct, vec![selector]);
+    selectors.insert(GadgetType::BiasDivFloorRelu6, vec![selector]);
 
     let mut tables = gadget_config.tables;
     tables.insert(
-      GadgetType::DotProduct,
+      GadgetType::BiasDivFloorRelu6,
       vec![mod_lookup, relu_lookup, div_lookup],
     );
 
@@ -115,7 +115,7 @@ impl<F: FieldExt> BiasDivFloorRelu6Chip<F> {
       gadget_config.max_val,
       gadget_config.div_outp_min_val,
     );
-    maps.insert(GadgetType::DotProduct, vec![relu_map]);
+    maps.insert(GadgetType::BiasDivFloorRelu6, vec![relu_map]);
 
     GadgetConfig {
       columns,
@@ -162,8 +162,16 @@ impl<F: FieldExt> Gadget<F> for BiasDivFloorRelu6Chip<F> {
     assert_eq!(inp.len(), bias.len());
     assert_eq!(inp.len() % self.num_inputs_per_row(), 0);
 
-    let selector = self.config.selectors.get(&GadgetType::DotProduct).unwrap()[0];
-    let relu_map = &self.config.maps.get(&GadgetType::DotProduct).unwrap()[0];
+    let selector = self
+      .config
+      .selectors
+      .get(&GadgetType::BiasDivFloorRelu6)
+      .unwrap()[0];
+    let relu_map = &self
+      .config
+      .maps
+      .get(&GadgetType::BiasDivFloorRelu6)
+      .unwrap()[0];
 
     let outp = layouter.assign_region(
       || "",

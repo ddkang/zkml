@@ -34,7 +34,7 @@ impl<F: FieldExt> AdderChip<F> {
         .iter()
         .map(|col| meta.query_advice(*col, Rotation::cur()))
         .collect::<Vec<_>>();
-      let gate_output = meta.query_advice(columns[columns.len() - 1], Rotation::cur());
+      let gate_output = meta.query_advice(*columns.last().unwrap(), Rotation::cur());
 
       let res = gate_inp
         .iter()
@@ -42,7 +42,7 @@ impl<F: FieldExt> AdderChip<F> {
           a.clone() + b.clone()
         });
 
-      vec![s * (res - gate_output.clone())]
+      vec![s * (res - gate_output)]
     });
 
     let mut selectors = gadget_config.selectors;
@@ -99,12 +99,7 @@ impl<F: FieldExt> Gadget<F> for AdderChip<F> {
         let e = inp.iter().fold(Value::known(F::from(0)), |a, b| {
           a + b.value().map(|x: &F| x.to_owned())
         });
-        let res = region.assign_advice(
-          || "",
-          self.config.columns[self.config.columns.len() - 1],
-          0,
-          || e,
-        )?;
+        let res = region.assign_advice(|| "", *self.config.columns.last().unwrap(), 0, || e)?;
         Ok(res)
       },
     )?;

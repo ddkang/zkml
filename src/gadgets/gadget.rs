@@ -12,6 +12,7 @@ pub enum GadgetType {
   AddPairs,
   Adder,
   BiasDivRoundRelu6,
+  BiasDivFloorRelu6,
   DotProduct,
 }
 

@@ -260,6 +260,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
           let chip = DotProductChip::<F>::construct(config.gadget_config.clone());
           chip.load_lookups(layouter.namespace(|| "dot product lookup"))?;
         }
+        _ => panic!("unsupported gadget"),
       }
     }
 
