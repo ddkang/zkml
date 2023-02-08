@@ -55,8 +55,9 @@ impl<F: FieldExt> ModelCircuit<F> {
     let tensors = layouter.assign_region(
       || "asssignment",
       |mut region| {
-        let cell_idx = 0;
+        let mut cell_idx = 0;
         let mut assigned_tensors = vec![];
+
         for (tensor_idx, tensor) in tensors {
           let tensor_idx = *tensor_idx as usize;
           let mut flat = vec![];
@@ -65,6 +66,7 @@ impl<F: FieldExt> ModelCircuit<F> {
             let col_idx = cell_idx % columns.len();
             let cell = region.assign_advice(|| "assignment", columns[col_idx], row_idx, || *val)?;
             flat.push(cell);
+            cell_idx += 1;
           }
           let tensor = Array::from_shape_vec(tensor.shape(), flat).unwrap();
           // TODO: is there a non-stupid way to do this?
@@ -73,6 +75,7 @@ impl<F: FieldExt> ModelCircuit<F> {
           }
           assigned_tensors[tensor_idx] = tensor;
         }
+
         Ok(assigned_tensors)
       },
     )?;
