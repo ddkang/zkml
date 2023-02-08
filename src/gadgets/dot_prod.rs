@@ -174,6 +174,10 @@ impl<F: FieldExt> Gadget<F> for DotProductChip<F> {
     }
 
     let adder_chip = AdderChip::<F>::construct(self.config.clone());
-    Ok(adder_chip.forward(layouter, &vec![outputs], single_inputs)?)
+    Ok(adder_chip.forward(
+      layouter.namespace(|| "dot prod adder"),
+      &vec![outputs],
+      single_inputs,
+    )?)
   }
 }
