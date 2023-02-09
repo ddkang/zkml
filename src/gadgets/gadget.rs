@@ -14,6 +14,7 @@ pub enum GadgetType {
   BiasDivRoundRelu6,
   BiasDivFloorRelu6,
   DotProduct,
+  VarDivRound,
 }
 
 #[derive(Clone, Debug, Default)]

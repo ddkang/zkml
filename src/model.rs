@@ -19,6 +19,7 @@ use crate::{
     bias_div_round_relu6::BiasDivRoundRelu6Chip,
     dot_prod::DotProductChip,
     gadget::{Gadget, GadgetConfig, GadgetType},
+    var_div::VarDivRoundChip,
   },
   layers::{
     dag::{DAGLayerChip, DAGLayerConfig},
@@ -233,6 +234,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
     gadget_config = AdderChip::<F>::configure(meta, gadget_config);
     gadget_config = BiasDivRoundRelu6Chip::<F>::configure(meta, gadget_config);
     gadget_config = DotProductChip::<F>::configure(meta, gadget_config);
+    gadget_config = VarDivRoundChip::<F>::configure(meta, gadget_config);
 
     ModelConfig {
       gadget_config,
@@ -259,6 +261,10 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
         GadgetType::DotProduct => {
           let chip = DotProductChip::<F>::construct(config.gadget_config.clone());
           chip.load_lookups(layouter.namespace(|| "dot product lookup"))?;
+        }
+        GadgetType::VarDivRound => {
+          let chip = VarDivRoundChip::<F>::construct(config.gadget_config.clone());
+          chip.load_lookups(layouter.namespace(|| "var div lookup"))?;
         }
         _ => panic!("unsupported gadget"),
       }

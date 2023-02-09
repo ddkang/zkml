@@ -1,7 +1,7 @@
 use std::{collections::HashMap, marker::PhantomData};
 
 use halo2_proofs::{
-  circuit::{AssignedCell, Layouter},
+  circuit::{AssignedCell, Layouter, Value},
   halo2curves::FieldExt,
   plonk::{ConstraintSystem, Error},
 };
@@ -10,6 +10,7 @@ use ndarray::{Array, IxDyn};
 use crate::gadgets::{
   adder::AdderChip,
   gadget::{Gadget, GadgetConfig},
+  var_div::VarDivRoundChip,
 };
 
 use super::layer::{Layer, LayerConfig, LayerType};
@@ -78,10 +79,34 @@ impl<F: FieldExt> Layer<F> for AvgPool2DChip<F> {
       added.push(tmp[0].clone());
     }
 
+    // FIXME: the 49 should be an input tensor?
+    let div = 49;
+    let div = F::from(div as u64);
+    let div = layouter.assign_region(
+      || "avg pool 2d div",
+      |mut region| {
+        let div = region.assign_advice(
+          || "avg pool 2d div",
+          gadget_config.columns[0],
+          0,
+          || Value::known(div),
+        )?;
+        Ok(div)
+      },
+    )?;
+    let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
+
+    let single_inputs = vec![zero, div];
+    let dived = var_div_chip.forward(
+      layouter.namespace(|| "avg pool 2d div"),
+      &vec![added],
+      &single_inputs,
+    )?;
+
     let mut outp_shape = inp.shape().to_vec();
     outp_shape[1] = 1;
     outp_shape[2] = 1;
-    let out = Array::from_shape_vec(IxDyn(&outp_shape), added).unwrap();
+    let out = Array::from_shape_vec(IxDyn(&outp_shape), dived).unwrap();
     Ok(vec![out])
   }
 }
