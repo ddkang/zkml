@@ -65,6 +65,26 @@ class Converter:
           [opt.Padding()] + \
           [activation] + \
           [opt.StrideH(), opt.StrideW()]
+      elif op_code == tflite.BuiltinOperator.DEPTHWISE_CONV_2D:
+        layer_type = 'Conv2D'
+        op_opt = op.BuiltinOptions()
+        opt = tflite.DepthwiseConv2DOptions()
+        opt.Init(op_opt.Bytes, op_opt.Pos)
+        if opt.DilationHFactor() != 1 or opt.DilationWFactor() != 1:
+          raise NotImplementedError('Dilation is not supported')
+        if opt.FusedActivationFunction() != tflite.ActivationFunctionType.NONE and opt.FusedActivationFunction() != tflite.ActivationFunctionType.RELU6:
+          raise NotImplementedError('Only ReLU6 and None supported')
+        # 1 is DepthwiseConv2D
+        activation = 1 if opt.FusedActivationFunction() == 3 else 0
+        params = \
+          [1] + \
+          [opt.Padding()] + \
+          [activation] + \
+          [opt.DepthMultiplier()] + \
+          [opt.StrideH(), opt.StrideW()]
+      elif op_code == tflite.BuiltinOperator.ADD:
+        layer_type = 'Add'
+        params = []
       elif op_code == tflite.BuiltinOperator.SOFTMAX:
         continue
         print('softmax')
@@ -73,7 +93,12 @@ class Converter:
         print('reshape')
         print(op.InputsLength())
       else:
-        raise NotImplementedError('Unsupported operator: {}'.format(op_code))
+        op_name = None
+        for attr in dir(tflite.BuiltinOperator):
+          if not attr.startswith('__'):
+            if getattr(tflite.BuiltinOperator, attr) == op_code:
+              op_name = attr
+        raise NotImplementedError('Unsupported operator: {}, {}'.format(op_code, op_name))
 
       layers.append({
         'layer_type': layer_type,
@@ -139,7 +164,7 @@ class Converter:
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--model', type=str, required=True)
-  parser.add_argument('--input', type=str, required=True)
+  parser.add_argument('--input_shape', type=str, required=True)
   parser.add_argument('--output', type=str, required=True)
   parser.add_argument('--scale_factor', type=int, default=2**16)
   parser.add_argument('--k', type=int, default=19)
@@ -147,7 +172,8 @@ def main():
   args = parser.parse_args()
 
   converter = Converter(args.model, args.scale_factor, args.k, args.num_cols)
-  inps = [np.zeros((1, 28, 28, 1), dtype=np.float32)]
+  inp_shape = [int(x) for x in args.input_shape.split(',')]
+  inps = [np.zeros(inp_shape, dtype=np.float32)]
   packed = converter.to_msgpack(inps)
 
   with open(args.output, 'wb') as f:

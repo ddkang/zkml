@@ -136,7 +136,8 @@ impl<F: FieldExt> ModelCircuit<F> {
     let match_layer = |x: &str| match x {
       "Conv2D" => LayerType::Conv2D,
       "AveragePool2D" => LayerType::AvgPool2D,
-      _ => panic!("unknown op"),
+      "Add" => LayerType::Add,
+      _ => panic!("unknown op: {}", x),
     };
 
     let mut tensors = HashMap::new();
