@@ -1,7 +1,10 @@
-use halo2_proofs::{dev::MockProver, halo2curves::pasta::Fp};
+use halo2_proofs::{dev::MockProver, halo2curves::bn256::Fr};
 use zkml::{
   model::ModelCircuit,
-  utils::loader::{load_model_msgpack, ModelMsgpack},
+  utils::{
+    loader::{load_model_msgpack, ModelMsgpack},
+    proving::time_circuit_kzg,
+  },
 };
 
 fn main() {
@@ -10,9 +13,11 @@ fn main() {
 
   let config: ModelMsgpack = load_model_msgpack(&config_fname, &inp_fname);
 
-  let circuit = ModelCircuit::<Fp>::generate_from_file(&config_fname, &inp_fname);
+  let circuit = ModelCircuit::<Fr>::generate_from_file(&config_fname, &inp_fname);
 
   let outp = vec![];
   let prover = MockProver::run(config.k.try_into().unwrap(), &circuit, vec![outp.clone()]).unwrap();
   assert_eq!(prover.verify(), Ok(()));
+
+  time_circuit_kzg(circuit, config);
 }
