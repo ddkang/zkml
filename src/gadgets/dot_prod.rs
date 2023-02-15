@@ -56,11 +56,9 @@ impl<F: FieldExt> DotProductChip<F> {
         .iter()
         .zip(gate_weights)
         .map(|(a, b)| a.clone() * b.clone())
-        .fold(Expression::Constant(F::zero()), |a, b| {
-          a.clone() + b.clone()
-        });
+        .fold(Expression::Constant(F::zero()), |a, b| a + b);
 
-      vec![s * (res - gate_output.clone())]
+      vec![s * (res - gate_output)]
     });
 
     let mut selectors = gadget_config.selectors;
@@ -96,7 +94,7 @@ impl<F: FieldExt> Gadget<F> for DotProductChip<F> {
     &self,
     region: &mut Region<F>,
     row_offset: usize,
-    vec_inputs: &Vec<Vec<AssignedCell<F, F>>>,
+    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
     single_inputs: &Vec<AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     assert_eq!(vec_inputs.len(), 2);
@@ -107,7 +105,7 @@ impl<F: FieldExt> Gadget<F> for DotProductChip<F> {
     assert_eq!(inp.len(), self.num_inputs_per_row());
 
     let selector = self.config.selectors.get(&GadgetType::DotProduct).unwrap()[0];
-    let zero = single_inputs[0].clone();
+    let zero = &single_inputs[0];
 
     if USE_SELECTORS {
       selector.enable(region, row_offset)?;
@@ -157,18 +155,18 @@ impl<F: FieldExt> Gadget<F> for DotProductChip<F> {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<AssignedCell<F, F>>>,
+    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
     single_inputs: &Vec<AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     assert_eq!(vec_inputs.len(), 2);
     assert_eq!(single_inputs.len(), 1);
-    let zero = single_inputs[0].clone();
+    let zero = &single_inputs[0];
 
     let mut inputs = vec_inputs[0].clone();
     let mut weights = vec_inputs[1].clone();
     while inputs.len() % self.num_inputs_per_row() != 0 {
-      inputs.push(zero.clone());
-      weights.push(zero.clone());
+      inputs.push(&zero);
+      weights.push(&zero);
     }
 
     let outputs = layouter.assign_region(
@@ -188,9 +186,10 @@ impl<F: FieldExt> Gadget<F> for DotProductChip<F> {
     )?;
 
     let adder_chip = AdderChip::<F>::construct(self.config.clone());
+    let tmp = outputs.iter().map(|x| x).collect::<Vec<_>>();
     Ok(adder_chip.forward(
       layouter.namespace(|| "dot prod adder"),
-      &vec![outputs],
+      &vec![tmp],
       single_inputs,
     )?)
   }

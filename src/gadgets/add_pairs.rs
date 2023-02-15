@@ -41,7 +41,7 @@ impl<F: FieldExt> AddPairsChip<F> {
         let inp2 = meta.query_advice(columns[offset + 1], Rotation::cur());
         let outp = meta.query_advice(columns[offset + 2], Rotation::cur());
 
-        let res = inp1.clone() + inp2.clone();
+        let res = inp1 + inp2;
         constraints.append(&mut vec![s.clone() * (res - outp)])
       }
 
@@ -80,7 +80,7 @@ impl<F: FieldExt> Gadget<F> for AddPairsChip<F> {
     &self,
     region: &mut Region<F>,
     row_offset: usize,
-    vec_inputs: &Vec<Vec<AssignedCell<F, F>>>,
+    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
     _single_inputs: &Vec<AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     let inp1 = &vec_inputs[0];
@@ -111,16 +111,16 @@ impl<F: FieldExt> Gadget<F> for AddPairsChip<F> {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<AssignedCell<F, F>>>,
+    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
     single_inputs: &Vec<AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
-    let zero = single_inputs[0].clone();
+    let zero = &single_inputs[0];
 
     let mut inp1 = vec_inputs[0].clone();
     let mut inp2 = vec_inputs[1].clone();
     while inp1.len() % self.num_cols_per_op() != 0 {
-      inp1.push(zero.clone());
-      inp2.push(zero.clone());
+      inp1.push(zero);
+      inp2.push(zero);
     }
 
     let vec_inputs = vec![inp1, inp2];

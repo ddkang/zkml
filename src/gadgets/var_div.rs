@@ -35,7 +35,7 @@ impl<F: FieldExt> VarDivRoundChip<F> {
 
     let tables = gadget_config.tables;
     let lookup = if tables.contains_key(&GadgetType::BiasDivRoundRelu6) {
-      tables.get(&GadgetType::BiasDivRoundRelu6).unwrap()[0].clone()
+      tables.get(&GadgetType::BiasDivRoundRelu6).unwrap()[0]
     } else {
       meta.lookup_table_column()
     };
@@ -55,7 +55,7 @@ impl<F: FieldExt> VarDivRoundChip<F> {
         let r = meta.query_advice(columns[offset + 2], Rotation::cur());
 
         let lhs = a.clone() * two.clone() + b.clone();
-        let rhs = b.clone() * two.clone() * c.clone() + r.clone();
+        let rhs = b.clone() * two.clone() * c + r;
         constraints.push(s.clone() * (lhs - rhs));
       }
 
@@ -123,12 +123,12 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundChip<F> {
     &self,
     region: &mut Region<F>,
     row_offset: usize,
-    vec_inputs: &Vec<Vec<AssignedCell<F, F>>>,
+    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
     single_inputs: &Vec<AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
-    let a_vec = vec_inputs[0].clone();
+    let a_vec = &vec_inputs[0];
     // let zero = single_inputs[0].clone();
-    let b = single_inputs[1].clone();
+    let b = &single_inputs[1];
 
     let selector = self.config.selectors.get(&GadgetType::VarDivRound).unwrap()[0];
 
@@ -177,15 +177,15 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundChip<F> {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<AssignedCell<F, F>>>,
+    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
     single_inputs: &Vec<AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     let mut inps = vec_inputs[0].clone();
 
     // Needed to pad: bias - bias = 0
-    let default = single_inputs[0].clone();
+    let default = &single_inputs[0];
     while inps.len() % self.num_inputs_per_row() != 0 {
-      inps.push(default.clone());
+      inps.push(&default);
     }
 
     let res = self.op_aligned_rows(layouter.namespace(|| "var_div"), &vec![inps], single_inputs)?;

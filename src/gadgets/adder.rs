@@ -40,9 +40,7 @@ impl<F: FieldExt> AdderChip<F> {
 
       let res = gate_inp
         .iter()
-        .fold(Expression::Constant(F::zero()), |a, b| {
-          a.clone() + b.clone()
-        });
+        .fold(Expression::Constant(F::zero()), |a, b| a + b.clone());
 
       vec![s * (res - gate_output)]
     });
@@ -80,7 +78,7 @@ impl<F: FieldExt> Gadget<F> for AdderChip<F> {
     &self,
     region: &mut Region<F>,
     row_offset: usize,
-    vec_inputs: &Vec<Vec<AssignedCell<F, F>>>,
+    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
     _single_inputs: &Vec<AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     assert_eq!(vec_inputs.len(), 1);
@@ -113,7 +111,7 @@ impl<F: FieldExt> Gadget<F> for AdderChip<F> {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<AssignedCell<F, F>>>,
+    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
     single_inputs: &Vec<AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     assert_eq!(single_inputs.len(), 1);
@@ -122,7 +120,7 @@ impl<F: FieldExt> Gadget<F> for AdderChip<F> {
     let zero = single_inputs[0].clone();
 
     while inputs.len() % self.num_inputs_per_row() != 0 {
-      inputs.push(zero.clone());
+      inputs.push(&zero);
     }
 
     let mut outputs = self.op_aligned_rows(
@@ -134,9 +132,10 @@ impl<F: FieldExt> Gadget<F> for AdderChip<F> {
       while outputs.len() % self.num_inputs_per_row() != 0 {
         outputs.push(zero.clone());
       }
+      let tmp = outputs.iter().map(|x| x).collect::<Vec<_>>();
       outputs = self.op_aligned_rows(
         layouter.namespace(|| "adder forward"),
-        &vec![outputs],
+        &vec![tmp],
         single_inputs,
       )?;
     }

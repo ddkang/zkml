@@ -50,8 +50,8 @@ impl<F: FieldExt> Layer<F> for AddChip<F> {
     let zero = constants.get(&0).unwrap().clone();
 
     let add_pairs_chip = AddPairsChip::<F>::construct(gadget_config.clone());
-    let inp1_vec = inp1.iter().cloned().collect::<Vec<_>>();
-    let inp2_vec = inp2.iter().cloned().collect::<Vec<_>>();
+    let inp1_vec = inp1.iter().collect::<Vec<_>>();
+    let inp2_vec = inp2.iter().collect::<Vec<_>>();
     let vec_inputs = vec![inp1_vec, inp2_vec];
     let constants = vec![zero.clone()];
     let out = add_pairs_chip.forward(layouter.namespace(|| "add chip"), &vec_inputs, &constants)?;

@@ -72,7 +72,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
       let vec_inps = inp_idxes
         .iter()
         .map(|idx| tensor_map.get(idx).unwrap().clone())
-        .collect::<Vec<Array<AssignedCell<F, F>, IxDyn>>>();
+        .collect::<Vec<_>>();
 
       let out = match layer_type {
         LayerType::Add => {

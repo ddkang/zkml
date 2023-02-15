@@ -69,7 +69,7 @@ pub trait Gadget<F: FieldExt> {
     &self,
     region: &mut Region<F>,
     row_offset: usize,
-    vec_inputs: &Vec<Vec<AssignedCell<F, F>>>,
+    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
     single_inputs: &Vec<AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error>;
 
@@ -77,7 +77,7 @@ pub trait Gadget<F: FieldExt> {
   fn op_aligned_rows(
     &self,
     mut layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<AssignedCell<F, F>>>,
+    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
     single_inputs: &Vec<AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     // Sanity check inputs
@@ -110,7 +110,7 @@ pub trait Gadget<F: FieldExt> {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<AssignedCell<F, F>>>,
+    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
     single_inputs: &Vec<AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     self.op_aligned_rows(

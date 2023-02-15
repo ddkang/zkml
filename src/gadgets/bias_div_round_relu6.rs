@@ -148,9 +148,9 @@ impl<F: FieldExt> Gadget<F> for BiasDivRoundRelu6Chip<F> {
     let map = &self.config.maps[&GadgetType::BiasDivRoundRelu6][0];
     let div_val = self.config.scale_factor;
 
-    let mod_lookup = self.config.tables[&GadgetType::BiasDivRoundRelu6][0].clone();
-    let div_lookup = self.config.tables[&GadgetType::BiasDivRoundRelu6][1].clone();
-    let relu_lookup = self.config.tables[&GadgetType::BiasDivRoundRelu6][2].clone();
+    let mod_lookup = self.config.tables[&GadgetType::BiasDivRoundRelu6][0];
+    let div_lookup = self.config.tables[&GadgetType::BiasDivRoundRelu6][1];
+    let relu_lookup = self.config.tables[&GadgetType::BiasDivRoundRelu6][2];
 
     let range = self.config.max_val - self.config.min_val;
 
@@ -198,7 +198,7 @@ impl<F: FieldExt> Gadget<F> for BiasDivRoundRelu6Chip<F> {
     &self,
     region: &mut Region<F>,
     row_offset: usize,
-    vec_inputs: &Vec<Vec<AssignedCell<F, F>>>,
+    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
     _single_inputs: &Vec<AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     let div_val = self.config.scale_factor as i64;
@@ -305,7 +305,7 @@ impl<F: FieldExt> Gadget<F> for BiasDivRoundRelu6Chip<F> {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<AssignedCell<F, F>>>,
+    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
     single_inputs: &Vec<AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     let mut inps = vec_inputs[0].clone();
@@ -314,8 +314,8 @@ impl<F: FieldExt> Gadget<F> for BiasDivRoundRelu6Chip<F> {
     // Needed to pad: bias - bias = 0
     let default = biases[0].clone();
     while inps.len() % self.num_inputs_per_row() != 0 {
-      inps.push(default.clone());
-      biases.push(default.clone());
+      inps.push(&default);
+      biases.push(&default);
     }
 
     let res = self.op_aligned_rows(

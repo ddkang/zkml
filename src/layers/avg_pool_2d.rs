@@ -71,9 +71,10 @@ impl<F: FieldExt> Layer<F> for AvgPool2DChip<F> {
     let single_inputs = vec![zero.clone()];
     let mut added = vec![];
     for i in 0..splat_inp.len() {
+      let tmp = splat_inp[i].iter().map(|x| x).collect::<Vec<_>>();
       let tmp = adder_chip.forward(
         layouter.namespace(|| format!("avg pool 2d {}", i)),
-        &vec![splat_inp[i].clone()],
+        &vec![tmp],
         &single_inputs,
       )?;
       added.push(tmp[0].clone());
@@ -97,6 +98,7 @@ impl<F: FieldExt> Layer<F> for AvgPool2DChip<F> {
     let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
 
     let single_inputs = vec![zero, div];
+    let added = added.iter().map(|x| x).collect::<Vec<_>>();
     let dived = var_div_chip.forward(
       layouter.namespace(|| "avg pool 2d div"),
       &vec![added],
