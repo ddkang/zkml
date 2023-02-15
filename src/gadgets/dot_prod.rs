@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use halo2_proofs::{
-  circuit::{AssignedCell, Layouter},
+  circuit::{AssignedCell, Layouter, Region},
   halo2curves::FieldExt,
   plonk::{Advice, Column, ConstraintSystem, Error, Expression},
   poly::Rotation,
@@ -155,6 +155,66 @@ impl<F: FieldExt> Gadget<F> for DotProductChip<F> {
     )?;
 
     Ok(vec![output_cell])
+  }
+
+  fn op_row_region(
+    &self,
+    region: &mut Region<F>,
+    row_offset: usize,
+    vec_inputs: &Vec<Vec<AssignedCell<F, F>>>,
+    single_inputs: &Vec<AssignedCell<F, F>>,
+  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    assert_eq!(vec_inputs.len(), 2);
+
+    let inp = &vec_inputs[0];
+    let weights = &vec_inputs[1];
+    assert_eq!(inp.len(), weights.len());
+    assert_eq!(inp.len(), self.num_inputs_per_row());
+
+    let selector = self.config.selectors.get(&GadgetType::DotProduct).unwrap()[0];
+    let zero = single_inputs[0].clone();
+
+    selector.enable(region, row_offset)?;
+
+    let inp_cols = DotProductChip::<F>::get_input_columns(&self.config);
+    inp
+      .iter()
+      .enumerate()
+      .map(|(i, cell)| cell.copy_advice(|| "", region, inp_cols[i], row_offset))
+      .collect::<Result<Vec<_>, _>>()?;
+
+    let weight_cols = DotProductChip::<F>::get_weight_columns(&self.config);
+    weights
+      .iter()
+      .enumerate()
+      .map(|(i, cell)| cell.copy_advice(|| "", region, weight_cols[i], row_offset))
+      .collect::<Result<Vec<_>, _>>()?;
+
+    // All columns need to be assigned
+    if self.config.columns.len() % 2 == 0 {
+      zero.copy_advice(
+        || "",
+        region,
+        self.config.columns[self.config.columns.len() - 2],
+        row_offset,
+      )?;
+    }
+
+    let e = inp
+      .iter()
+      .zip(weights.iter())
+      .map(|(a, b)| a.value().map(|x: &F| x.to_owned()) * b.value().map(|x: &F| x.to_owned()))
+      .reduce(|a, b| a + b)
+      .unwrap();
+
+    let res = region.assign_advice(
+      || "",
+      self.config.columns[self.config.columns.len() - 1],
+      row_offset,
+      || e,
+    )?;
+
+    Ok(vec![res])
   }
 
   fn forward(

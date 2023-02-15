@@ -258,6 +258,16 @@ impl<F: FieldExt> Gadget<F> for BiasDivFloorRelu6Chip<F> {
     Ok(outp)
   }
 
+  fn op_row_region(
+    &self,
+    _region: &mut halo2_proofs::circuit::Region<F>,
+    _row_offset: usize,
+    _vec_inputs: &Vec<Vec<AssignedCell<F, F>>>,
+    _single_inputs: &Vec<AssignedCell<F, F>>,
+  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    todo!();
+  }
+
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,

@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use halo2_proofs::{
-  circuit::{AssignedCell, Layouter, Value},
+  circuit::{AssignedCell, Layouter, Region, Value},
   halo2curves::FieldExt,
   plonk::{ConstraintSystem, Error, Expression},
   poly::Rotation,
@@ -105,6 +105,38 @@ impl<F: FieldExt> Gadget<F> for AdderChip<F> {
     )?;
 
     Ok(vec![output_cell])
+  }
+
+  fn op_row_region(
+    &self,
+    region: &mut Region<F>,
+    row_offset: usize,
+    vec_inputs: &Vec<Vec<AssignedCell<F, F>>>,
+    _single_inputs: &Vec<AssignedCell<F, F>>,
+  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    assert_eq!(vec_inputs.len(), 1);
+    let inp = &vec_inputs[0];
+    let selector = self.config.selectors.get(&GadgetType::Adder).unwrap()[0];
+
+    selector.enable(region, row_offset)?;
+
+    inp
+      .iter()
+      .enumerate()
+      .map(|(i, cell)| cell.copy_advice(|| "", region, self.config.columns[i], row_offset))
+      .collect::<Result<Vec<_>, _>>()?;
+
+    let e = inp.iter().fold(Value::known(F::from(0)), |a, b| {
+      a + b.value().map(|x: &F| x.to_owned())
+    });
+    let res = region.assign_advice(
+      || "",
+      *self.config.columns.last().unwrap(),
+      row_offset,
+      || e,
+    )?;
+
+    Ok(vec![res])
   }
 
   fn forward(

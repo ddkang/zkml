@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use halo2_proofs::{
-  circuit::{AssignedCell, Layouter},
+  circuit::{AssignedCell, Layouter, Region},
   halo2curves::{group::ff::PrimeField, FieldExt},
   plonk::{Advice, Column, Error, Instance, Selector, TableColumn},
 };
@@ -69,6 +69,14 @@ pub trait Gadget<F: FieldExt> {
     single_inputs: &Vec<AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error>;
 
+  fn op_row_region(
+    &self,
+    region: &mut Region<F>,
+    row_offset: usize,
+    vec_inputs: &Vec<Vec<AssignedCell<F, F>>>,
+    single_inputs: &Vec<AssignedCell<F, F>>,
+  ) -> Result<Vec<AssignedCell<F, F>>, Error>;
+
   // The caller is required to ensure that the inputs are of the correct length.
   fn op_aligned_rows(
     &self,
@@ -76,27 +84,29 @@ pub trait Gadget<F: FieldExt> {
     vec_inputs: &Vec<Vec<AssignedCell<F, F>>>,
     single_inputs: &Vec<AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
-    let mut outputs = Vec::new();
-
     // Sanity check inputs
     for inp in vec_inputs.iter() {
       assert_eq!(inp.len() % self.num_inputs_per_row(), 0);
     }
 
-    for i in 0..vec_inputs[0].len() / self.num_inputs_per_row() {
-      let mut vec_inputs_row = Vec::new();
-      for inp in vec_inputs.iter() {
-        vec_inputs_row
-          .push(inp[i * self.num_inputs_per_row()..(i + 1) * self.num_inputs_per_row()].to_vec());
-      }
-      let row_outputs = self.op_row(
-        layouter.namespace(|| format!("gadget row {}", self.name())),
-        &vec_inputs_row,
-        &single_inputs,
-      )?;
-      assert_eq!(row_outputs.len(), self.num_outputs_per_row());
-      outputs.extend(row_outputs);
-    }
+    let outputs = layouter.assign_region(
+      || format!("gadget {}", self.name()),
+      |mut region| {
+        let mut outputs = Vec::new();
+        for i in 0..vec_inputs[0].len() / self.num_inputs_per_row() {
+          let mut vec_inputs_row = Vec::new();
+          for inp in vec_inputs.iter() {
+            vec_inputs_row.push(
+              inp[i * self.num_inputs_per_row()..(i + 1) * self.num_inputs_per_row()].to_vec(),
+            );
+          }
+          let row_outputs = self.op_row_region(&mut region, i, &vec_inputs_row, &single_inputs)?;
+          assert_eq!(row_outputs.len(), self.num_outputs_per_row());
+          outputs.extend(row_outputs);
+        }
+        Ok(outputs)
+      },
+    )?;
 
     Ok(outputs)
   }

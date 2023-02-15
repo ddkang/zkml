@@ -19,5 +19,5 @@ fn main() {
   let prover = MockProver::run(config.k.try_into().unwrap(), &circuit, vec![outp.clone()]).unwrap();
   assert_eq!(prover.verify(), Ok(()));
 
-  time_circuit_kzg(circuit, config);
+  // time_circuit_kzg(circuit, config);
 }
