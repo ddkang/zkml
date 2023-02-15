@@ -69,6 +69,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
         "Processing layer {}, type: {:?}, inp_idxes: {:?}, out_idxes: {:?}",
         layer_idx, layer_type, inp_idxes, out_idxes
       );
+      println!("{:?}", layer_config.layer_params);
       let vec_inps = inp_idxes
         .iter()
         .map(|idx| tensor_map.get(idx).unwrap().clone())
@@ -114,8 +115,10 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
       };
 
       for (idx, tensor_idx) in out_idxes.iter().enumerate() {
+        println!("{:?}", out[idx].shape());
         tensor_map.insert(*tensor_idx, out[idx].clone());
       }
+      println!();
     }
 
     let mut final_out = vec![];

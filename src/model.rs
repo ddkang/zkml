@@ -91,17 +91,31 @@ impl<F: FieldExt> ModelCircuit<F> {
     mut layouter: impl Layouter<F>,
     model_config: &ModelConfig<F>,
   ) -> Result<HashMap<i64, AssignedCell<F, F>>, Error> {
-    let columns = model_config.gadget_config.columns.clone();
     let sf = model_config.gadget_config.scale_factor;
 
     let constants = layouter.assign_region(
       || "constants",
       |mut region| {
         let mut constants: HashMap<i64, AssignedCell<F, F>> = HashMap::new();
-        let zero = region.assign_advice(|| "zero", columns[0], 0, || Value::known(F::zero()))?;
-        let one = region.assign_advice(|| "one", columns[0], 1, || Value::known(F::one()))?;
+        let zero = region.assign_advice(
+          || "zero",
+          model_config.gadget_config.columns[0],
+          0,
+          || Value::known(F::zero()),
+        )?;
+        let one = region.assign_advice(
+          || "one",
+          model_config.gadget_config.columns[0],
+          1,
+          || Value::known(F::one()),
+        )?;
         // FIXME
-        let sf = region.assign_advice(|| "sf", columns[0], 2, || Value::known(F::from(sf)))?;
+        let sf = region.assign_advice(
+          || "sf",
+          model_config.gadget_config.columns[0],
+          2,
+          || Value::known(F::from(sf)),
+        )?;
 
         constants.insert(0, zero);
         constants.insert(1, one);

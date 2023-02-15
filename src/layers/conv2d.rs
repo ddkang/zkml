@@ -226,6 +226,12 @@ impl<F: FieldExt> Conv2DChip<F> {
     let mut weight_cells = vec![];
     let mut biases_cells = vec![];
     let mut row_idx = 0;
+    println!(
+      "outp shape: {}, {}, {}",
+      input.shape()[1] / strides.0,
+      input.shape()[1],
+      strides.0
+    );
     for i in 0..input.shape()[1] / strides.0 {
       for j in 0..input.shape()[2] / strides.1 {
         for chan_out in 0..weights.shape()[3] {
