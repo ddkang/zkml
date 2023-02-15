@@ -210,8 +210,8 @@ impl<F: FieldExt> Conv2DChip<F> {
     let strides = conv_config.stride;
 
     let (ph, pw) = Self::get_padding(
-      input.shape()[0],
       input.shape()[1],
+      input.shape()[2],
       strides.0,
       strides.1,
       weights.shape()[1],

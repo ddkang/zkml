@@ -86,7 +86,6 @@ impl<F: FieldExt> Gadget<F> for AddPairsChip<F> {
     let inp1 = &vec_inputs[0];
     let inp2 = &vec_inputs[1];
     assert_eq!(inp1.len(), inp2.len());
-    assert_eq!(inp1.len() % self.num_cols_per_op(), 0);
 
     let selector = self.config.selectors.get(&GadgetType::AddPairs).unwrap()[0];
     let columns = &self.config.columns;

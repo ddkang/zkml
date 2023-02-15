@@ -80,7 +80,6 @@ class Converter:
           [1] + \
           [opt.Padding()] + \
           [activation] + \
-          [opt.DepthMultiplier()] + \
           [opt.StrideH(), opt.StrideW()]
       elif op_code == tflite.BuiltinOperator.ADD:
         layer_type = 'Add'
