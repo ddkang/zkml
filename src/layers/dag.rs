@@ -65,6 +65,10 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
       let layer_type = &layer_config.layer_type;
       let inp_idxes = &self.dag_config.inp_idxes[layer_idx];
       let out_idxes = &self.dag_config.out_idxes[layer_idx];
+      println!(
+        "Processing layer {}, type: {:?}, inp_idxes: {:?}, out_idxes: {:?}",
+        layer_idx, layer_type, inp_idxes, out_idxes
+      );
       let vec_inps = inp_idxes
         .iter()
         .map(|idx| tensor_map.get(idx).unwrap().clone())
