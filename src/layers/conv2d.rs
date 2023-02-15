@@ -326,7 +326,10 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
       weights.shape()[2],
       conv_config.padding,
     );
-    let oc = weights.shape()[0]; // FIXME: for Depthwise
+    let oc = match conv_config.conv_type {
+      ConvLayerEnum::Conv2D => weights.shape()[0],
+      ConvLayerEnum::DepthwiseConv2D => weights.shape()[3],
+    };
     let out_shape = vec![1, oh, ow, oc];
     let outp = Array::from_shape_vec(IxDyn(&out_shape), outp).unwrap();
 
