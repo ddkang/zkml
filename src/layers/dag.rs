@@ -1,4 +1,4 @@
-use std::{collections::HashMap, marker::PhantomData};
+use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter},
@@ -46,7 +46,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
     mut layouter: impl Layouter<F>,
     tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
     constants: &HashMap<i64, AssignedCell<F, F>>,
-    gadget_config: &GadgetConfig,
+    gadget_config: Rc<GadgetConfig>,
   ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
     // Reveal/commit to weights
     // TODO
@@ -81,7 +81,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
             layouter.namespace(|| "dag add"),
             &vec_inps,
             constants,
-            gadget_config,
+            gadget_config.clone(),
           )?
         }
         LayerType::AvgPool2D => {
@@ -90,7 +90,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
             layouter.namespace(|| "dag avg pool 2d"),
             &vec_inps,
             constants,
-            gadget_config,
+            gadget_config.clone(),
           )?
         }
         LayerType::Conv2D => {
@@ -99,7 +99,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
             layouter.namespace(|| "dag conv 2d"),
             &vec_inps,
             constants,
-            gadget_config,
+            gadget_config.clone(),
           )?
         }
         LayerType::Pad => {
@@ -108,7 +108,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
             layouter.namespace(|| "dag pad"),
             &vec_inps,
             constants,
-            gadget_config,
+            gadget_config.clone(),
           )?
         }
       };

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, marker::PhantomData};
+use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter},
@@ -76,7 +76,7 @@ impl<F: FieldExt> Layer<F> for PadChip<F> {
     _layouter: impl Layouter<F>,
     tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
     constants: &HashMap<i64, AssignedCell<F, F>>,
-    _gadget_config: &GadgetConfig,
+    _gadget_config: Rc<GadgetConfig>,
   ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
     assert_eq!(tensors.len(), 1);
     let input = &tensors[0];

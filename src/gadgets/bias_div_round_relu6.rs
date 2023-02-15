@@ -1,4 +1,4 @@
-use std::{collections::HashMap, marker::PhantomData};
+use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Region, Value},
@@ -16,12 +16,12 @@ type BiasDivRoundRelu6Config = GadgetConfig;
 const NUM_COLS_PER_OP: usize = 5;
 
 pub struct BiasDivRoundRelu6Chip<F: FieldExt> {
-  config: BiasDivRoundRelu6Config,
+  config: Rc<BiasDivRoundRelu6Config>,
   _marker: PhantomData<F>,
 }
 
 impl<F: FieldExt> BiasDivRoundRelu6Chip<F> {
-  pub fn construct(config: BiasDivRoundRelu6Config) -> Self {
+  pub fn construct(config: Rc<BiasDivRoundRelu6Config>) -> Self {
     Self {
       config,
       _marker: PhantomData,
@@ -61,9 +61,6 @@ impl<F: FieldExt> BiasDivRoundRelu6Chip<F> {
         let bias = meta.query_advice(columns[offset + 1], Rotation::cur());
         let div_res = meta.query_advice(columns[offset + 2], Rotation::cur());
         let mod_res = meta.query_advice(columns[offset + 3], Rotation::cur());
-
-        // ((div - bias) + mod) * sf = inp
-        // constraints.push(s.clone() * (inp - (sf.clone() * (div_res - bias) + mod_res)));
 
         // ((div - bias) * 2 + mod) * sf = 2 * inp + sf
         constraints.push(

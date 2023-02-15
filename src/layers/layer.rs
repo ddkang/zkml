@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter},
@@ -31,6 +31,6 @@ pub trait Layer<F: FieldExt> {
     layouter: impl Layouter<F>,
     tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
     constants: &HashMap<i64, AssignedCell<F, F>>,
-    gadget_config: &GadgetConfig,
+    gadget_config: Rc<GadgetConfig>,
   ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error>;
 }

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, marker::PhantomData};
+use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Value},
@@ -58,7 +58,7 @@ impl<F: FieldExt> Layer<F> for AvgPool2DChip<F> {
     mut layouter: impl Layouter<F>,
     tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
     constants: &HashMap<i64, AssignedCell<F, F>>,
-    gadget_config: &GadgetConfig,
+    gadget_config: Rc<GadgetConfig>,
   ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
     assert_eq!(tensors.len(), 1);
 

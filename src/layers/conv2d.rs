@@ -1,4 +1,4 @@
-use std::{collections::HashMap, marker::PhantomData};
+use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter},
@@ -258,7 +258,7 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
     mut layouter: impl Layouter<F>,
     tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
     constants: &HashMap<i64, AssignedCell<F, F>>,
-    gadget_config: &GadgetConfig,
+    gadget_config: Rc<GadgetConfig>,
   ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
     let conv_config = &Self::param_vec_to_config(self.config.layer_params.clone());
     let zero = constants.get(&0).unwrap().clone();

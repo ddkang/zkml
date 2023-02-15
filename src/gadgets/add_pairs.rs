@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Region},
@@ -16,12 +16,12 @@ type AddPairsConfig = GadgetConfig;
 const NUM_COLS_PER_OP: usize = 3;
 
 pub struct AddPairsChip<F: FieldExt> {
-  config: AddPairsConfig,
+  config: Rc<AddPairsConfig>,
   _marker: PhantomData<F>,
 }
 
 impl<F: FieldExt> AddPairsChip<F> {
-  pub fn construct(config: AddPairsConfig) -> Self {
+  pub fn construct(config: Rc<AddPairsConfig>) -> Self {
     Self {
       config,
       _marker: PhantomData,

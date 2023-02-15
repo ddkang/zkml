@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Region},
@@ -14,12 +14,12 @@ use super::gadget::{Gadget, GadgetConfig, GadgetType};
 type DotProductConfig = GadgetConfig;
 
 pub struct DotProductChip<F: FieldExt> {
-  config: DotProductConfig,
+  config: Rc<DotProductConfig>,
   _marker: PhantomData<F>,
 }
 
 impl<F: FieldExt> DotProductChip<F> {
-  pub fn construct(config: DotProductConfig) -> Self {
+  pub fn construct(config: Rc<DotProductConfig>) -> Self {
     Self {
       config,
       _marker: PhantomData,

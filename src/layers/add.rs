@@ -1,4 +1,4 @@
-use std::{collections::HashMap, marker::PhantomData, vec};
+use std::{collections::HashMap, marker::PhantomData, rc::Rc, vec};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter},
@@ -40,7 +40,7 @@ impl<F: FieldExt> Layer<F> for AddChip<F> {
     mut layouter: impl Layouter<F>,
     tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
     constants: &HashMap<i64, AssignedCell<F, F>>,
-    gadget_config: &GadgetConfig,
+    gadget_config: Rc<GadgetConfig>,
   ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
     assert_eq!(tensors.len(), 2);
     let inp1 = &tensors[0];
@@ -49,7 +49,7 @@ impl<F: FieldExt> Layer<F> for AddChip<F> {
 
     let zero = constants.get(&0).unwrap().clone();
 
-    let add_pairs_chip = AddPairsChip::<F>::construct(gadget_config.clone());
+    let add_pairs_chip = AddPairsChip::<F>::construct(gadget_config);
     let inp1_vec = inp1.iter().collect::<Vec<_>>();
     let inp2_vec = inp2.iter().collect::<Vec<_>>();
     let vec_inputs = vec![inp1_vec, inp2_vec];

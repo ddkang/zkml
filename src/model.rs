@@ -1,6 +1,7 @@
 use std::{
   collections::{HashMap, HashSet},
   marker::PhantomData,
+  rc::Rc,
   sync::Mutex,
 };
 
@@ -42,7 +43,7 @@ pub struct ModelCircuit<F: FieldExt> {
 
 #[derive(Clone, Debug)]
 pub struct ModelConfig<F: FieldExt> {
-  pub gadget_config: GadgetConfig,
+  pub gadget_config: Rc<GadgetConfig>,
   pub _marker: PhantomData<F>,
 }
 
@@ -238,33 +239,34 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
     gadget_config = VarDivRoundChip::<F>::configure(meta, gadget_config);
 
     ModelConfig {
-      gadget_config,
+      gadget_config: gadget_config.into(),
       _marker: PhantomData,
     }
   }
 
   fn synthesize(&self, config: Self::Config, mut layouter: impl Layouter<F>) -> Result<(), Error> {
     // Assign tables
+    let gadget_rc: Rc<GadgetConfig> = config.gadget_config.clone().into();
     for gadget in self.used_gadgets.iter() {
       match gadget {
         GadgetType::AddPairs => {
-          let chip = AddPairsChip::<F>::construct(config.gadget_config.clone());
+          let chip = AddPairsChip::<F>::construct(gadget_rc.clone());
           chip.load_lookups(layouter.namespace(|| "add pairs lookup"))?;
         }
         GadgetType::Adder => {
-          let chip = AdderChip::<F>::construct(config.gadget_config.clone());
+          let chip = AdderChip::<F>::construct(gadget_rc.clone());
           chip.load_lookups(layouter.namespace(|| "adder lookup"))?;
         }
         GadgetType::BiasDivRoundRelu6 => {
-          let chip = BiasDivRoundRelu6Chip::<F>::construct(config.gadget_config.clone());
+          let chip = BiasDivRoundRelu6Chip::<F>::construct(gadget_rc.clone());
           chip.load_lookups(layouter.namespace(|| "bias div round relu6 lookup"))?;
         }
         GadgetType::DotProduct => {
-          let chip = DotProductChip::<F>::construct(config.gadget_config.clone());
+          let chip = DotProductChip::<F>::construct(gadget_rc.clone());
           chip.load_lookups(layouter.namespace(|| "dot product lookup"))?;
         }
         GadgetType::VarDivRound => {
-          let chip = VarDivRoundChip::<F>::construct(config.gadget_config.clone());
+          let chip = VarDivRoundChip::<F>::construct(gadget_rc.clone());
           chip.load_lookups(layouter.namespace(|| "var div lookup"))?;
         }
         _ => panic!("unsupported gadget"),
@@ -285,7 +287,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
       layouter.namespace(|| "dag"),
       &tensors,
       &constants,
-      &config.gadget_config,
+      config.gadget_config,
     )?;
 
     Ok(())

@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Region},
@@ -16,12 +16,12 @@ type VarDivRoundConfig = GadgetConfig;
 const NUM_COLS_PER_OP: usize = 3;
 
 pub struct VarDivRoundChip<F: FieldExt> {
-  config: VarDivRoundConfig,
+  config: Rc<VarDivRoundConfig>,
   _marker: PhantomData<F>,
 }
 
 impl<F: FieldExt> VarDivRoundChip<F> {
-  pub fn construct(config: VarDivRoundConfig) -> Self {
+  pub fn construct(config: Rc<VarDivRoundConfig>) -> Self {
     Self {
       config,
       _marker: PhantomData,
