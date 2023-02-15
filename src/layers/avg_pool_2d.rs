@@ -16,12 +16,14 @@ use crate::gadgets::{
 use super::layer::{Layer, LayerConfig, LayerType};
 
 pub struct AvgPool2DChip<F: FieldExt> {
+  config: LayerConfig,
   _marker: PhantomData<F>,
 }
 
 impl<F: FieldExt> AvgPool2DChip<F> {
-  pub fn construct() -> Self {
+  pub fn construct(config: LayerConfig) -> Self {
     Self {
+      config,
       _marker: PhantomData,
     }
   }
@@ -80,8 +82,8 @@ impl<F: FieldExt> Layer<F> for AvgPool2DChip<F> {
       added.push(tmp[0].clone());
     }
 
-    // FIXME: the 49 should be an input tensor?
-    let div = 49;
+    // FIXME: this needs to be revealed
+    let div = self.config.layer_params[0] * self.config.layer_params[1];
     let div = F::from(div as u64);
     let div = layouter.assign_region(
       || "avg pool 2d div",

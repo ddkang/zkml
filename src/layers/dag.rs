@@ -86,7 +86,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           )?
         }
         LayerType::AvgPool2D => {
-          let avg_pool_2d_chip = AvgPool2DChip::<F>::construct();
+          let avg_pool_2d_chip = AvgPool2DChip::<F>::construct(layer_config.clone());
           avg_pool_2d_chip.forward(
             layouter.namespace(|| "dag avg pool 2d"),
             &vec_inps,
