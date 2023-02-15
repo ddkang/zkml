@@ -9,7 +9,7 @@ use halo2_proofs::{
 
 use crate::gadgets::gadget::convert_to_u64;
 
-use super::gadget::{Gadget, GadgetConfig, GadgetType};
+use super::gadget::{Gadget, GadgetConfig, GadgetType, USE_SELECTORS};
 
 type VarDivRoundConfig = GadgetConfig;
 
@@ -119,65 +119,6 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundChip<F> {
     self.num_inputs_per_row()
   }
 
-  fn op_row(
-    &self,
-    mut layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<AssignedCell<F, F>>>,
-    single_inputs: &Vec<AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
-    let a_vec = vec_inputs[0].clone();
-    // let zero = single_inputs[0].clone();
-    let b = single_inputs[1].clone();
-
-    let selector = self.config.selectors.get(&GadgetType::VarDivRound).unwrap()[0];
-
-    let outs = layouter.assign_region(
-      || "",
-      |mut region| {
-        selector.enable(&mut region, 0)?;
-
-        b.copy_advice(
-          || "",
-          &mut region,
-          self.config.columns[self.config.columns.len() - 1],
-          0,
-        )?;
-
-        let mut div_out = vec![];
-        for (i, a) in a_vec.iter().enumerate() {
-          let offset = i * NUM_COLS_PER_OP;
-          a.copy_advice(|| "", &mut region, self.config.columns[offset], 0)?;
-
-          let div_mod = a.value().zip(b.value()).map(|(a, b)| {
-            let a = convert_to_u64(a);
-            let b = convert_to_u64(b);
-            let c = (2 * a + b) / (2 * b);
-            let r = (2 * a + b) % (2 * b);
-            (c, r)
-          });
-
-          let div_cell = region.assign_advice(
-            || "",
-            self.config.columns[offset + 1],
-            0,
-            || div_mod.map(|(c, _)| F::from(c)),
-          )?;
-          let _mod_cell = region.assign_advice(
-            || "",
-            self.config.columns[offset + 2],
-            0,
-            || div_mod.map(|(_, r)| F::from(r)),
-          )?;
-          div_out.push(div_cell);
-        }
-
-        Ok(div_out)
-      },
-    )?;
-
-    Ok(outs)
-  }
-
   fn op_row_region(
     &self,
     region: &mut Region<F>,
@@ -191,7 +132,9 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundChip<F> {
 
     let selector = self.config.selectors.get(&GadgetType::VarDivRound).unwrap()[0];
 
-    selector.enable(region, row_offset)?;
+    if USE_SELECTORS {
+      selector.enable(region, row_offset)?;
+    }
 
     b.copy_advice(
       || "",

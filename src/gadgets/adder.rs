@@ -7,6 +7,8 @@ use halo2_proofs::{
   poly::Rotation,
 };
 
+use crate::gadgets::gadget::USE_SELECTORS;
+
 use super::gadget::{Gadget, GadgetConfig, GadgetType};
 
 type AdderConfig = GadgetConfig;
@@ -74,39 +76,6 @@ impl<F: FieldExt> Gadget<F> for AdderChip<F> {
     1
   }
 
-  // The caller is expected to pad the inputs
-  fn op_row(
-    &self,
-    mut layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<AssignedCell<F, F>>>,
-    _single_inputs: &Vec<AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
-    assert_eq!(vec_inputs.len(), 1);
-    let inp = &vec_inputs[0];
-    let selector = self.config.selectors.get(&GadgetType::Adder).unwrap()[0];
-
-    let output_cell = layouter.assign_region(
-      || "",
-      |mut region| {
-        selector.enable(&mut region, 0)?;
-
-        inp
-          .iter()
-          .enumerate()
-          .map(|(i, cell)| cell.copy_advice(|| "", &mut region, self.config.columns[i], 0))
-          .collect::<Result<Vec<_>, _>>()?;
-
-        let e = inp.iter().fold(Value::known(F::from(0)), |a, b| {
-          a + b.value().map(|x: &F| x.to_owned())
-        });
-        let res = region.assign_advice(|| "", *self.config.columns.last().unwrap(), 0, || e)?;
-        Ok(res)
-      },
-    )?;
-
-    Ok(vec![output_cell])
-  }
-
   fn op_row_region(
     &self,
     region: &mut Region<F>,
@@ -118,7 +87,9 @@ impl<F: FieldExt> Gadget<F> for AdderChip<F> {
     let inp = &vec_inputs[0];
     let selector = self.config.selectors.get(&GadgetType::Adder).unwrap()[0];
 
-    selector.enable(region, row_offset)?;
+    if USE_SELECTORS {
+      selector.enable(region, row_offset)?;
+    }
 
     inp
       .iter()

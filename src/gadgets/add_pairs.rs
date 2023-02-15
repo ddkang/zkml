@@ -7,6 +7,8 @@ use halo2_proofs::{
   poly::Rotation,
 };
 
+use crate::gadgets::gadget::USE_SELECTORS;
+
 use super::gadget::{Gadget, GadgetConfig, GadgetType};
 
 type AddPairsConfig = GadgetConfig;
@@ -74,43 +76,6 @@ impl<F: FieldExt> Gadget<F> for AddPairsChip<F> {
     self.config.columns.len() / NUM_COLS_PER_OP
   }
 
-  fn op_row(
-    &self,
-    mut layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<AssignedCell<F, F>>>,
-    _single_inputs: &Vec<AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
-    let inp1 = &vec_inputs[0];
-    let inp2 = &vec_inputs[1];
-    assert_eq!(inp1.len(), inp2.len());
-    assert_eq!(inp1.len() % self.num_cols_per_op(), 0);
-
-    let selector = self.config.selectors.get(&GadgetType::AddPairs).unwrap()[0];
-    let columns = &self.config.columns;
-
-    let outp = layouter.assign_region(
-      || "",
-      |mut region| {
-        selector.enable(&mut region, 0)?;
-
-        let mut outps = vec![];
-        for i in 0..inp1.len() {
-          let offset = i * NUM_COLS_PER_OP;
-          let inp1 = inp1[i].copy_advice(|| "", &mut region, columns[offset + 0], 0)?;
-          let inp2 = inp2[i].copy_advice(|| "", &mut region, columns[offset + 1], 0)?;
-          let outp =
-            inp1.value().map(|x: &F| x.to_owned()) + inp2.value().map(|x: &F| x.to_owned());
-
-          let outp = region.assign_advice(|| "", columns[offset + 2], 0, || outp)?;
-          outps.push(outp);
-        }
-        Ok(outps)
-      },
-    )?;
-
-    Ok(outp)
-  }
-
   fn op_row_region(
     &self,
     region: &mut Region<F>,
@@ -126,7 +91,9 @@ impl<F: FieldExt> Gadget<F> for AddPairsChip<F> {
     let selector = self.config.selectors.get(&GadgetType::AddPairs).unwrap()[0];
     let columns = &self.config.columns;
 
-    selector.enable(region, row_offset)?;
+    if USE_SELECTORS {
+      selector.enable(region, row_offset)?;
+    }
 
     let mut outps = vec![];
     for i in 0..inp1.len() {

@@ -1,13 +1,13 @@
 use std::{collections::HashMap, marker::PhantomData};
 
 use halo2_proofs::{
-  circuit::{AssignedCell, Layouter},
+  circuit::{AssignedCell, Layouter, Region},
   halo2curves::FieldExt,
   plonk::{ConstraintSystem, Error, Expression},
   poly::Rotation,
 };
 
-use crate::gadgets::gadget::convert_to_u64;
+use crate::gadgets::gadget::{convert_to_u64, USE_SELECTORS};
 
 use super::gadget::{Gadget, GadgetConfig, GadgetType};
 
@@ -144,9 +144,10 @@ impl<F: FieldExt> Gadget<F> for BiasDivFloorRelu6Chip<F> {
     self.num_inputs_per_row()
   }
 
-  fn op_row(
+  fn op_row_region(
     &self,
-    mut layouter: impl Layouter<F>,
+    region: &mut Region<F>,
+    row_offset: usize,
     vec_inputs: &Vec<Vec<AssignedCell<F, F>>>,
     _single_inputs: &Vec<AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
@@ -173,99 +174,84 @@ impl<F: FieldExt> Gadget<F> for BiasDivFloorRelu6Chip<F> {
       .get(&GadgetType::BiasDivFloorRelu6)
       .unwrap()[0];
 
-    let outp = layouter.assign_region(
-      || "",
-      |mut region| {
-        selector.enable(&mut region, 0)?;
+    if USE_SELECTORS {
+      selector.enable(region, row_offset)?;
+    }
 
-        let mut outp_cells = vec![];
-        for (i, (inp, bias)) in inp.iter().zip(bias.iter()).enumerate() {
-          let offset = i * NUM_COLS_PER_OP;
+    let mut outp_cells = vec![];
+    for (i, (inp, bias)) in inp.iter().zip(bias.iter()).enumerate() {
+      let offset = i * NUM_COLS_PER_OP;
 
-          let inp_f = inp.value().map(|x: &F| x.to_owned());
-          let bias_f = bias.value().map(|x: &F| {
-            let a = *x + div_inp_min_val_pos;
-            let a = convert_to_u64(&a) as i64 - div_inp_min_val_pos_i64;
-            a
-          });
-          let div_mod_res = inp_f.map(|x: F| {
-            let x_pos = x + div_inp_min_val_pos;
-            let inp = convert_to_u64(&x_pos);
-            // println!("inp: {:?}, bias: {:?}, x_pos: {:?}", inp, bias, x_pos);
-            let div_res = inp as i64 / div_val - (div_inp_min_val_pos_i64 / div_val);
-            let mod_res = inp as i64 % div_val;
-            // println!("div_res: {:?}, mod_res: {:?}", div_res, mod_res);
-            (div_res, mod_res)
-          });
-          let div_res = div_mod_res.map(|x: (i64, i64)| x.0) + bias_f;
-          let mod_res = div_mod_res.map(|x: (i64, i64)| x.1);
+      let inp_f = inp.value().map(|x: &F| x.to_owned());
+      let bias_f = bias.value().map(|x: &F| {
+        let a = *x + div_inp_min_val_pos;
+        let a = convert_to_u64(&a) as i64 - div_inp_min_val_pos_i64;
+        a
+      });
+      let div_mod_res = inp_f.map(|x: F| {
+        let x_pos = x + div_inp_min_val_pos;
+        let inp = convert_to_u64(&x_pos);
+        // println!("inp: {:?}, bias: {:?}, x_pos: {:?}", inp, bias, x_pos);
+        let div_res = inp as i64 / div_val - (div_inp_min_val_pos_i64 / div_val);
+        let mod_res = inp as i64 % div_val;
+        // println!("div_res: {:?}, mod_res: {:?}", div_res, mod_res);
+        (div_res, mod_res)
+      });
+      let div_res = div_mod_res.map(|x: (i64, i64)| x.0) + bias_f;
+      let mod_res = div_mod_res.map(|x: (i64, i64)| x.1);
 
-          let outp = div_res.map(|x: i64| {
-            let mut x_pos = x - div_outp_min_val_i64;
-            if !relu_map.contains_key(&(x_pos)) {
-              println!("x: {}, x_pos: {}", x, x_pos);
-              x_pos = 0;
-            }
-            let outp_val = relu_map.get(&(x_pos)).unwrap();
-            // println!("x: {}, x_pos: {}, outp_val: {}", x, x_pos, outp_val);
-            F::from(*outp_val as u64)
-          });
-
-          // Assign inp, bias
-          inp.copy_advice(|| "", &mut region, self.config.columns[offset + 0], 0)?;
-          bias.copy_advice(|| "", &mut region, self.config.columns[offset + 1], 0)?;
-
-          // Assign div_res, mod_res
-          let div_res_cell = region
-            .assign_advice(
-              || "div_res",
-              self.config.columns[offset + 2],
-              0,
-              || {
-                div_res.map(|x: i64| {
-                  F::from((x - div_outp_min_val_i64) as u64) - F::from(-div_outp_min_val_i64 as u64)
-                })
-              },
-            )
-            .unwrap();
-          let _mod_res_cell = region
-            .assign_advice(
-              || "mod_res",
-              self.config.columns[offset + 3],
-              0,
-              || mod_res.map(|x: i64| F::from(x as u64)),
-            )
-            .unwrap();
-
-          let outp_cell = region
-            .assign_advice(
-              || "outp",
-              self.config.columns[offset + 4],
-              0,
-              || outp.map(|x: F| x.to_owned()),
-            )
-            .unwrap();
-
-          // outp_cells.push((outp_cell, div_res_cell));
-          outp_cells.push(outp_cell);
-          outp_cells.push(div_res_cell);
+      let outp = div_res.map(|x: i64| {
+        let mut x_pos = x - div_outp_min_val_i64;
+        if !relu_map.contains_key(&(x_pos)) {
+          println!("x: {}, x_pos: {}", x, x_pos);
+          x_pos = 0;
         }
+        let outp_val = relu_map.get(&(x_pos)).unwrap();
+        // println!("x: {}, x_pos: {}, outp_val: {}", x, x_pos, outp_val);
+        F::from(*outp_val as u64)
+      });
 
-        Ok(outp_cells)
-      },
-    )?;
+      // Assign inp, bias
+      inp.copy_advice(|| "", region, self.config.columns[offset + 0], row_offset)?;
+      bias.copy_advice(|| "", region, self.config.columns[offset + 1], row_offset)?;
 
-    Ok(outp)
-  }
+      // Assign div_res, mod_res
+      let div_res_cell = region
+        .assign_advice(
+          || "div_res",
+          self.config.columns[offset + 2],
+          row_offset,
+          || {
+            div_res.map(|x: i64| {
+              F::from((x - div_outp_min_val_i64) as u64) - F::from(-div_outp_min_val_i64 as u64)
+            })
+          },
+        )
+        .unwrap();
+      let _mod_res_cell = region
+        .assign_advice(
+          || "mod_res",
+          self.config.columns[offset + 3],
+          row_offset,
+          || mod_res.map(|x: i64| F::from(x as u64)),
+        )
+        .unwrap();
 
-  fn op_row_region(
-    &self,
-    _region: &mut halo2_proofs::circuit::Region<F>,
-    _row_offset: usize,
-    _vec_inputs: &Vec<Vec<AssignedCell<F, F>>>,
-    _single_inputs: &Vec<AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
-    todo!();
+      let outp_cell = region
+        .assign_advice(
+          || "outp",
+          self.config.columns[offset + 4],
+          row_offset,
+          || outp.map(|x: F| x.to_owned()),
+        )
+        .unwrap();
+
+      // outp_cells.push((outp_cell, div_res_cell));
+      outp_cells.push(outp_cell);
+      outp_cells.push(div_res_cell);
+    }
+
+    Ok(outp_cells)
   }
 
   fn forward(

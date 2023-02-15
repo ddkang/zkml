@@ -7,7 +7,7 @@ use halo2_proofs::{
   poly::Rotation,
 };
 
-use crate::gadgets::adder::AdderChip;
+use crate::gadgets::{adder::AdderChip, gadget::USE_SELECTORS};
 
 use super::gadget::{Gadget, GadgetConfig, GadgetType};
 
@@ -92,71 +92,6 @@ impl<F: FieldExt> Gadget<F> for DotProductChip<F> {
   }
 
   // The caller is expected to pad the inputs
-  fn op_row(
-    &self,
-    mut layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<AssignedCell<F, F>>>,
-    single_inputs: &Vec<AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
-    assert_eq!(vec_inputs.len(), 2);
-
-    let inp = &vec_inputs[0];
-    let weights = &vec_inputs[1];
-    assert_eq!(inp.len(), weights.len());
-    assert_eq!(inp.len(), self.num_inputs_per_row());
-
-    let selector = self.config.selectors.get(&GadgetType::DotProduct).unwrap()[0];
-    let zero = single_inputs[0].clone();
-
-    let output_cell = layouter.assign_region(
-      || "",
-      |mut region| {
-        selector.enable(&mut region, 0)?;
-
-        let inp_cols = DotProductChip::<F>::get_input_columns(&self.config);
-        inp
-          .iter()
-          .enumerate()
-          .map(|(i, cell)| cell.copy_advice(|| "", &mut region, inp_cols[i], 0))
-          .collect::<Result<Vec<_>, _>>()?;
-
-        let weight_cols = DotProductChip::<F>::get_weight_columns(&self.config);
-        weights
-          .iter()
-          .enumerate()
-          .map(|(i, cell)| cell.copy_advice(|| "", &mut region, weight_cols[i], 0))
-          .collect::<Result<Vec<_>, _>>()?;
-
-        // All columns need to be assigned
-        if self.config.columns.len() % 2 == 0 {
-          zero.copy_advice(
-            || "",
-            &mut region,
-            self.config.columns[self.config.columns.len() - 2],
-            0,
-          )?;
-        }
-
-        let e = inp
-          .iter()
-          .zip(weights.iter())
-          .map(|(a, b)| a.value().map(|x: &F| x.to_owned()) * b.value().map(|x: &F| x.to_owned()))
-          .reduce(|a, b| a + b)
-          .unwrap();
-
-        let res = region.assign_advice(
-          || "",
-          self.config.columns[self.config.columns.len() - 1],
-          0,
-          || e,
-        );
-        Ok(res?)
-      },
-    )?;
-
-    Ok(vec![output_cell])
-  }
-
   fn op_row_region(
     &self,
     region: &mut Region<F>,
@@ -174,7 +109,9 @@ impl<F: FieldExt> Gadget<F> for DotProductChip<F> {
     let selector = self.config.selectors.get(&GadgetType::DotProduct).unwrap()[0];
     let zero = single_inputs[0].clone();
 
-    selector.enable(region, row_offset)?;
+    if USE_SELECTORS {
+      selector.enable(region, row_offset)?;
+    }
 
     let inp_cols = DotProductChip::<F>::get_input_columns(&self.config);
     inp
@@ -234,18 +171,21 @@ impl<F: FieldExt> Gadget<F> for DotProductChip<F> {
       weights.push(zero.clone());
     }
 
-    let mut outputs = vec![];
-    for i in 0..inputs.len() / self.num_inputs_per_row() {
-      let inp = inputs[i * self.num_inputs_per_row()..(i + 1) * self.num_inputs_per_row()].to_vec();
-      let weights =
-        weights[i * self.num_inputs_per_row()..(i + 1) * self.num_inputs_per_row()].to_vec();
-      let res = self.op_row(
-        layouter.namespace(|| "dot prod"),
-        &vec![inp, weights],
-        &vec![zero.clone()],
-      )?;
-      outputs.push(res[0].clone());
-    }
+    let outputs = layouter.assign_region(
+      || "dot prod rows",
+      |mut region| {
+        let mut outputs = vec![];
+        for i in 0..inputs.len() / self.num_inputs_per_row() {
+          let inp =
+            inputs[i * self.num_inputs_per_row()..(i + 1) * self.num_inputs_per_row()].to_vec();
+          let weights =
+            weights[i * self.num_inputs_per_row()..(i + 1) * self.num_inputs_per_row()].to_vec();
+          let res = self.op_row_region(&mut region, i, &vec![inp, weights], &vec![zero.clone()])?;
+          outputs.push(res[0].clone());
+        }
+        Ok(outputs)
+      },
+    )?;
 
     let adder_chip = AdderChip::<F>::construct(self.config.clone());
     Ok(adder_chip.forward(

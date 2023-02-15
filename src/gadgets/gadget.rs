@@ -7,6 +7,9 @@ use halo2_proofs::{
 };
 use num_bigint::BigUint;
 
+// FIXME: how to enable this?
+pub const USE_SELECTORS: bool = false;
+
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
 pub enum GadgetType {
   AddPairs,
@@ -61,13 +64,6 @@ pub trait Gadget<F: FieldExt> {
   fn load_lookups(&self, _layouter: impl Layouter<F>) -> Result<(), Error> {
     Ok(())
   }
-
-  fn op_row(
-    &self,
-    layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<AssignedCell<F, F>>>,
-    single_inputs: &Vec<AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error>;
 
   fn op_row_region(
     &self,
