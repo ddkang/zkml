@@ -216,15 +216,6 @@ impl<F: FieldExt> Conv2DChip<F> {
     let conv_config = &Self::param_vec_to_config(self.config.layer_params.clone());
     let strides = conv_config.stride;
 
-    let (ph, pw) = Self::get_padding(
-      input.shape()[1],
-      input.shape()[2],
-      strides.0,
-      strides.1,
-      weights.shape()[1],
-      weights.shape()[2],
-    );
-
     let h: usize = input.shape()[1];
     let w: usize = input.shape()[2];
     let ch: usize = weights.shape()[1];
@@ -232,12 +223,11 @@ impl<F: FieldExt> Conv2DChip<F> {
     let (si, sj) = conv_config.stride;
     let (oh, ow) = Self::out_hw(h, w, si, sj, ch, cw, conv_config.padding);
 
-    println!(
-      "outp shape: {}, {}, {}",
-      input.shape()[1] / strides.0,
-      input.shape()[1],
-      strides.0
-    );
+    let (ph, pw) = if conv_config.padding == PaddingEnum::Same {
+      Self::get_padding(h, w, si, sj, ch, cw)
+    } else {
+      ((0, 0), (0, 0))
+    };
 
     let padding = vec![[0, 0], [ph.0, ph.1], [pw.0, pw.1], [0, 0]];
 
