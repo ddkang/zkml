@@ -181,6 +181,7 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundChip<F> {
     single_inputs: &Vec<AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     let mut inps = vec_inputs[0].clone();
+    let initial_len = inps.len();
 
     // Needed to pad: bias - bias = 0
     let default = &single_inputs[0];
@@ -189,6 +190,6 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundChip<F> {
     }
 
     let res = self.op_aligned_rows(layouter.namespace(|| "var_div"), &vec![inps], single_inputs)?;
-    Ok(res)
+    Ok(res[..initial_len].to_vec())
   }
 }
