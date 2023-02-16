@@ -117,9 +117,9 @@ impl<F: FieldExt> Conv2DChip<F> {
     );
     // https://iq.opengenus.org/same-and-valid-padding/
     match padding {
-      // PaddingEnum::Same => ((H + SI - 1) / SI, (W + SJ - 1) / SJ),
+      PaddingEnum::Same => ((h + si - 1) / si, (w + sj - 1) / sj),
       // TODO: the above is probably correct, but we always have valid paddings
-      PaddingEnum::Same => (h / si, w / sj),
+      // PaddingEnum::Same => (h / si, w / sj),
       PaddingEnum::Valid => ((h - ch) / si + 1, (w - cw) / sj + 1),
     }
   }
@@ -154,10 +154,12 @@ impl<F: FieldExt> Conv2DChip<F> {
     let inp_pad = pad(&inp, padding, zero);
 
     // We only support valid padding with stride = 1 at the moment
+    /*
     if conv_config.padding == PaddingEnum::Valid {
       assert_eq!(si, 1);
       assert_eq!(sj, 1);
     }
+    */
 
     let (oh, ow) = Self::out_hw(h, w, si, sj, ch, cw, conv_config.padding);
 

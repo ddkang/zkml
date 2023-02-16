@@ -84,6 +84,12 @@ class Converter:
       elif op_code == tflite.BuiltinOperator.ADD:
         layer_type = 'Add'
         params = []
+      elif op_code == tflite.BuiltinOperator.PAD:
+        layer_type = 'Pad'
+        # FIXME: the padding input is a tensor, not a parameter. Fix in rust
+        tensor_idx = op.Inputs(1)
+        tensor = interpreter.get_tensor(tensor_idx).flatten().flatten().astype(int)
+        params = tensor.tolist()
       elif op_code == tflite.BuiltinOperator.SOFTMAX:
         continue
         print('softmax')

@@ -78,7 +78,8 @@ impl<F: FieldExt> Layer<F> for PadChip<F> {
     constants: &HashMap<i64, AssignedCell<F, F>>,
     _gadget_config: Rc<GadgetConfig>,
   ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
-    assert_eq!(tensors.len(), 1);
+    // FIXME: the pad from tflite is actually two, but mine is one
+    // assert_eq!(tensors.len(), 1);
     let input = &tensors[0];
 
     let zero = constants.get(&0).unwrap().clone();

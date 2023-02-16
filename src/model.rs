@@ -152,6 +152,7 @@ impl<F: FieldExt> ModelCircuit<F> {
       "Conv2D" => LayerType::Conv2D,
       "AveragePool2D" => LayerType::AvgPool2D,
       "Add" => LayerType::Add,
+      "Pad" => LayerType::Pad,
       _ => panic!("unknown op: {}", x),
     };
 
