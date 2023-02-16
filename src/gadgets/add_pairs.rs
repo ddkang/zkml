@@ -117,6 +117,7 @@ impl<F: FieldExt> Gadget<F> for AddPairsChip<F> {
 
     let mut inp1 = vec_inputs[0].clone();
     let mut inp2 = vec_inputs[1].clone();
+    let initial_len = inp1.len();
     while inp1.len() % self.num_cols_per_op() != 0 {
       inp1.push(zero);
       inp2.push(zero);
@@ -124,10 +125,11 @@ impl<F: FieldExt> Gadget<F> for AddPairsChip<F> {
 
     let vec_inputs = vec![inp1, inp2];
 
-    self.op_aligned_rows(
+    let res = self.op_aligned_rows(
       layouter.namespace(|| format!("forward row {}", self.name())),
       &vec_inputs,
       &single_inputs,
-    )
+    )?;
+    Ok(res[0..initial_len].to_vec())
   }
 }
