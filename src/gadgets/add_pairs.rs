@@ -118,7 +118,7 @@ impl<F: FieldExt> Gadget<F> for AddPairsChip<F> {
     let mut inp1 = vec_inputs[0].clone();
     let mut inp2 = vec_inputs[1].clone();
     let initial_len = inp1.len();
-    while inp1.len() % self.num_cols_per_op() != 0 {
+    while inp1.len() % self.num_inputs_per_row() != 0 {
       inp1.push(zero);
       inp2.push(zero);
     }
