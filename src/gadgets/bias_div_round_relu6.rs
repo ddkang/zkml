@@ -307,6 +307,7 @@ impl<F: FieldExt> Gadget<F> for BiasDivRoundRelu6Chip<F> {
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     let mut inps = vec_inputs[0].clone();
     let mut biases = vec_inputs[1].clone();
+    let initial_len = inps.len();
 
     // Needed to pad: bias - bias = 0
     let default = biases[0].clone();
@@ -320,6 +321,6 @@ impl<F: FieldExt> Gadget<F> for BiasDivRoundRelu6Chip<F> {
       &vec![inps, biases],
       single_inputs,
     )?;
-    Ok(res)
+    Ok(res[0..initial_len * 2].to_vec())
   }
 }
