@@ -148,7 +148,12 @@ impl<F: FieldExt> Conv2DChip<F> {
     // B, H, W, C
     assert_eq!(inp.shape().len(), 4);
 
-    let (ph, pw) = Self::get_padding(h, w, si, sj, ch, cw);
+    let (ph, pw) = if conv_config.padding == PaddingEnum::Same {
+      Self::get_padding(h, w, si, sj, ch, cw)
+    } else {
+      ((0, 0), (0, 0))
+    };
+    println!("Padding: {:?}", (ph, pw));
     let padding = vec![[0, 0], [ph.0, ph.1], [pw.0, pw.1], [0, 0]];
 
     let inp_pad = pad(&inp, padding, zero);
