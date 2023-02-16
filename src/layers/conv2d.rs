@@ -220,6 +220,20 @@ impl<F: FieldExt> Conv2DChip<F> {
       weights.shape()[2],
     );
 
+    let h: usize = input.shape()[1];
+    let w: usize = input.shape()[2];
+    let ch: usize = weights.shape()[1];
+    let cw: usize = weights.shape()[2];
+    let (si, sj) = conv_config.stride;
+    let (oh, ow) = Self::out_hw(h, w, si, sj, ch, cw, conv_config.padding);
+
+    println!(
+      "outp shape: {}, {}, {}",
+      input.shape()[1] / strides.0,
+      input.shape()[1],
+      strides.0
+    );
+
     let padding = vec![[0, 0], [ph.0, ph.1], [pw.0, pw.1], [0, 0]];
 
     let inp_pad = pad(&input, padding, zero);
@@ -228,14 +242,9 @@ impl<F: FieldExt> Conv2DChip<F> {
     let mut weight_cells = vec![];
     let mut biases_cells = vec![];
     let mut row_idx = 0;
-    println!(
-      "outp shape: {}, {}, {}",
-      input.shape()[1] / strides.0,
-      input.shape()[1],
-      strides.0
-    );
-    for i in 0..input.shape()[1] / strides.0 {
-      for j in 0..input.shape()[2] / strides.1 {
+
+    for i in 0..oh {
+      for j in 0..ow {
         for chan_out in 0..weights.shape()[3] {
           inp_cells.push(vec![]);
           weight_cells.push(vec![]);
