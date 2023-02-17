@@ -31,7 +31,7 @@ pub enum PaddedWord<F: Field> {
 }
 
 /// The set of circuit instructions required to use the Poseidon permutation.
-pub trait PoseidonInstructions<F: FieldExt, S: Spec<F, T, RATE>, const T: usize, const RATE: usize>:
+pub trait PoseidonInstructions<F: FieldExt, S: Spec<F, T>, const T: usize, const RATE: usize>:
   Chip<F>
 {
   /// Variable representing the word over which the Poseidon permutation operates.
@@ -50,7 +50,7 @@ pub trait PoseidonInstructions<F: FieldExt, S: Spec<F, T, RATE>, const T: usize,
 /// [`Hash`]: self::Hash
 pub trait PoseidonSpongeInstructions<
   F: FieldExt,
-  S: Spec<F, T, RATE>,
+  S: Spec<F, T>,
   D: Domain<F, RATE>,
   const T: usize,
   const RATE: usize,
@@ -76,7 +76,7 @@ pub trait PoseidonSpongeInstructions<
 pub struct Word<
   F: FieldExt,
   PoseidonChip: PoseidonInstructions<F, S, T, RATE>,
-  S: Spec<F, T, RATE>,
+  S: Spec<F, T>,
   const T: usize,
   const RATE: usize,
 > {
@@ -86,7 +86,7 @@ pub struct Word<
 impl<
     F: FieldExt,
     PoseidonChip: PoseidonInstructions<F, S, T, RATE>,
-    S: Spec<F, T, RATE>,
+    S: Spec<F, T>,
     const T: usize,
     const RATE: usize,
   > Word<F, PoseidonChip, S, T, RATE>
@@ -105,7 +105,7 @@ impl<
 fn poseidon_sponge<
   F: FieldExt,
   PoseidonChip: PoseidonSpongeInstructions<F, S, D, T, RATE>,
-  S: Spec<F, T, RATE>,
+  S: Spec<F, T>,
   D: Domain<F, RATE>,
   const T: usize,
   const RATE: usize,
@@ -129,7 +129,7 @@ fn poseidon_sponge<
 pub struct Sponge<
   F: FieldExt,
   PoseidonChip: PoseidonSpongeInstructions<F, S, D, T, RATE>,
-  S: Spec<F, T, RATE>,
+  S: Spec<F, T>,
   M: SpongeMode,
   D: Domain<F, RATE>,
   const T: usize,
@@ -144,7 +144,7 @@ pub struct Sponge<
 impl<
     F: FieldExt,
     PoseidonChip: PoseidonSpongeInstructions<F, S, D, T, RATE>,
-    S: Spec<F, T, RATE>,
+    S: Spec<F, T>,
     D: Domain<F, RATE>,
     const T: usize,
     const RATE: usize,
@@ -217,7 +217,7 @@ impl<
 impl<
     F: FieldExt,
     PoseidonChip: PoseidonSpongeInstructions<F, S, D, T, RATE>,
-    S: Spec<F, T, RATE>,
+    S: Spec<F, T>,
     D: Domain<F, RATE>,
     const T: usize,
     const RATE: usize,
@@ -248,7 +248,7 @@ impl<
 pub struct Hash<
   F: FieldExt,
   PoseidonChip: PoseidonSpongeInstructions<F, S, D, T, RATE>,
-  S: Spec<F, T, RATE>,
+  S: Spec<F, T>,
   D: Domain<F, RATE>,
   const T: usize,
   const RATE: usize,
@@ -259,7 +259,7 @@ pub struct Hash<
 impl<
     F: FieldExt,
     PoseidonChip: PoseidonSpongeInstructions<F, S, D, T, RATE>,
-    S: Spec<F, T, RATE>,
+    S: Spec<F, T>,
     D: Domain<F, RATE>,
     const T: usize,
     const RATE: usize,
@@ -274,7 +274,7 @@ impl<
 impl<
     F: FieldExt,
     PoseidonChip: PoseidonSpongeInstructions<F, S, ConstantLength<L>, T, RATE>,
-    S: Spec<F, T, RATE>,
+    S: Spec<F, T>,
     const T: usize,
     const RATE: usize,
     const L: usize,
