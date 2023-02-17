@@ -10,7 +10,7 @@ use halo2_proofs::{
 
 use super::{
   poseidon::{PaddedWord, PoseidonInstructions, PoseidonSpongeInstructions},
-  primitives::{Absorbing, Domain, Mds, Spec, Squeezing, State},
+  primitives::{Absorbing, Domain, Mds, Spec, Squeezing},
 };
 
 pub trait Var<F: FieldExt>: Clone + std::fmt::Debug + From<AssignedCell<F, F>> {
@@ -236,8 +236,9 @@ impl<F: FieldExt, S: Spec<F, WIDTH, RATE>, const WIDTH: usize, const RATE: usize
   fn permute(
     &self,
     layouter: &mut impl Layouter<F>,
-    initial_state: &State<Self::Word, WIDTH>,
-  ) -> Result<State<Self::Word, WIDTH>, Error> {
+    initial_state: &Vec<Self::Word>,
+  ) -> Result<Vec<Self::Word>, Error> {
+    assert_eq!(initial_state.len(), WIDTH);
     let config = self.config();
 
     layouter.assign_region(
@@ -272,7 +273,7 @@ impl<F: FieldExt, S: Spec<F, WIDTH, RATE>, const WIDTH: usize, const RATE: usize
           })
         })?;
 
-        Ok(state.0)
+        Ok(state.0.to_vec())
       },
     )
   }
@@ -286,10 +287,7 @@ impl<
     const RATE: usize,
   > PoseidonSpongeInstructions<F, S, D, WIDTH, RATE> for Pow5Chip<F, WIDTH, RATE>
 {
-  fn initial_state(
-    &self,
-    layouter: &mut impl Layouter<F>,
-  ) -> Result<State<Self::Word, WIDTH>, Error> {
+  fn initial_state(&self, layouter: &mut impl Layouter<F>) -> Result<Vec<Self::Word>, Error> {
     let config = self.config();
     let state = layouter.assign_region(
       || format!("initial state for domain {}", D::name()),
@@ -322,9 +320,11 @@ impl<
   fn add_input(
     &self,
     layouter: &mut impl Layouter<F>,
-    initial_state: &State<Self::Word, WIDTH>,
+    initial_state: &Vec<Self::Word>,
     input: &Absorbing<PaddedWord<F>, RATE>,
-  ) -> Result<State<Self::Word, WIDTH>, Error> {
+  ) -> Result<Vec<Self::Word>, Error> {
+    assert_eq!(initial_state.len(), WIDTH);
+
     let config = self.config();
     layouter.assign_region(
       || format!("add input for domain {}", D::name()),
@@ -394,7 +394,9 @@ impl<
     )
   }
 
-  fn get_output(state: &State<Self::Word, WIDTH>) -> Squeezing<Self::Word, RATE> {
+  fn get_output(state: &Vec<Self::Word>) -> Squeezing<Self::Word, RATE> {
+    assert_eq!(state.len(), WIDTH);
+
     Squeezing(
       state[..RATE]
         .iter()
@@ -544,7 +546,7 @@ impl<F: FieldExt, const WIDTH: usize> Pow5State<F, WIDTH> {
   fn load<const RATE: usize>(
     region: &mut Region<F>,
     config: &Pow5Config<F, WIDTH, RATE>,
-    initial_state: &State<StateWord<F>, WIDTH>,
+    initial_state: &Vec<StateWord<F>>,
   ) -> Result<Self, Error> {
     let load_state_word = |i: usize| {
       initial_state[i]

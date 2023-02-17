@@ -11,9 +11,6 @@ use super::poseidon::grain;
 use super::poseidon::grain::SboxType;
 use super::poseidon::mds;
 
-/// The type used to hold permutation state.
-pub(crate) type State<F, const T: usize> = [F; T];
-
 /// The type used to hold sponge rate.
 pub(crate) type SpongeRate<F, const RATE: usize> = [Option<F>; RATE];
 
@@ -68,14 +65,16 @@ pub trait Spec<F: FieldExt, const T: usize, const RATE: usize>: fmt::Debug {
 
 /// Runs the Poseidon permutation on the given state.
 pub(crate) fn permute<F: FieldExt, S: Spec<F, T, RATE>, const T: usize, const RATE: usize>(
-  state: &mut State<F, T>,
+  state: &mut Vec<F>,
   mds: &Mds<F, T>,
   round_constants: &[[F; T]],
 ) {
+  assert_eq!(state.len(), T);
+
   let r_f = S::full_rounds() / 2;
   let r_p = S::partial_rounds();
 
-  let apply_mds = |state: &mut State<F, T>| {
+  let apply_mds = |state: &mut Vec<F>| {
     let mut new_state = [F::zero(); T];
     // Matrix multiplication
     #[allow(clippy::needless_range_loop)]
@@ -84,17 +83,17 @@ pub(crate) fn permute<F: FieldExt, S: Spec<F, T, RATE>, const T: usize, const RA
         new_state[i] += mds[i][j] * state[j];
       }
     }
-    *state = new_state;
+    *state = new_state.to_vec();
   };
 
-  let full_round = |state: &mut State<F, T>, rcs: &[F; T]| {
+  let full_round = |state: &mut Vec<F>, rcs: &[F; T]| {
     for (word, rc) in state.iter_mut().zip(rcs.iter()) {
       *word = S::sbox(*word + rc);
     }
     apply_mds(state);
   };
 
-  let part_round = |state: &mut State<F, T>, rcs: &[F; T]| {
+  let part_round = |state: &mut Vec<F>, rcs: &[F; T]| {
     for (word, rc) in state.iter_mut().zip(rcs.iter()) {
       *word += rc;
     }
@@ -104,9 +103,9 @@ pub(crate) fn permute<F: FieldExt, S: Spec<F, T, RATE>, const T: usize, const RA
   };
 
   iter::empty()
-    .chain(iter::repeat(&full_round as &dyn Fn(&mut State<F, T>, &[F; T])).take(r_f))
-    .chain(iter::repeat(&part_round as &dyn Fn(&mut State<F, T>, &[F; T])).take(r_p))
-    .chain(iter::repeat(&full_round as &dyn Fn(&mut State<F, T>, &[F; T])).take(r_f))
+    .chain(iter::repeat(&full_round as &dyn Fn(&mut Vec<F>, &[F; T])).take(r_f))
+    .chain(iter::repeat(&part_round as &dyn Fn(&mut Vec<F>, &[F; T])).take(r_p))
+    .chain(iter::repeat(&full_round as &dyn Fn(&mut Vec<F>, &[F; T])).take(r_f))
     .zip(round_constants.iter())
     .fold(state, |state, (round, rcs)| {
       round(state, rcs);
@@ -115,11 +114,13 @@ pub(crate) fn permute<F: FieldExt, S: Spec<F, T, RATE>, const T: usize, const RA
 }
 
 fn poseidon_sponge<F: FieldExt, S: Spec<F, T, RATE>, const T: usize, const RATE: usize>(
-  state: &mut State<F, T>,
+  state: &mut Vec<F>,
   input: Option<&Absorbing<F, RATE>>,
   mds_matrix: &Mds<F, T>,
   round_constants: &[[F; T]],
 ) -> Squeezing<F, RATE> {
+  assert_eq!(state.len(), T);
+
   if let Some(Absorbing(input)) = input {
     // `Iterator::zip` short-circuits when one iterator completes, so this will only
     // mutate the rate portion of the state.
@@ -178,7 +179,7 @@ pub(crate) struct Sponge<
   const RATE: usize,
 > {
   mode: M,
-  state: State<F, T>,
+  state: Vec<F>,
   mds_matrix: Mds<F, T>,
   round_constants: Vec<[F; T]>,
   _marker: PhantomData<S>,
@@ -197,7 +198,7 @@ impl<F: FieldExt, S: Spec<F, T, RATE>, const T: usize, const RATE: usize>
 
     Sponge {
       mode,
-      state,
+      state: state.to_vec(),
       mds_matrix,
       round_constants,
       _marker: PhantomData::default(),
@@ -384,7 +385,7 @@ mod tests {
 
     // The result should be equivalent to just directly applying the permutation and
     // taking the first state element as the output.
-    let mut state = [message[0], message[1], pallas::Base::from_u128(2 << 64)];
+    let mut state = [message[0], message[1], pallas::Base::from_u128(2 << 64)].to_vec();
     permute::<_, OrchardNullifier, 3, 2>(&mut state, &mds, &round_constants);
     assert_eq!(state[0], result);
   }
