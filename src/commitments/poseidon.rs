@@ -1,8 +1,7 @@
 //! The Poseidon algebraic hash function.
 
-use std::convert::TryInto;
 use std::fmt;
-use std::marker::PhantomData;
+use std::{convert::TryInto, iter};
 
 use group::ff::Field;
 use halo2_proofs::{
@@ -12,7 +11,7 @@ use halo2_proofs::{
   plonk::Error,
 };
 
-use super::primitives::{Absorbing, ConstantLength, Domain, Spec, SpongeMode, Squeezing};
+use super::primitives::{Absorbing, Spec, SpongeMode, Squeezing};
 
 pub mod fp;
 pub mod fq;
@@ -48,16 +47,15 @@ pub trait PoseidonInstructions<F: FieldExt, S: Spec<F, T>, const T: usize, const
 /// The set of circuit instructions required to use the [`Sponge`] and [`Hash`] gadgets.
 ///
 /// [`Hash`]: self::Hash
-pub trait PoseidonSpongeInstructions<
-  F: FieldExt,
-  S: Spec<F, T>,
-  D: Domain<F, RATE>,
-  const T: usize,
-  const RATE: usize,
->: PoseidonInstructions<F, S, T, RATE>
+pub trait PoseidonSpongeInstructions<F: FieldExt, S: Spec<F, T>, const T: usize, const RATE: usize>:
+  PoseidonInstructions<F, S, T, RATE>
 {
   /// Returns the initial empty state for the given domain.
-  fn initial_state(&self, layouter: &mut impl Layouter<F>) -> Result<Vec<Self::Word>, Error>;
+  fn initial_state(
+    &self,
+    layouter: &mut impl Layouter<F>,
+    initial_capacity_element: F,
+  ) -> Result<Vec<Self::Word>, Error>;
 
   /// Adds the given input to the state.
   fn add_input(
@@ -104,9 +102,8 @@ impl<
 
 fn poseidon_sponge<
   F: FieldExt,
-  PoseidonChip: PoseidonSpongeInstructions<F, S, D, T, RATE>,
+  PoseidonChip: PoseidonSpongeInstructions<F, S, T, RATE>,
   S: Spec<F, T>,
-  D: Domain<F, RATE>,
   const T: usize,
   const RATE: usize,
 >(
@@ -128,42 +125,44 @@ fn poseidon_sponge<
 #[derive(Debug)]
 pub struct Sponge<
   F: FieldExt,
-  PoseidonChip: PoseidonSpongeInstructions<F, S, D, T, RATE>,
+  PoseidonChip: PoseidonSpongeInstructions<F, S, T, RATE>,
   S: Spec<F, T>,
   M: SpongeMode,
-  D: Domain<F, RATE>,
   const T: usize,
   const RATE: usize,
 > {
   chip: PoseidonChip,
   mode: M,
   state: Vec<PoseidonChip::Word>,
-  _marker: PhantomData<D>,
 }
 
 impl<
     F: FieldExt,
-    PoseidonChip: PoseidonSpongeInstructions<F, S, D, T, RATE>,
+    PoseidonChip: PoseidonSpongeInstructions<F, S, T, RATE>,
     S: Spec<F, T>,
-    D: Domain<F, RATE>,
     const T: usize,
     const RATE: usize,
-  > Sponge<F, PoseidonChip, S, Absorbing<PaddedWord<F>, RATE>, D, T, RATE>
+  > Sponge<F, PoseidonChip, S, Absorbing<PaddedWord<F>, RATE>, T, RATE>
 {
   /// Constructs a new duplex sponge for the given Poseidon specification.
-  pub fn new(chip: PoseidonChip, mut layouter: impl Layouter<F>) -> Result<Self, Error> {
-    chip.initial_state(&mut layouter).map(|state| Sponge {
-      chip,
-      mode: Absorbing(
-        (0..RATE)
-          .map(|_| None)
-          .collect::<Vec<_>>()
-          .try_into()
-          .unwrap(),
-      ),
-      state,
-      _marker: PhantomData::default(),
-    })
+  pub fn new(
+    chip: PoseidonChip,
+    mut layouter: impl Layouter<F>,
+    initial_capacity_element: F,
+  ) -> Result<Self, Error> {
+    chip
+      .initial_state(&mut layouter, initial_capacity_element)
+      .map(|state| Sponge {
+        chip,
+        mode: Absorbing(
+          (0..RATE)
+            .map(|_| None)
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap(),
+        ),
+        state,
+      })
   }
 
   /// Absorbs an element into the sponge.
@@ -196,8 +195,7 @@ impl<
   pub fn finish_absorbing(
     mut self,
     mut layouter: impl Layouter<F>,
-  ) -> Result<Sponge<F, PoseidonChip, S, Squeezing<PoseidonChip::Word, RATE>, D, T, RATE>, Error>
-  {
+  ) -> Result<Sponge<F, PoseidonChip, S, Squeezing<PoseidonChip::Word, RATE>, T, RATE>, Error> {
     let mode = poseidon_sponge(
       &self.chip,
       layouter.namespace(|| "PoseidonSponge"),
@@ -209,19 +207,17 @@ impl<
       chip: self.chip,
       mode,
       state: self.state,
-      _marker: PhantomData::default(),
     })
   }
 }
 
 impl<
     F: FieldExt,
-    PoseidonChip: PoseidonSpongeInstructions<F, S, D, T, RATE>,
+    PoseidonChip: PoseidonSpongeInstructions<F, S, T, RATE>,
     S: Spec<F, T>,
-    D: Domain<F, RATE>,
     const T: usize,
     const RATE: usize,
-  > Sponge<F, PoseidonChip, S, Squeezing<PoseidonChip::Word, RATE>, D, T, RATE>
+  > Sponge<F, PoseidonChip, S, Squeezing<PoseidonChip::Word, RATE>, T, RATE>
 {
   /// Squeezes an element from the sponge.
   pub fn squeeze(&mut self, mut layouter: impl Layouter<F>) -> Result<AssignedCell<F, F>, Error> {
@@ -247,49 +243,56 @@ impl<
 #[derive(Debug)]
 pub struct Hash<
   F: FieldExt,
-  PoseidonChip: PoseidonSpongeInstructions<F, S, D, T, RATE>,
+  PoseidonChip: PoseidonSpongeInstructions<F, S, T, RATE>,
   S: Spec<F, T>,
-  D: Domain<F, RATE>,
   const T: usize,
   const RATE: usize,
 > {
-  sponge: Sponge<F, PoseidonChip, S, Absorbing<PaddedWord<F>, RATE>, D, T, RATE>,
+  sponge: Sponge<F, PoseidonChip, S, Absorbing<PaddedWord<F>, RATE>, T, RATE>,
 }
 
 impl<
     F: FieldExt,
-    PoseidonChip: PoseidonSpongeInstructions<F, S, D, T, RATE>,
+    PoseidonChip: PoseidonSpongeInstructions<F, S, T, RATE>,
     S: Spec<F, T>,
-    D: Domain<F, RATE>,
     const T: usize,
     const RATE: usize,
-  > Hash<F, PoseidonChip, S, D, T, RATE>
+  > Hash<F, PoseidonChip, S, T, RATE>
 {
   /// Initializes a new hasher.
-  pub fn init(chip: PoseidonChip, layouter: impl Layouter<F>) -> Result<Self, Error> {
-    Sponge::new(chip, layouter).map(|sponge| Hash { sponge })
+  pub fn init(
+    chip: PoseidonChip,
+    layouter: impl Layouter<F>,
+    initial_capacity_element: F,
+  ) -> Result<Self, Error> {
+    Sponge::new(chip, layouter, initial_capacity_element).map(|sponge| Hash { sponge })
   }
 }
 
 impl<
     F: FieldExt,
-    PoseidonChip: PoseidonSpongeInstructions<F, S, ConstantLength<L>, T, RATE>,
+    PoseidonChip: PoseidonSpongeInstructions<F, S, T, RATE>,
     S: Spec<F, T>,
     const T: usize,
     const RATE: usize,
-    const L: usize,
-  > Hash<F, PoseidonChip, S, ConstantLength<L>, T, RATE>
+  > Hash<F, PoseidonChip, S, T, RATE>
 {
   /// Hashes the given input.
   pub fn hash(
     mut self,
     mut layouter: impl Layouter<F>,
-    message: [AssignedCell<F, F>; L],
+    message: Vec<AssignedCell<F, F>>,
   ) -> Result<AssignedCell<F, F>, Error> {
+    // FIXME: move this somewhere
+    let l = message.len();
+    let padding = || {
+      let k = (l + RATE - 1) / RATE;
+      iter::repeat(F::zero()).take(k * RATE - l)
+    };
     for (i, value) in message
       .into_iter()
       .map(PaddedWord::Message)
-      .chain(<ConstantLength<L> as Domain<F, RATE>>::padding(L).map(PaddedWord::Padding))
+      .chain(padding().map(PaddedWord::Padding))
       .enumerate()
     {
       self

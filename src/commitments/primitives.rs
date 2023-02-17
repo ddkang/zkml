@@ -11,9 +11,6 @@ use super::poseidon::grain;
 use super::poseidon::grain::SboxType;
 use super::poseidon::mds;
 
-/// The type used to hold sponge rate.
-// pub(crate) type SpongeRate<F, const RATE: usize> = [Option<F>; RATE];
-
 /// The type used to hold the MDS matrix and its inverse.
 pub(crate) type Mds<F, const T: usize> = [[F; T]; T];
 
