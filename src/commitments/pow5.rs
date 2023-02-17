@@ -60,7 +60,7 @@ impl<F: FieldExt, const WIDTH: usize, const RATE: usize> Pow5Chip<F, WIDTH, RATE
   // TODO: Does the rate need to be hard-coded here, or only the width? It probably
   // needs to be known wherever we implement the hashing gadget, but it isn't strictly
   // necessary for the permutation.
-  pub fn configure<S: Spec<F, WIDTH, RATE>>(
+  pub fn configure<S: Spec<F, WIDTH>>(
     meta: &mut ConstraintSystem<F>,
     state: [Column<Advice>; WIDTH],
     partial_sbox: Column<Advice>,
@@ -228,7 +228,7 @@ impl<F: FieldExt, const WIDTH: usize, const RATE: usize> Chip<F> for Pow5Chip<F,
   }
 }
 
-impl<F: FieldExt, S: Spec<F, WIDTH, RATE>, const WIDTH: usize, const RATE: usize>
+impl<F: FieldExt, S: Spec<F, WIDTH>, const WIDTH: usize, const RATE: usize>
   PoseidonInstructions<F, S, WIDTH, RATE> for Pow5Chip<F, WIDTH, RATE>
 {
   type Word = StateWord<F>;
@@ -279,13 +279,8 @@ impl<F: FieldExt, S: Spec<F, WIDTH, RATE>, const WIDTH: usize, const RATE: usize
   }
 }
 
-impl<
-    F: FieldExt,
-    S: Spec<F, WIDTH, RATE>,
-    D: Domain<F, RATE>,
-    const WIDTH: usize,
-    const RATE: usize,
-  > PoseidonSpongeInstructions<F, S, D, WIDTH, RATE> for Pow5Chip<F, WIDTH, RATE>
+impl<F: FieldExt, S: Spec<F, WIDTH>, D: Domain<F, RATE>, const WIDTH: usize, const RATE: usize>
+  PoseidonSpongeInstructions<F, S, D, WIDTH, RATE> for Pow5Chip<F, WIDTH, RATE>
 {
   fn initial_state(&self, layouter: &mut impl Layouter<F>) -> Result<Vec<Self::Word>, Error> {
     let config = self.config();
@@ -625,11 +620,9 @@ mod tests {
   use std::convert::TryInto;
   use std::marker::PhantomData;
 
-  struct PermuteCircuit<S: Spec<Fp, WIDTH, RATE>, const WIDTH: usize, const RATE: usize>(
-    PhantomData<S>,
-  );
+  struct PermuteCircuit<S: Spec<Fp, WIDTH>, const WIDTH: usize, const RATE: usize>(PhantomData<S>);
 
-  impl<S: Spec<Fp, WIDTH, RATE>, const WIDTH: usize, const RATE: usize> Circuit<Fp>
+  impl<S: Spec<Fp, WIDTH>, const WIDTH: usize, const RATE: usize> Circuit<Fp>
     for PermuteCircuit<S, WIDTH, RATE>
   {
     type Config = Pow5Config<Fp, WIDTH, RATE>;
@@ -723,12 +716,7 @@ mod tests {
     assert_eq!(prover.verify(), Ok(()))
   }
 
-  struct HashCircuit<
-    S: Spec<Fp, WIDTH, RATE>,
-    const WIDTH: usize,
-    const RATE: usize,
-    const L: usize,
-  > {
+  struct HashCircuit<S: Spec<Fp, WIDTH>, const WIDTH: usize, const RATE: usize, const L: usize> {
     message: Value<[Fp; L]>,
     // For the purpose of this test, witness the result.
     // TODO: Move this into an instance column.
@@ -736,7 +724,7 @@ mod tests {
     _spec: PhantomData<S>,
   }
 
-  impl<S: Spec<Fp, WIDTH, RATE>, const WIDTH: usize, const RATE: usize, const L: usize> Circuit<Fp>
+  impl<S: Spec<Fp, WIDTH>, const WIDTH: usize, const RATE: usize, const L: usize> Circuit<Fp>
     for HashCircuit<S, WIDTH, RATE, L>
   {
     type Config = Pow5Config<Fp, WIDTH, RATE>;

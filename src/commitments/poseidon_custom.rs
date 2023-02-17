@@ -17,7 +17,7 @@ use super::{
 pub struct MyHash<
   F: FieldExt,
   PoseidonChip: PoseidonSpongeInstructions<F, S, D, T, RATE>,
-  S: Spec<F, T, RATE>,
+  S: Spec<F, T>,
   D: Domain<F, RATE>,
   const T: usize,
   const RATE: usize,
@@ -28,7 +28,7 @@ pub struct MyHash<
 impl<
     F: FieldExt,
     PoseidonChip: PoseidonSpongeInstructions<F, S, D, T, RATE>,
-    S: Spec<F, T, RATE>,
+    S: Spec<F, T>,
     D: Domain<F, RATE>,
     const T: usize,
     const RATE: usize,
@@ -43,7 +43,7 @@ impl<
 impl<
     F: FieldExt,
     PoseidonChip: PoseidonSpongeInstructions<F, S, ConstantLength<L>, T, RATE>,
-    S: Spec<F, T, RATE>,
+    S: Spec<F, T>,
     const T: usize,
     const RATE: usize,
     const L: usize,
@@ -96,7 +96,7 @@ impl<F: FieldExt, const WIDTH: usize, const RATE: usize, const L: usize>
     }
   }
 
-  pub fn configure<S: Spec<F, WIDTH, RATE>>(
+  pub fn configure<S: Spec<F, WIDTH>>(
     meta: &mut ConstraintSystem<F>,
     state: [Column<Advice>; WIDTH],
     partial_sbox: Column<Advice>,
@@ -117,7 +117,7 @@ impl<F: FieldExt, const WIDTH: usize, const RATE: usize, const L: usize>
     }
   }
 
-  pub fn hash<S: Spec<F, WIDTH, RATE>>(
+  pub fn hash<S: Spec<F, WIDTH>>(
     &self,
     layouter: &mut impl Layouter<F>,
     weights: &Vec<AssignedCell<F, F>>,

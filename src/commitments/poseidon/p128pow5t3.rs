@@ -14,7 +14,7 @@ use super::{fp, fq};
 #[derive(Debug)]
 pub struct P128Pow5T3;
 
-impl Spec<Fp, 3, 2> for P128Pow5T3 {
+impl Spec<Fp, 3> for P128Pow5T3 {
   fn full_rounds() -> usize {
     8
   }
@@ -36,7 +36,7 @@ impl Spec<Fp, 3, 2> for P128Pow5T3 {
   }
 }
 
-impl Spec<Fq, 3, 2> for P128Pow5T3 {
+impl Spec<Fq, 3> for P128Pow5T3 {
   fn full_rounds() -> usize {
     8
   }
@@ -86,7 +86,7 @@ mod tests {
     }
   }
 
-  impl<F: FieldExt, const SECURE_MDS: usize> Spec<F, 3, 2> for P128Pow5T3Gen<F, SECURE_MDS> {
+  impl<F: FieldExt, const SECURE_MDS: usize> Spec<F, 3> for P128Pow5T3Gen<F, SECURE_MDS> {
     fn full_rounds() -> usize {
       8
     }

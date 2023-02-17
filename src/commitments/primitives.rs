@@ -18,7 +18,7 @@ pub(crate) type SpongeRate<F, const RATE: usize> = [Option<F>; RATE];
 pub(crate) type Mds<F, const T: usize> = [[F; T]; T];
 
 /// A specification for a Poseidon permutation.
-pub trait Spec<F: FieldExt, const T: usize, const RATE: usize>: fmt::Debug {
+pub trait Spec<F: FieldExt, const T: usize>: fmt::Debug {
   /// The number of full rounds for this specification.
   ///
   /// This must be an even number.
@@ -64,7 +64,7 @@ pub trait Spec<F: FieldExt, const T: usize, const RATE: usize>: fmt::Debug {
 }
 
 /// Runs the Poseidon permutation on the given state.
-pub(crate) fn permute<F: FieldExt, S: Spec<F, T, RATE>, const T: usize, const RATE: usize>(
+pub(crate) fn permute<F: FieldExt, S: Spec<F, T>, const T: usize, const RATE: usize>(
   state: &mut Vec<F>,
   mds: &Mds<F, T>,
   round_constants: &[[F; T]],
@@ -113,7 +113,7 @@ pub(crate) fn permute<F: FieldExt, S: Spec<F, T, RATE>, const T: usize, const RA
     });
 }
 
-fn poseidon_sponge<F: FieldExt, S: Spec<F, T, RATE>, const T: usize, const RATE: usize>(
+fn poseidon_sponge<F: FieldExt, S: Spec<F, T>, const T: usize, const RATE: usize>(
   state: &mut Vec<F>,
   input: Option<&Absorbing<F, RATE>>,
   mds_matrix: &Mds<F, T>,
@@ -173,7 +173,7 @@ impl<F: fmt::Debug, const RATE: usize> Absorbing<F, RATE> {
 /// A Poseidon sponge.
 pub(crate) struct Sponge<
   F: FieldExt,
-  S: Spec<F, T, RATE>,
+  S: Spec<F, T>,
   M: SpongeMode,
   const T: usize,
   const RATE: usize,
@@ -185,7 +185,7 @@ pub(crate) struct Sponge<
   _marker: PhantomData<S>,
 }
 
-impl<F: FieldExt, S: Spec<F, T, RATE>, const T: usize, const RATE: usize>
+impl<F: FieldExt, S: Spec<F, T>, const T: usize, const RATE: usize>
   Sponge<F, S, Absorbing<F, RATE>, T, RATE>
 {
   /// Constructs a new sponge for the given Poseidon specification.
@@ -243,7 +243,7 @@ impl<F: FieldExt, S: Spec<F, T, RATE>, const T: usize, const RATE: usize>
   }
 }
 
-impl<F: FieldExt, S: Spec<F, T, RATE>, const T: usize, const RATE: usize>
+impl<F: FieldExt, S: Spec<F, T>, const T: usize, const RATE: usize>
   Sponge<F, S, Squeezing<F, RATE>, T, RATE>
 {
   /// Squeezes an element from the sponge.
@@ -312,19 +312,13 @@ impl<F: FieldExt, const RATE: usize, const L: usize> Domain<F, RATE> for Constan
 }
 
 /// A Poseidon hash function, built around a sponge.
-pub struct Hash<
-  F: FieldExt,
-  S: Spec<F, T, RATE>,
-  D: Domain<F, RATE>,
-  const T: usize,
-  const RATE: usize,
-> {
+pub struct Hash<F: FieldExt, S: Spec<F, T>, D: Domain<F, RATE>, const T: usize, const RATE: usize> {
   sponge: Sponge<F, S, Absorbing<F, RATE>, T, RATE>,
   _domain: PhantomData<D>,
 }
 
-impl<F: FieldExt, S: Spec<F, T, RATE>, D: Domain<F, RATE>, const T: usize, const RATE: usize>
-  fmt::Debug for Hash<F, S, D, T, RATE>
+impl<F: FieldExt, S: Spec<F, T>, D: Domain<F, RATE>, const T: usize, const RATE: usize> fmt::Debug
+  for Hash<F, S, D, T, RATE>
 {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_struct("Hash")
@@ -337,7 +331,7 @@ impl<F: FieldExt, S: Spec<F, T, RATE>, D: Domain<F, RATE>, const T: usize, const
   }
 }
 
-impl<F: FieldExt, S: Spec<F, T, RATE>, D: Domain<F, RATE>, const T: usize, const RATE: usize>
+impl<F: FieldExt, S: Spec<F, T>, D: Domain<F, RATE>, const T: usize, const RATE: usize>
   Hash<F, S, D, T, RATE>
 {
   /// Initializes a new hasher.
@@ -349,7 +343,7 @@ impl<F: FieldExt, S: Spec<F, T, RATE>, D: Domain<F, RATE>, const T: usize, const
   }
 }
 
-impl<F: FieldExt, S: Spec<F, T, RATE>, const T: usize, const RATE: usize, const L: usize>
+impl<F: FieldExt, S: Spec<F, T>, const T: usize, const RATE: usize, const L: usize>
   Hash<F, S, ConstantLength<L>, T, RATE>
 {
   /// Hashes the given input.
