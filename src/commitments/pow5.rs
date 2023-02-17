@@ -10,7 +10,7 @@ use halo2_proofs::{
 
 use super::{
   poseidon::{PaddedWord, PoseidonInstructions, PoseidonSpongeInstructions},
-  primitives::{Absorbing, Domain, Mds, Spec, Squeezing},
+  primitives::{Absorbing, Mds, Spec, Squeezing},
 };
 
 pub trait Var<F: FieldExt>: Clone + std::fmt::Debug + From<AssignedCell<F, F>> {
@@ -279,13 +279,17 @@ impl<F: FieldExt, S: Spec<F, WIDTH>, const WIDTH: usize, const RATE: usize>
   }
 }
 
-impl<F: FieldExt, S: Spec<F, WIDTH>, D: Domain<F, RATE>, const WIDTH: usize, const RATE: usize>
-  PoseidonSpongeInstructions<F, S, D, WIDTH, RATE> for Pow5Chip<F, WIDTH, RATE>
+impl<F: FieldExt, S: Spec<F, WIDTH>, const WIDTH: usize, const RATE: usize>
+  PoseidonSpongeInstructions<F, S, WIDTH, RATE> for Pow5Chip<F, WIDTH, RATE>
 {
-  fn initial_state(&self, layouter: &mut impl Layouter<F>) -> Result<Vec<Self::Word>, Error> {
+  fn initial_state(
+    &self,
+    layouter: &mut impl Layouter<F>,
+    initial_capacity_element: F,
+  ) -> Result<Vec<Self::Word>, Error> {
     let config = self.config();
     let state = layouter.assign_region(
-      || format!("initial state for domain {}", D::name()),
+      || format!("initial state for domain"),
       |mut region| {
         let mut state = Vec::with_capacity(WIDTH);
         let mut load_state_word = |i: usize, value: F| -> Result<_, Error> {
@@ -303,7 +307,7 @@ impl<F: FieldExt, S: Spec<F, WIDTH>, D: Domain<F, RATE>, const WIDTH: usize, con
         for i in 0..RATE {
           load_state_word(i, F::zero())?;
         }
-        load_state_word(RATE, D::initial_capacity_element())?;
+        load_state_word(RATE, initial_capacity_element)?;
 
         Ok(state)
       },
@@ -322,7 +326,7 @@ impl<F: FieldExt, S: Spec<F, WIDTH>, D: Domain<F, RATE>, const WIDTH: usize, con
 
     let config = self.config();
     layouter.assign_region(
-      || format!("add input for domain {}", D::name()),
+      || format!("add input for domain"),
       |mut region| {
         config.s_pad_and_add.enable(&mut region, 1)?;
 
@@ -603,7 +607,7 @@ mod tests {
   use halo2_proofs::{
     circuit::{Layouter, SimpleFloorPlanner, Value},
     dev::MockProver,
-    halo2curves::{self, group},
+    halo2curves::{self, group, FieldExt},
     plonk::{Circuit, ConstraintSystem, Error},
   };
   use halo2curves::pasta::{pallas, Fp};
@@ -777,15 +781,16 @@ mod tests {
           };
 
           let message: Result<Vec<_>, Error> = (0..L).map(message_word).collect();
-          Ok(message?.try_into().unwrap())
+          Ok(message.unwrap())
         },
       )?;
 
-      let hasher =
-        crate::commitments::poseidon::Hash::<_, _, S, ConstantLength<L>, WIDTH, RATE>::init(
-          chip,
-          layouter.namespace(|| "init"),
-        )?;
+      let initial_capacity_element = Fp::from_u128((L as u128) << 64);
+      let hasher = crate::commitments::poseidon::Hash::<_, _, S, WIDTH, RATE>::init(
+        chip,
+        layouter.namespace(|| "init"),
+        initial_capacity_element,
+      )?;
       let output = hasher.hash(layouter.namespace(|| "hash"), message)?;
 
       layouter.assign_region(
