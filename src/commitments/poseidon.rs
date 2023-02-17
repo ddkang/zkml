@@ -12,7 +12,7 @@ use halo2_proofs::{
   plonk::Error,
 };
 
-use super::primitives::{Absorbing, ConstantLength, Domain, Spec, SpongeMode, Squeezing, State};
+use super::primitives::{Absorbing, ConstantLength, Domain, Spec, SpongeMode, Squeezing};
 
 pub mod fp;
 pub mod fq;
@@ -41,8 +41,8 @@ pub trait PoseidonInstructions<F: FieldExt, S: Spec<F, T, RATE>, const T: usize,
   fn permute(
     &self,
     layouter: &mut impl Layouter<F>,
-    initial_state: &State<Self::Word, T>,
-  ) -> Result<State<Self::Word, T>, Error>;
+    initial_state: &Vec<Self::Word>,
+  ) -> Result<Vec<Self::Word>, Error>;
 }
 
 /// The set of circuit instructions required to use the [`Sponge`] and [`Hash`] gadgets.
@@ -57,18 +57,18 @@ pub trait PoseidonSpongeInstructions<
 >: PoseidonInstructions<F, S, T, RATE>
 {
   /// Returns the initial empty state for the given domain.
-  fn initial_state(&self, layouter: &mut impl Layouter<F>) -> Result<State<Self::Word, T>, Error>;
+  fn initial_state(&self, layouter: &mut impl Layouter<F>) -> Result<Vec<Self::Word>, Error>;
 
   /// Adds the given input to the state.
   fn add_input(
     &self,
     layouter: &mut impl Layouter<F>,
-    initial_state: &State<Self::Word, T>,
+    initial_state: &Vec<Self::Word>,
     input: &Absorbing<PaddedWord<F>, RATE>,
-  ) -> Result<State<Self::Word, T>, Error>;
+  ) -> Result<Vec<Self::Word>, Error>;
 
   /// Extracts sponge output from the given state.
-  fn get_output(state: &State<Self::Word, T>) -> Squeezing<Self::Word, RATE>;
+  fn get_output(state: &Vec<Self::Word>) -> Squeezing<Self::Word, RATE>;
 }
 
 /// A word over which the Poseidon permutation operates.
@@ -112,9 +112,11 @@ fn poseidon_sponge<
 >(
   chip: &PoseidonChip,
   mut layouter: impl Layouter<F>,
-  state: &mut State<PoseidonChip::Word, T>,
+  state: &mut Vec<PoseidonChip::Word>,
   input: Option<&Absorbing<PaddedWord<F>, RATE>>,
 ) -> Result<Squeezing<PoseidonChip::Word, RATE>, Error> {
+  assert_eq!(state.len(), T);
+
   if let Some(input) = input {
     *state = chip.add_input(&mut layouter, state, input)?;
   }
@@ -135,7 +137,7 @@ pub struct Sponge<
 > {
   chip: PoseidonChip,
   mode: M,
-  state: State<PoseidonChip::Word, T>,
+  state: Vec<PoseidonChip::Word>,
   _marker: PhantomData<D>,
 }
 
