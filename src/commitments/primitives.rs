@@ -12,7 +12,7 @@ use super::poseidon::grain::SboxType;
 use super::poseidon::mds;
 
 /// The type used to hold sponge rate.
-pub(crate) type SpongeRate<F, const RATE: usize> = [Option<F>; RATE];
+// pub(crate) type SpongeRate<F, const RATE: usize> = [Option<F>; RATE];
 
 /// The type used to hold the MDS matrix and its inverse.
 pub(crate) type Mds<F, const T: usize> = [[F; T]; T];
@@ -135,7 +135,7 @@ fn poseidon_sponge<F: FieldExt, S: Spec<F, T>, const T: usize, const RATE: usize
   for (word, value) in output.iter_mut().zip(state.iter()) {
     *word = Some(*value);
   }
-  Squeezing(output)
+  Squeezing(output.to_vec())
 }
 
 mod private {
@@ -149,11 +149,11 @@ pub trait SpongeMode: private::SealedSpongeMode {}
 
 /// The absorbing state of the `Sponge`.
 #[derive(Debug)]
-pub struct Absorbing<F, const RATE: usize>(pub(crate) SpongeRate<F, RATE>);
+pub struct Absorbing<F, const RATE: usize>(pub(crate) Vec<Option<F>>);
 
 /// The squeezing state of the `Sponge`.
 #[derive(Debug)]
-pub struct Squeezing<F, const RATE: usize>(pub(crate) SpongeRate<F, RATE>);
+pub struct Squeezing<F, const RATE: usize>(pub(crate) Vec<Option<F>>);
 
 impl<F, const RATE: usize> SpongeMode for Absorbing<F, RATE> {}
 impl<F, const RATE: usize> SpongeMode for Squeezing<F, RATE> {}
@@ -192,7 +192,7 @@ impl<F: FieldExt, S: Spec<F, T>, const T: usize, const RATE: usize>
   pub(crate) fn new(initial_capacity_element: F) -> Self {
     let (round_constants, mds_matrix, _) = S::constants();
 
-    let mode = Absorbing([None; RATE]);
+    let mode = Absorbing([None; RATE].to_vec());
     let mut state = [F::zero(); T];
     state[RATE] = initial_capacity_element;
 
