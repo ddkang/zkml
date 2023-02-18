@@ -12,7 +12,7 @@ use crate::gadgets::{
   gadget::{Gadget, GadgetConfig},
 };
 
-use super::layer::{Layer, LayerConfig, LayerType};
+use super::super::layer::{Layer, LayerConfig, LayerType};
 
 #[derive(Clone, Debug)]
 pub struct AddChip<F: FieldExt> {

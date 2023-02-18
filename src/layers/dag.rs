@@ -9,12 +9,14 @@ use ndarray::{Array, IxDyn};
 
 use crate::{
   gadgets::gadget::GadgetConfig,
-  layers::{mean::MeanChip, mul::MulChip, rsqrt::RsqrtChip, squared_diff::SquaredDiffChip},
+  layers::{
+    arithmetic::add::AddChip, arithmetic::mul::MulChip, mean::MeanChip, rsqrt::RsqrtChip,
+    squared_diff::SquaredDiffChip,
+  },
   utils::helpers::print_assigned_arr,
 };
 
 use super::{
-  add::AddChip,
   avg_pool_2d::AvgPool2DChip,
   conv2d::Conv2DChip,
   layer::{Layer, LayerConfig, LayerType},
