@@ -52,6 +52,31 @@ impl<F: FieldExt> AvgPool2DChip<F> {
     }
     splat
   }
+
+  pub fn get_div_val(
+    &self,
+    mut layouter: impl Layouter<F>,
+    _tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
+    gadget_config: Rc<GadgetConfig>,
+  ) -> Result<AssignedCell<F, F>, Error> {
+    // FIXME: this needs to be revealed
+    let div = self.config.layer_params[0] * self.config.layer_params[1];
+    let div = F::from(div as u64);
+    let div = layouter.assign_region(
+      || "avg pool 2d div",
+      |mut region| {
+        let div = region.assign_advice(
+          || "avg pool 2d div",
+          gadget_config.columns[0],
+          0,
+          || Value::known(div),
+        )?;
+        Ok(div)
+      },
+    )?;
+
+    Ok(div)
+  }
 }
 
 impl<F: FieldExt> Layer<F> for AvgPool2DChip<F> {
@@ -82,20 +107,10 @@ impl<F: FieldExt> Layer<F> for AvgPool2DChip<F> {
       added.push(tmp[0].clone());
     }
 
-    // FIXME: this needs to be revealed
-    let div = self.config.layer_params[0] * self.config.layer_params[1];
-    let div = F::from(div as u64);
-    let div = layouter.assign_region(
-      || "avg pool 2d div",
-      |mut region| {
-        let div = region.assign_advice(
-          || "avg pool 2d div",
-          gadget_config.columns[0],
-          0,
-          || Value::known(div),
-        )?;
-        Ok(div)
-      },
+    let div = self.get_div_val(
+      layouter.namespace(|| "avg pool 2d div"),
+      tensors,
+      gadget_config.clone(),
     )?;
     let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
 
