@@ -130,6 +130,10 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundChip<F> {
     // let zero = single_inputs[0].clone();
     let b = &single_inputs[1];
 
+    let div_outp_min_val_i64 = self.config.div_outp_min_val;
+    let div_inp_min_val_pos_i64 = -self.config.shift_min_val;
+    let div_inp_min_val_pos = F::from(div_inp_min_val_pos_i64 as u64);
+
     let selector = self.config.selectors.get(&GadgetType::VarDivRound).unwrap()[0];
 
     if USE_SELECTORS {
@@ -149,9 +153,10 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundChip<F> {
       a.copy_advice(|| "", region, self.config.columns[offset], row_offset)?;
 
       let div_mod = a.value().zip(b.value()).map(|(a, b)| {
-        let a = convert_to_u64(a);
+        let a_pos = *a + div_inp_min_val_pos;
+        let a = convert_to_u64(&a_pos);
         let b = convert_to_u64(b);
-        let c = (2 * a + b) / (2 * b);
+        let c = ((2 * a + b) / (2 * b)) as i64 - (div_inp_min_val_pos_i64 / b as i64);
         let r = (2 * a + b) % (2 * b);
         (c, r)
       });
@@ -160,7 +165,13 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundChip<F> {
         || "",
         self.config.columns[offset + 1],
         row_offset,
-        || div_mod.map(|(c, _)| F::from(c)),
+        || {
+          div_mod.map(|(c, _)| {
+            let offset = F::from(-div_outp_min_val_i64 as u64);
+            let c = F::from((c - div_outp_min_val_i64) as u64);
+            c - offset
+          })
+        },
       )?;
       let _mod_cell = region.assign_advice(
         || "",

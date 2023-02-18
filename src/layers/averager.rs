@@ -27,8 +27,8 @@ pub trait Averager<F: FieldExt> {
     constants: &HashMap<i64, AssignedCell<F, F>>,
     gadget_config: Rc<GadgetConfig>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
-    assert_eq!(tensors.len(), 1);
-
+    // Due to Mean BS
+    // assert_eq!(tensors.len(), 1);
     let zero = constants.get(&0).unwrap().clone();
 
     let inp = &tensors[0];

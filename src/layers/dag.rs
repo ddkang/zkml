@@ -7,7 +7,9 @@ use halo2_proofs::{
 };
 use ndarray::{Array, IxDyn};
 
-use crate::{gadgets::gadget::GadgetConfig, utils::helpers::print_assigned_arr};
+use crate::{
+  gadgets::gadget::GadgetConfig, layers::mean::MeanChip, utils::helpers::print_assigned_arr,
+};
 
 use super::{
   add::AddChip,
@@ -98,6 +100,15 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           let conv_2d_chip = Conv2DChip::<F>::construct(layer_config.clone());
           conv_2d_chip.forward(
             layouter.namespace(|| "dag conv 2d"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+          )?
+        }
+        LayerType::Mean => {
+          let mean_chip = MeanChip::<F>::construct(layer_config.clone());
+          mean_chip.forward(
+            layouter.namespace(|| "dag mean"),
             &vec_inps,
             constants,
             gadget_config.clone(),
