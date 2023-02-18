@@ -9,7 +9,7 @@ use ndarray::{Array, IxDyn};
 
 use crate::{
   gadgets::gadget::GadgetConfig,
-  layers::{mean::MeanChip, squared_diff::SquaredDiffChip},
+  layers::{mean::MeanChip, rsqrt::RsqrtChip, squared_diff::SquaredDiffChip},
   utils::helpers::print_assigned_arr,
 };
 
@@ -129,6 +129,15 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           let squared_diff_chip = SquaredDiffChip::<F>::construct();
           squared_diff_chip.forward(
             layouter.namespace(|| "dag squared diff"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+          )?
+        }
+        LayerType::Rsqrt => {
+          let rsqrt_chip = RsqrtChip::<F>::construct();
+          rsqrt_chip.forward(
+            layouter.namespace(|| "dag rsqrt"),
             &vec_inps,
             constants,
             gadget_config.clone(),

@@ -8,6 +8,7 @@ pub mod conv2d;
 pub mod mean;
 pub mod pad;
 pub mod squared_diff;
+pub mod rsqrt;
 
 // Special: dag
 pub mod dag;

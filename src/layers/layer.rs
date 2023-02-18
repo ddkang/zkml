@@ -16,6 +16,7 @@ pub enum LayerType {
   Conv2D,
   Mean,
   Pad,
+  Rsqrt,
   SquaredDifference,
 }
 
