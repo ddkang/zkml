@@ -18,6 +18,7 @@ pub enum GadgetType {
   BiasDivFloorRelu6,
   DotProduct,
   VarDivRound,
+  SquaredDiff,
   Packer, // This is a special case
 }
 

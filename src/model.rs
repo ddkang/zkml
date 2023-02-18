@@ -154,6 +154,7 @@ impl<F: FieldExt> ModelCircuit<F> {
       "Add" => LayerType::Add,
       "Pad" => LayerType::Pad,
       "Mean" => LayerType::Mean,
+      "SquaredDifference" => LayerType::SquaredDifference,
       _ => panic!("unknown op: {}", x),
     };
 
@@ -248,6 +249,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
     gadget_config.public_columns = vec![meta.instance_column()];
     meta.enable_equality(gadget_config.public_columns[0]);
 
+    // FIXME: fix this shit
     gadget_config = AddPairsChip::<F>::configure(meta, gadget_config);
     gadget_config = AdderChip::<F>::configure(meta, gadget_config);
     gadget_config = BiasDivRoundRelu6Chip::<F>::configure(meta, gadget_config);
