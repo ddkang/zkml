@@ -110,7 +110,11 @@ impl<F: FieldExt> Layer<F> for MeanChip<F> {
     let inp = &tensors[0];
     let keep_axis = self.get_keep_axis();
     // FIXME: only support batch size = 1
-    let outp_shape = vec![1, inp.shape()[keep_axis]];
+    let outp_shape = match keep_axis {
+      1 => vec![1, inp.shape()[keep_axis], 1],
+      2 => vec![1, 1, inp.shape()[keep_axis]],
+      _ => panic!("Invalid axis"),
+    };
 
     let out = Array::from_shape_vec(IxDyn(&outp_shape), dived).unwrap();
     Ok(vec![out])
