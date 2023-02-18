@@ -122,11 +122,14 @@ impl<F: FieldExt> PackerChip<F> {
     zero: AssignedCell<F, F>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     let columns = &self.gadget_config.columns;
+    let selector = self.config.selectors.get(&GadgetType::Packer).unwrap()[0];
+
     let outp = layouter.assign_region(
       || "pack row",
       |mut region| {
-        let mut packed = vec![];
+        selector.enable(&mut region, 0)?;
 
+        let mut packed = vec![];
         for i in 0..self.config.num_packed_per_row {
           let val_offset = i * self.config.num_elem_per_packed;
           let col_offset = i * (self.config.num_elem_per_packed + 1);
@@ -173,7 +176,16 @@ impl<F: FieldExt> PackerChip<F> {
     mut layouter: impl Layouter<F>,
     values: Vec<F>,
     zero: AssignedCell<F, F>,
-  ) -> Result<(), Error> {
-    Ok(())
+  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    let mut packed = vec![];
+
+    let num_elems_per_row = self.config.num_packed_per_row * self.config.num_elem_per_packed;
+    for i in 0..(values.len().div_ceil(num_elems_per_row)) {
+      let row =
+        values[i * num_elems_per_row..min((i + 1) * num_elems_per_row, values.len())].to_vec();
+      packed.append(&mut self.pack_row(&mut layouter, row, zero)?);
+    }
+
+    Ok(packed)
   }
 }
