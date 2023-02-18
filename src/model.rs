@@ -20,6 +20,7 @@ use crate::{
     bias_div_round_relu6::BiasDivRoundRelu6Chip,
     dot_prod::DotProductChip,
     gadget::{Gadget, GadgetConfig, GadgetType},
+    mul_pairs::MulPairsChip,
     rsqrt::RsqrtGadgetChip,
     var_div::VarDivRoundChip,
   },
@@ -155,6 +156,7 @@ impl<F: FieldExt> ModelCircuit<F> {
       "Add" => LayerType::Add,
       "Pad" => LayerType::Pad,
       "Mean" => LayerType::Mean,
+      "Mul" => LayerType::Mul,
       "SquaredDifference" => LayerType::SquaredDifference,
       "Rsqrt" => LayerType::Rsqrt,
       _ => panic!("unknown op: {}", x),
@@ -258,6 +260,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
     gadget_config = DotProductChip::<F>::configure(meta, gadget_config);
     gadget_config = VarDivRoundChip::<F>::configure(meta, gadget_config);
     gadget_config = RsqrtGadgetChip::<F>::configure(meta, gadget_config);
+    gadget_config = MulPairsChip::<F>::configure(meta, gadget_config);
 
     ModelConfig {
       gadget_config: gadget_config.into(),

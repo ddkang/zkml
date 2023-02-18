@@ -21,6 +21,7 @@ pub struct RsqrtGadgetChip<F: FieldExt> {
   _marker: PhantomData<F>,
 }
 
+// TODO: load lookups
 impl<F: FieldExt> RsqrtGadgetChip<F> {
   pub fn construct(config: Rc<RsqrtGadgetConfig>) -> Self {
     Self {
