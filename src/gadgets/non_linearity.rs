@@ -9,6 +9,7 @@ use halo2_proofs::{
 use super::gadget::{convert_to_u64, GadgetConfig};
 use super::gadget::{Gadget, USE_SELECTORS};
 
+// TODO: load lookups
 pub trait NonLinearGadget<F: FieldExt>: Gadget<F> {
   fn get_map(&self) -> HashMap<i64, i64>;
 

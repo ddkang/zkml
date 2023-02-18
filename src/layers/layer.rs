@@ -15,6 +15,7 @@ pub enum LayerType {
   AvgPool2D,
   Conv2D,
   Mean,
+  Mul,
   Pad,
   Rsqrt,
   SquaredDifference,
