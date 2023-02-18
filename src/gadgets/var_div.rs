@@ -92,6 +92,8 @@ impl<F: FieldExt> VarDivRoundChip<F> {
     let mut selectors = gadget_config.selectors;
     selectors.insert(GadgetType::VarDivRound, vec![selector]);
 
+    // FIXME: tables needs to be updated
+
     GadgetConfig {
       columns,
       tables,

@@ -19,6 +19,7 @@ pub enum GadgetType {
   DotProduct,
   VarDivRound,
   SquaredDiff,
+  Rsqrt,
   Packer, // This is a special case
 }
 
