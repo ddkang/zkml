@@ -122,7 +122,11 @@ impl<F: FieldExt> PackerChip<F> {
     zero: AssignedCell<F, F>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     let columns = &self.gadget_config.columns;
-    let selector = self.config.selectors.get(&GadgetType::Packer).unwrap()[0];
+    let selector = self
+      .gadget_config
+      .selectors
+      .get(&GadgetType::Packer)
+      .unwrap()[0];
 
     let outp = layouter.assign_region(
       || "pack row",
@@ -183,7 +187,7 @@ impl<F: FieldExt> PackerChip<F> {
     for i in 0..(values.len().div_ceil(num_elems_per_row)) {
       let row =
         values[i * num_elems_per_row..min((i + 1) * num_elems_per_row, values.len())].to_vec();
-      packed.append(&mut self.pack_row(&mut layouter, row, zero)?);
+      packed.append(&mut self.pack_row(layouter.namespace(|| "pack row"), row, zero.clone())?);
     }
 
     Ok(packed)
