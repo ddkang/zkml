@@ -8,7 +8,9 @@ use halo2_proofs::{
 use ndarray::{Array, IxDyn};
 
 use crate::{
-  gadgets::gadget::GadgetConfig, layers::mean::MeanChip, utils::helpers::print_assigned_arr,
+  gadgets::gadget::GadgetConfig,
+  layers::{mean::MeanChip, squared_diff::SquaredDiffChip},
+  utils::helpers::print_assigned_arr,
 };
 
 use super::{
@@ -118,6 +120,15 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           let pad_chip = PadChip::<F>::construct(layer_config.clone());
           pad_chip.forward(
             layouter.namespace(|| "dag pad"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+          )?
+        }
+        LayerType::SquaredDifference => {
+          let squared_diff_chip = SquaredDiffChip::<F>::construct();
+          squared_diff_chip.forward(
+            layouter.namespace(|| "dag squared diff"),
             &vec_inps,
             constants,
             gadget_config.clone(),
