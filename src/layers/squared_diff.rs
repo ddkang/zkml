@@ -1,11 +1,11 @@
-use std::{cmp::min, collections::HashMap, marker::PhantomData, rc::Rc, vec};
+use std::{collections::HashMap, marker::PhantomData, rc::Rc, vec};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Value},
   halo2curves::FieldExt,
   plonk::{ConstraintSystem, Error},
 };
-use ndarray::{Array, Axis, IxDyn};
+use ndarray::{Array, IxDyn};
 
 use crate::gadgets::{
   gadget::{Gadget, GadgetConfig},
@@ -46,36 +46,25 @@ impl<F: FieldExt> Layer<F> for SquaredDiffChip<F> {
     assert_eq!(tensors.len(), 2);
     let mut inp1 = tensors[0].clone();
     let mut inp2 = tensors[1].clone();
-    // Broadcoasting allowed...
-    for i in 0..min(inp1.shape().len(), inp2.shape().len()) {
-      assert_eq!(inp1.shape()[i], inp2.shape()[i]);
-    }
+    // Broadcoasting allowed... can't check shapes easily
 
     println!("inp1: {:?}", inp1.shape());
     println!("inp2: {:?}", inp2.shape());
-    let inp1 = if inp1.ndim() < inp2.ndim() {
-      inp1 = loop {
-        let axis = Axis(inp1.ndim() - 1);
-        inp1 = inp1.insert_axis(axis).clone();
-        if inp1.ndim() == inp2.ndim() {
-          break inp1;
-        }
-      };
-      inp1.broadcast(inp2.shape()).unwrap().to_owned()
-    } else {
-      inp1.clone()
+    inp1 = {
+      let tmp = inp1.broadcast(inp2.shape());
+      if tmp.is_none() {
+        inp1
+      } else {
+        tmp.unwrap().to_owned()
+      }
     };
-    inp2 = if inp2.ndim() < inp1.ndim() {
-      inp2 = loop {
-        let axis = Axis(inp2.ndim());
-        inp2 = inp2.insert_axis(axis).clone();
-        if inp2.ndim() == inp1.ndim() {
-          break inp2;
-        }
-      };
-      inp2.broadcast(inp1.shape()).unwrap().to_owned()
-    } else {
-      inp2.clone()
+    inp2 = {
+      let tmp = inp2.broadcast(inp1.shape());
+      if tmp.is_none() {
+        inp2
+      } else {
+        tmp.unwrap().to_owned()
+      }
     };
     println!("inp1: {:?}", inp1.shape());
     println!("inp2: {:?}", inp2.shape());

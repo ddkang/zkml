@@ -44,7 +44,8 @@ impl<F: FieldExt> Layer<F> for AddChip<F> {
   ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
     assert_eq!(tensors.len(), 2);
     let inp1 = &tensors[0];
-    let inp2 = &tensors[1];
+    // FIXME
+    let inp2 = &tensors[1].broadcast(inp1.shape()).unwrap();
     assert_eq!(inp1.shape(), inp2.shape());
 
     let zero = constants.get(&0).unwrap().clone();
