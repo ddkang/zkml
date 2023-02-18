@@ -7,13 +7,12 @@ use halo2_proofs::{
 };
 use ndarray::{Array, IxDyn};
 
-use crate::gadgets::{
-  adder::AdderChip,
-  gadget::{Gadget, GadgetConfig},
-  var_div::VarDivRoundChip,
-};
+use crate::gadgets::gadget::GadgetConfig;
 
-use super::layer::{Layer, LayerConfig, LayerType};
+use super::{
+  averager::Averager,
+  layer::{Layer, LayerConfig, LayerType},
+};
 
 pub struct AvgPool2DChip<F: FieldExt> {
   config: LayerConfig,
@@ -34,8 +33,10 @@ impl<F: FieldExt> AvgPool2DChip<F> {
       layer_params,
     }
   }
+}
 
-  pub fn splat<G: Clone>(&self, input: &Array<G, IxDyn>) -> Vec<Vec<G>> {
+impl<F: FieldExt> Averager<F> for AvgPool2DChip<F> {
+  fn splat<G: Clone>(&self, input: &Array<G, IxDyn>) -> Vec<Vec<G>> {
     assert_eq!(input.shape().len(), 4);
     // Don't support batch size > 1 yet
     assert_eq!(input.shape()[0], 1);
@@ -53,7 +54,7 @@ impl<F: FieldExt> AvgPool2DChip<F> {
     splat
   }
 
-  pub fn get_div_val(
+  fn get_div_val(
     &self,
     mut layouter: impl Layouter<F>,
     _tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
@@ -82,46 +83,14 @@ impl<F: FieldExt> AvgPool2DChip<F> {
 impl<F: FieldExt> Layer<F> for AvgPool2DChip<F> {
   fn forward(
     &self,
-    mut layouter: impl Layouter<F>,
+    layouter: impl Layouter<F>,
     tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
     constants: &HashMap<i64, AssignedCell<F, F>>,
     gadget_config: Rc<GadgetConfig>,
   ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
-    assert_eq!(tensors.len(), 1);
-
-    let zero = constants.get(&0).unwrap().clone();
+    let dived = self.avg_forward(layouter, tensors, constants, gadget_config)?;
 
     let inp = &tensors[0];
-    let splat_inp = self.splat(inp);
-
-    let adder_chip = AdderChip::<F>::construct(gadget_config.clone());
-    let single_inputs = vec![zero.clone()];
-    let mut added = vec![];
-    for i in 0..splat_inp.len() {
-      let tmp = splat_inp[i].iter().map(|x| x).collect::<Vec<_>>();
-      let tmp = adder_chip.forward(
-        layouter.namespace(|| format!("avg pool 2d {}", i)),
-        &vec![tmp],
-        &single_inputs,
-      )?;
-      added.push(tmp[0].clone());
-    }
-
-    let div = self.get_div_val(
-      layouter.namespace(|| "avg pool 2d div"),
-      tensors,
-      gadget_config.clone(),
-    )?;
-    let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
-
-    let single_inputs = vec![zero, div];
-    let added = added.iter().map(|x| x).collect::<Vec<_>>();
-    let dived = var_div_chip.forward(
-      layouter.namespace(|| "avg pool 2d div"),
-      &vec![added],
-      &single_inputs,
-    )?;
-
     let mut outp_shape = inp.shape().to_vec();
     outp_shape[1] = 1;
     outp_shape[2] = 1;
