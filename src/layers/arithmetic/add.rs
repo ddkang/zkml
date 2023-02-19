@@ -12,7 +12,10 @@ use crate::gadgets::{
   gadget::{Gadget, GadgetConfig},
 };
 
-use super::super::layer::{Layer, LayerConfig, LayerType};
+use super::{
+  super::layer::{Layer, LayerConfig, LayerType},
+  Arithmetic,
+};
 
 #[derive(Clone, Debug)]
 pub struct AddChip<F: FieldExt> {
@@ -34,6 +37,20 @@ impl<F: FieldExt> AddChip<F> {
   }
 }
 
+impl<F: FieldExt> Arithmetic<F> for AddChip<F> {
+  fn gadget_forward(
+    &self,
+    mut layouter: impl Layouter<F>,
+    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
+    constants: &Vec<AssignedCell<F, F>>,
+    gadget_config: Rc<GadgetConfig>,
+  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    let add_pairs_chip = AddPairsChip::<F>::construct(gadget_config);
+    let out = add_pairs_chip.forward(layouter.namespace(|| "add chip"), &vec_inputs, &constants)?;
+    Ok(out)
+  }
+}
+
 impl<F: FieldExt> Layer<F> for AddChip<F> {
   fn forward(
     &self,
@@ -42,21 +59,13 @@ impl<F: FieldExt> Layer<F> for AddChip<F> {
     constants: &HashMap<i64, AssignedCell<F, F>>,
     gadget_config: Rc<GadgetConfig>,
   ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
-    assert_eq!(tensors.len(), 2);
-    let inp1 = &tensors[0];
-    // FIXME
-    let inp2 = &tensors[1].broadcast(inp1.shape()).unwrap();
-    assert_eq!(inp1.shape(), inp2.shape());
-
-    let zero = constants.get(&0).unwrap().clone();
-
-    let add_pairs_chip = AddPairsChip::<F>::construct(gadget_config);
-    let inp1_vec = inp1.iter().collect::<Vec<_>>();
-    let inp2_vec = inp2.iter().collect::<Vec<_>>();
-    let vec_inputs = vec![inp1_vec, inp2_vec];
-    let constants = vec![zero.clone()];
-    let out = add_pairs_chip.forward(layouter.namespace(|| "add chip"), &vec_inputs, &constants)?;
-    let out = Array::from_shape_vec(IxDyn(inp1.shape()), out).unwrap();
+    let (out, out_shape) = self.arithmetic_forward(
+      layouter.namespace(|| ""),
+      tensors,
+      constants,
+      gadget_config.clone(),
+    )?;
+    let out = Array::from_shape_vec(IxDyn(out_shape.as_slice()), out).unwrap();
 
     Ok(vec![out])
   }
