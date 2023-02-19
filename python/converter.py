@@ -35,6 +35,7 @@ class Converter:
       generated_tensor_idxes.add(inp['index'])
 
     layers = []
+    keep_tensors = set()
     for op_idx in range(graph.OperatorsLength()):
       op = graph.Operators(op_idx)
       op_code = model.OperatorCodes(op.OpcodeIndex()).BuiltinCode()
@@ -42,13 +43,17 @@ class Converter:
       # Skip generated tensors
       for output in op.OutputsAsNumpy():
         generated_tensor_idxes.add(output)
+      for input in op.InputsAsNumpy():
+        keep_tensors.add(input)
 
+      # AvgPool2D
       if op_code == tflite.BuiltinOperator.AVERAGE_POOL_2D:
         layer_type = 'AveragePool2D'
         op_opt = op.BuiltinOptions()
         opt = tflite.Pool2DOptions()
         opt.Init(op_opt.Bytes, op_opt.Pos)
         params = [opt.FilterHeight(), opt.FilterWidth(), opt.StrideH(), opt.StrideW()]
+      # Conv2D
       elif op_code == tflite.BuiltinOperator.CONV_2D:
         layer_type = 'Conv2D'
         op_opt = op.BuiltinOptions()
@@ -65,6 +70,7 @@ class Converter:
           [opt.Padding()] + \
           [activation] + \
           [opt.StrideH(), opt.StrideW()]
+      # DepthwiseConv2D
       elif op_code == tflite.BuiltinOperator.DEPTHWISE_CONV_2D:
         layer_type = 'Conv2D'
         op_opt = op.BuiltinOptions()
@@ -81,22 +87,68 @@ class Converter:
           [opt.Padding()] + \
           [activation] + \
           [opt.StrideH(), opt.StrideW()]
+      # Add
       elif op_code == tflite.BuiltinOperator.ADD:
         layer_type = 'Add'
         params = []
+      # Mul
+      elif op_code == tflite.BuiltinOperator.MUL:
+        layer_type = 'Mul'
+        params = []
+      # Sub
+      elif op_code == tflite.BuiltinOperator.SUB:
+        layer_type = 'Sub'
+        params = []
+      # Pad
       elif op_code == tflite.BuiltinOperator.PAD:
         layer_type = 'Pad'
         # FIXME: the padding input is a tensor, not a parameter. Fix in rust
         tensor_idx = op.Inputs(1)
-        tensor = interpreter.get_tensor(tensor_idx).flatten().flatten().astype(np.int64)
+        tensor = interpreter.get_tensor(tensor_idx).flatten().astype(np.int64)
         params = tensor.tolist()
+      # Softmax
       elif op_code == tflite.BuiltinOperator.SOFTMAX:
         continue
         print('softmax')
+      # Reshape
       elif op_code == tflite.BuiltinOperator.RESHAPE:
         continue
         print('reshape')
         print(op.InputsLength())
+      # Mean
+      elif op_code == tflite.BuiltinOperator.MEAN:
+        layer_type = 'Mean'
+        tensor_idx = op.Inputs(1)
+        tensor = interpreter.get_tensor(tensor_idx).flatten().astype(np.int64)
+        if len(tensor) != 1:
+          raise NotImplementedError('Only mean over one axis is supported')
+        params = tensor.tolist()
+      # Squared difference
+      elif op_code == tflite.BuiltinOperator.SQUARED_DIFFERENCE:
+        layer_type = 'SquaredDifference'
+        params = []
+      elif op_code == tflite.BuiltinOperator.RSQRT:
+        layer_type = 'Rsqrt'
+        params = []
+      # The following are no-ops in the sense that they don't change the tensor
+      # However, we need to pass along the right tensors
+      # The param says which input to pass along
+      elif op_code == tflite.BuiltinOperator.SHAPE:
+        layer_type = 'Noop'
+        params = [0]
+      elif op_code == tflite.BuiltinOperator.GATHER:
+        layer_type = 'Noop'
+        params = [0]
+      elif op_code == tflite.BuiltinOperator.REDUCE_PROD:
+        # TODO: not sure if this is in general a no-op
+        layer_type = 'Noop'
+        params = [0]
+      elif op_code == tflite.BuiltinOperator.PACK:
+        layer_type = 'Noop'
+        params = [0]
+      elif op_code == tflite.BuiltinOperator.RESHAPE:
+        layer_type = 'Noop'
+        params = [0]
       else:
         op_name = None
         for attr in dir(tflite.BuiltinOperator):
@@ -112,21 +164,24 @@ class Converter:
         'params': params,
       })
     print(layers)
+    print()
 
 
     # Get tensors
     tensors = []
     for tensor_idx in range(graph.TensorsLength()):
+      if tensor_idx not in keep_tensors:
+        continue
       if tensor_idx in generated_tensor_idxes:
         print(f'skipping generated tensor: {format(tensor_idx)}, {graph.Tensors(tensor_idx).Name()}')
         continue
+
       tensor = graph.Tensors(tensor_idx)
       shape = []
-      # If the tensor is generated, skip it
-      if tensor.Buffer() == 0:
-        continue
       for i in range(tensor.ShapeLength()):
         shape.append(int(tensor.Shape(i)))
+      if shape == []:
+        shape = [1]
 
       tensor_data = interpreter.get_tensor(tensor_idx).flatten()
       if tensor.Type() == tflite.TensorType.FLOAT32:
