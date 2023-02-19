@@ -7,16 +7,16 @@ use halo2_proofs::{
 };
 use ndarray::{Array, IxDyn};
 
-use crate::{
-  gadgets::{
-    gadget::{Gadget, GadgetConfig},
-    mul_pairs::MulPairsChip,
-    var_div::VarDivRoundChip,
-  },
-  utils::helpers::broadcast,
+use crate::gadgets::{
+  gadget::{Gadget, GadgetConfig},
+  mul_pairs::MulPairsChip,
+  var_div::VarDivRoundChip,
 };
 
-use super::super::layer::{Layer, LayerConfig, LayerType};
+use super::{
+  super::layer::{Layer, LayerConfig, LayerType},
+  Arithmetic,
+};
 
 #[derive(Clone, Debug)]
 pub struct MulChip<F: FieldExt> {
@@ -62,6 +62,25 @@ impl<F: FieldExt> MulChip<F> {
   }
 }
 
+impl<F: FieldExt> Arithmetic<F> for MulChip<F> {
+  fn gadget_forward(
+    &self,
+    mut layouter: impl Layouter<F>,
+    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
+    constants: &Vec<AssignedCell<F, F>>,
+    gadget_config: Rc<GadgetConfig>,
+  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    let mul_pairs_chip = MulPairsChip::<F>::construct(gadget_config.clone());
+
+    let out = mul_pairs_chip.forward(
+      layouter.namespace(|| "mul pairs chip"),
+      &vec_inputs,
+      &constants,
+    )?;
+    Ok(out)
+  }
+}
+
 // FIXME: move this + add to an arithmetic layer
 impl<F: FieldExt> Layer<F> for MulChip<F> {
   fn forward(
@@ -71,28 +90,16 @@ impl<F: FieldExt> Layer<F> for MulChip<F> {
     constants: &HashMap<i64, AssignedCell<F, F>>,
     gadget_config: Rc<GadgetConfig>,
   ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
-    assert_eq!(tensors.len(), 2);
-    println!("tensors: {:?} {:?}", tensors[0].shape(), tensors[1].shape());
-    let (inp1, inp2) = broadcast(&tensors[0], &tensors[1]);
-    // let inp1 = &tensors[0];
-    // let inp2 = &tensors[1].broadcast(inp1.shape()).unwrap();
-    assert_eq!(inp1.shape(), inp2.shape());
-
-    let zero = constants.get(&0).unwrap().clone();
-
-    let mul_pairs_chip = MulPairsChip::<F>::construct(gadget_config.clone());
-    let inp1_vec = inp1.iter().collect::<Vec<_>>();
-    let inp2_vec = inp2.iter().collect::<Vec<_>>();
-    let vec_inputs = vec![inp1_vec, inp2_vec];
-    let constants = vec![zero.clone()];
-    let out = mul_pairs_chip.forward(
-      layouter.namespace(|| "mul pairs chip"),
-      &vec_inputs,
-      &constants,
+    let (out, out_shape) = self.arithmetic_forward(
+      layouter.namespace(|| ""),
+      tensors,
+      constants,
+      gadget_config.clone(),
     )?;
 
     let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
     let div = self.get_div_val(layouter.namespace(|| "get div"), gadget_config.clone())?;
+    let zero = constants.get(&0).unwrap().clone();
     let single_inputs = vec![zero, div];
     let out = out.iter().map(|x| x).collect::<Vec<_>>();
     let out = var_div_chip.forward(
@@ -101,7 +108,7 @@ impl<F: FieldExt> Layer<F> for MulChip<F> {
       &single_inputs,
     )?;
 
-    let out = Array::from_shape_vec(IxDyn(inp1.shape()), out).unwrap();
+    let out = Array::from_shape_vec(IxDyn(out_shape.as_slice()), out).unwrap();
     Ok(vec![out])
   }
 }
