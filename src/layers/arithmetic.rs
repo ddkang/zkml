@@ -11,6 +11,7 @@ use crate::{gadgets::gadget::GadgetConfig, utils::helpers::broadcast};
 
 pub mod add;
 pub mod mul;
+pub mod sub;
 
 pub trait Arithmetic<F: FieldExt> {
   fn gadget_forward(

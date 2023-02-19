@@ -10,7 +10,10 @@ use ndarray::{Array, IxDyn};
 use crate::{
   gadgets::gadget::GadgetConfig,
   layers::{
-    arithmetic::add::AddChip, arithmetic::mul::MulChip, mean::MeanChip, rsqrt::RsqrtChip,
+    arithmetic::add::AddChip,
+    arithmetic::{mul::MulChip, sub::SubChip},
+    mean::MeanChip,
+    rsqrt::RsqrtChip,
     squared_diff::SquaredDiffChip,
   },
   utils::helpers::print_assigned_arr,
@@ -149,6 +152,15 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           let mul_chip = MulChip::<F>::construct();
           mul_chip.forward(
             layouter.namespace(|| "dag mul"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+          )?
+        }
+        LayerType::Sub => {
+          let sub_chip = SubChip::<F>::construct();
+          sub_chip.forward(
+            layouter.namespace(|| "dag sub"),
             &vec_inps,
             constants,
             gadget_config.clone(),

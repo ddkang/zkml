@@ -19,6 +19,7 @@ pub enum LayerType {
   Pad,
   Rsqrt,
   SquaredDifference,
+  Sub,
 }
 
 #[derive(Clone, Debug)]
