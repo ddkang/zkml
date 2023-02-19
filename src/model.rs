@@ -22,6 +22,7 @@ use crate::{
     gadget::{Gadget, GadgetConfig, GadgetType},
     mul_pairs::MulPairsChip,
     rsqrt::RsqrtGadgetChip,
+    sub_pairs::SubPairsChip,
     var_div::VarDivRoundChip,
   },
   layers::{
@@ -158,6 +159,7 @@ impl<F: FieldExt> ModelCircuit<F> {
       "Mean" => LayerType::Mean,
       "Mul" => LayerType::Mul,
       "SquaredDifference" => LayerType::SquaredDifference,
+      "Sub" => LayerType::Sub,
       "Rsqrt" => LayerType::Rsqrt,
       _ => panic!("unknown op: {}", x),
     };
@@ -261,6 +263,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
     gadget_config = VarDivRoundChip::<F>::configure(meta, gadget_config);
     gadget_config = RsqrtGadgetChip::<F>::configure(meta, gadget_config);
     gadget_config = MulPairsChip::<F>::configure(meta, gadget_config);
+    gadget_config = SubPairsChip::<F>::configure(meta, gadget_config);
 
     ModelConfig {
       gadget_config: gadget_config.into(),

@@ -7,6 +7,7 @@ pub mod gadget;
 pub mod mul_pairs;
 pub mod rsqrt;
 pub mod squared_diff;
+pub mod sub_pairs;
 pub mod var_div;
 
 // Generics
