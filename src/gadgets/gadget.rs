@@ -17,6 +17,7 @@ pub enum GadgetType {
   BiasDivRoundRelu6,
   BiasDivFloorRelu6,
   DotProduct,
+  Exp,
   VarDivRound,
   SquaredDiff,
   SubPairs,
@@ -94,9 +95,9 @@ pub trait Gadget<F: FieldExt> {
     let outputs = layouter.assign_region(
       || format!("gadget {}", self.name()),
       |mut region| {
-        let mut outputs = Vec::new();
+        let mut outputs = vec![];
         for i in 0..vec_inputs[0].len() / self.num_inputs_per_row() {
-          let mut vec_inputs_row = Vec::new();
+          let mut vec_inputs_row = vec![];
           for inp in vec_inputs.iter() {
             vec_inputs_row.push(
               inp[i * self.num_inputs_per_row()..(i + 1) * self.num_inputs_per_row()].to_vec(),

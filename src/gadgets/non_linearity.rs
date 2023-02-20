@@ -3,17 +3,76 @@ use std::{collections::HashMap, rc::Rc};
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Region},
   halo2curves::FieldExt,
-  plonk::{Error, Selector},
+  plonk::{ConstraintSystem, Error, Expression, Selector},
+  poly::Rotation,
 };
 
-use super::gadget::{convert_to_u64, GadgetConfig};
+use super::gadget::{convert_to_u64, GadgetConfig, GadgetType};
 use super::gadget::{Gadget, USE_SELECTORS};
+
+const NUM_COLS_PER_OP: usize = 2;
 
 // TODO: load lookups
 pub trait NonLinearGadget<F: FieldExt>: Gadget<F> {
-  fn get_map(&self) -> HashMap<i64, i64>;
+  fn generate_map(scale_factor: u64, min_val: i64, max_val: i64) -> HashMap<i64, i64>;
+
+  fn get_map(&self) -> &HashMap<i64, i64>;
 
   fn get_selector(&self) -> Selector;
+
+  fn configure(
+    meta: &mut ConstraintSystem<F>,
+    gadget_config: GadgetConfig,
+    gadget_type: GadgetType,
+  ) -> GadgetConfig {
+    let selector = meta.complex_selector();
+    let columns = gadget_config.columns;
+
+    let mut tables = gadget_config.tables;
+    let inp_lookup = if tables.contains_key(&GadgetType::BiasDivRoundRelu6) {
+      tables.get(&GadgetType::BiasDivRoundRelu6).unwrap()[0]
+    } else {
+      meta.lookup_table_column()
+    };
+    let outp_lookup = meta.lookup_table_column();
+
+    for op_idx in 0..columns.len() / NUM_COLS_PER_OP {
+      let offset = op_idx * NUM_COLS_PER_OP;
+      meta.lookup("non-linear lookup", |meta| {
+        let s = meta.query_selector(selector);
+        let inp = meta.query_advice(columns[offset + 0], Rotation::cur());
+        let outp = meta.query_advice(columns[offset + 1], Rotation::cur());
+        let shift_val = gadget_config.shift_min_val;
+        let shift_val = Expression::Constant(F::from((-shift_val) as u64));
+
+        vec![
+          (s.clone() * (inp + shift_val), inp_lookup),
+          (s.clone() * outp, outp_lookup),
+        ]
+      });
+    }
+
+    let mut selectors = gadget_config.selectors;
+    selectors.insert(gadget_type, vec![selector]);
+
+    tables.insert(gadget_type, vec![inp_lookup, outp_lookup]);
+
+    let mut maps = gadget_config.maps;
+    let relu_map = Self::generate_map(
+      gadget_config.scale_factor,
+      gadget_config.min_val,
+      gadget_config.max_val,
+    );
+    maps.insert(gadget_type, vec![relu_map]);
+
+    GadgetConfig {
+      columns,
+      selectors,
+      tables,
+      maps,
+      ..gadget_config
+    }
+  }
 
   fn op_row_region(
     &self,

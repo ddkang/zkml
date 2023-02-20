@@ -19,6 +19,7 @@ use crate::{
     shape::{
       mask_neg_inf::MaskNegInfChip, pad::PadChip, reshape::ReshapeChip, transpose::TransposeChip,
     },
+    softmax::SoftmaxChip,
     squared_diff::SquaredDiffChip,
   },
   utils::helpers::print_assigned_arr,
@@ -139,6 +140,16 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           };
           fc_chip.forward(
             layouter.namespace(|| "dag fully connected"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+            &layer_config,
+          )?
+        }
+        LayerType::Softmax => {
+          let softmax_chip = SoftmaxChip {};
+          softmax_chip.forward(
+            layouter.namespace(|| "dag softmax"),
             &vec_inps,
             constants,
             gadget_config.clone(),

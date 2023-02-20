@@ -11,18 +11,18 @@ use super::{
   non_linearity::NonLinearGadget,
 };
 
-type RsqrtGadgetConfig = GadgetConfig;
+type ExpGadgetConfig = GadgetConfig;
 
 const NUM_COLS_PER_OP: usize = 2;
 
-pub struct RsqrtGadgetChip<F: FieldExt> {
-  config: Rc<RsqrtGadgetConfig>,
+// IMPORTANT: this return exp(x) * SF
+pub struct ExpChip<F: FieldExt> {
+  config: Rc<ExpGadgetConfig>,
   _marker: PhantomData<F>,
 }
 
-// TODO: load lookups
-impl<F: FieldExt> RsqrtGadgetChip<F> {
-  pub fn construct(config: Rc<RsqrtGadgetConfig>) -> Self {
+impl<F: FieldExt> ExpChip<F> {
+  pub fn construct(config: Rc<ExpGadgetConfig>) -> Self {
     Self {
       config,
       _marker: PhantomData,
@@ -30,11 +30,11 @@ impl<F: FieldExt> RsqrtGadgetChip<F> {
   }
 
   pub fn configure(meta: &mut ConstraintSystem<F>, gadget_config: GadgetConfig) -> GadgetConfig {
-    <RsqrtGadgetChip<F> as NonLinearGadget<F>>::configure(meta, gadget_config, GadgetType::Rsqrt)
+    <ExpChip<F> as NonLinearGadget<F>>::configure(meta, gadget_config, GadgetType::Exp)
   }
 }
 
-impl<F: FieldExt> NonLinearGadget<F> for RsqrtGadgetChip<F> {
+impl<F: FieldExt> NonLinearGadget<F> for ExpChip<F> {
   fn generate_map(scale_factor: u64, min_val: i64, max_val: i64) -> HashMap<i64, i64> {
     let range = max_val - min_val;
 
@@ -42,26 +42,25 @@ impl<F: FieldExt> NonLinearGadget<F> for RsqrtGadgetChip<F> {
     for i in 0..range {
       let shifted = i + min_val;
       let x = (shifted as f64) / (scale_factor as f64);
-      let sqrt = x.sqrt();
-      let rsqrt = 1.0 / sqrt;
-      let rsqrt = (rsqrt * (scale_factor as f64)).round() as i64;
-      map.insert(i as i64, rsqrt);
+      let exp = x.exp();
+      let exp = (exp * ((scale_factor * scale_factor) as f64)).round() as i64;
+      map.insert(i as i64, exp);
     }
     map
   }
 
   fn get_map(&self) -> &HashMap<i64, i64> {
-    &self.config.maps.get(&GadgetType::Rsqrt).unwrap()[0]
+    &self.config.maps.get(&GadgetType::Exp).unwrap()[0]
   }
 
   fn get_selector(&self) -> halo2_proofs::plonk::Selector {
-    self.config.selectors.get(&GadgetType::Rsqrt).unwrap()[0]
+    self.config.selectors.get(&GadgetType::Exp).unwrap()[0]
   }
 }
 
-impl<F: FieldExt> Gadget<F> for RsqrtGadgetChip<F> {
+impl<F: FieldExt> Gadget<F> for ExpChip<F> {
   fn name(&self) -> String {
-    "RsqrtGadget".to_string()
+    "Exp".to_string()
   }
 
   fn num_cols_per_op(&self) -> usize {

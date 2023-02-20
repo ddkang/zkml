@@ -19,6 +19,7 @@ use crate::{
     adder::AdderChip,
     bias_div_round_relu6::BiasDivRoundRelu6Chip,
     dot_prod::DotProductChip,
+    exp::ExpChip,
     gadget::{Gadget, GadgetConfig, GadgetType},
     mul_pairs::MulPairsChip,
     rsqrt::RsqrtGadgetChip,
@@ -177,6 +178,7 @@ impl<F: FieldExt> ModelCircuit<F> {
       "Mean" => LayerType::Mean,
       "Mul" => LayerType::Mul,
       "Noop" => LayerType::Noop,
+      "Softmax" => LayerType::Softmax,
       "SquaredDifference" => LayerType::SquaredDifference,
       "Sub" => LayerType::Sub,
       "Reshape" => LayerType::Reshape,
@@ -280,6 +282,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
     gadget_config = RsqrtGadgetChip::<F>::configure(meta, gadget_config);
     gadget_config = MulPairsChip::<F>::configure(meta, gadget_config);
     gadget_config = SubPairsChip::<F>::configure(meta, gadget_config);
+    gadget_config = ExpChip::<F>::configure(meta, gadget_config);
 
     ModelConfig {
       gadget_config: gadget_config.into(),
