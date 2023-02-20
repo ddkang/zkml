@@ -7,7 +7,7 @@ use halo2_proofs::{
 };
 
 use super::{
-  gadget::{Gadget, GadgetConfig, GadgetType},
+  super::gadget::{Gadget, GadgetConfig, GadgetType},
   non_linearity::NonLinearGadget,
 };
 

@@ -9,8 +9,8 @@ use ndarray::{s, Array, IxDyn};
 
 use crate::gadgets::{
   adder::AdderChip,
-  exp::ExpChip,
   gadget::{Gadget, GadgetConfig},
+  nonlinear::exp::ExpChip,
   var_div::VarDivRoundChip,
 };
 

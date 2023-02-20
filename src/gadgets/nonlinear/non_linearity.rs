@@ -7,8 +7,8 @@ use halo2_proofs::{
   poly::Rotation,
 };
 
-use super::gadget::{convert_to_u64, GadgetConfig, GadgetType};
-use super::gadget::{Gadget, USE_SELECTORS};
+use super::super::gadget::{convert_to_u64, GadgetConfig, GadgetType};
+use super::super::gadget::{Gadget, USE_SELECTORS};
 
 const NUM_COLS_PER_OP: usize = 2;
 
