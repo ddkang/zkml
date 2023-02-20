@@ -155,6 +155,7 @@ impl<F: FieldExt> ModelCircuit<F> {
       "Conv2D" => LayerType::Conv2D,
       "AveragePool2D" => LayerType::AvgPool2D,
       "Add" => LayerType::Add,
+      "BatchMatMul" => LayerType::BatchMatMul,
       "FullyConnected" => LayerType::FullyConnected,
       "Pad" => LayerType::Pad,
       "Mean" => LayerType::Mean,

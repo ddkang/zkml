@@ -13,6 +13,7 @@ use crate::gadgets::gadget::GadgetConfig;
 pub enum LayerType {
   Add,
   AvgPool2D,
+  BatchMatMul,
   Conv2D,
   FullyConnected,
   Mean,

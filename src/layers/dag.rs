@@ -11,6 +11,7 @@ use crate::{
   gadgets::gadget::GadgetConfig,
   layers::{
     arithmetic::{add::AddChip, mul::MulChip, sub::SubChip},
+    batch_mat_mul::BatchMatMulChip,
     fully_connected::FullyConnectedChip,
     mean::MeanChip,
     noop::NoopChip,
@@ -101,6 +102,16 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           let avg_pool_2d_chip = AvgPool2DChip {};
           avg_pool_2d_chip.forward(
             layouter.namespace(|| "dag avg pool 2d"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+            &layer_config,
+          )?
+        }
+        LayerType::BatchMatMul => {
+          let batch_mat_mul_chip = BatchMatMulChip {};
+          batch_mat_mul_chip.forward(
+            layouter.namespace(|| "dag batch mat mul"),
             &vec_inps,
             constants,
             gadget_config.clone(),
