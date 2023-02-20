@@ -10,12 +10,12 @@ use ndarray::{Array, IxDyn};
 use crate::{
   gadgets::gadget::GadgetConfig,
   layers::{
-    arithmetic::add::AddChip,
-    arithmetic::{mul::MulChip, sub::SubChip},
+    arithmetic::{add::AddChip, mul::MulChip, sub::SubChip},
     fully_connected::FullyConnectedChip,
     mean::MeanChip,
     noop::NoopChip,
     rsqrt::RsqrtChip,
+    shape::{reshape::ReshapeChip, transpose::TransposeChip},
     squared_diff::SquaredDiffChip,
   },
   utils::helpers::print_assigned_arr,
@@ -181,6 +181,24 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           let noop_chip = NoopChip::<F>::construct(layer_config.clone());
           noop_chip.forward(
             layouter.namespace(|| "dag noop"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+          )?
+        }
+        LayerType::Transpose => {
+          let transpose_chip = TransposeChip::<F>::construct(layer_config.clone());
+          transpose_chip.forward(
+            layouter.namespace(|| "dag transpose"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+          )?
+        }
+        LayerType::Reshape => {
+          let reshape_chip = ReshapeChip::<F>::construct(layer_config.clone());
+          reshape_chip.forward(
+            layouter.namespace(|| "dag reshape"),
             &vec_inps,
             constants,
             gadget_config.clone(),

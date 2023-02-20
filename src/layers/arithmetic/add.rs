@@ -33,6 +33,8 @@ impl<F: FieldExt> AddChip<F> {
     LayerConfig {
       layer_type: LayerType::Add,
       layer_params,
+      inp_shapes: vec![], // FIXME
+      out_shapes: vec![],
     }
   }
 }

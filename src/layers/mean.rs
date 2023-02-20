@@ -31,6 +31,8 @@ impl<F: FieldExt> MeanChip<F> {
     LayerConfig {
       layer_type: LayerType::Mean,
       layer_params,
+      inp_shapes: vec![], // FIXME
+      out_shapes: vec![],
     }
   }
 

@@ -36,6 +36,8 @@ impl<F: FieldExt> FullyConnectedChip<F> {
     LayerConfig {
       layer_type: LayerType::FullyConnected,
       layer_params,
+      inp_shapes: vec![], // FIXME
+      out_shapes: vec![],
     }
   }
 
