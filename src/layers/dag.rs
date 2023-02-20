@@ -15,7 +15,7 @@ use crate::{
     mean::MeanChip,
     noop::NoopChip,
     rsqrt::RsqrtChip,
-    shape::{reshape::ReshapeChip, transpose::TransposeChip},
+    shape::{pad::PadChip, reshape::ReshapeChip, transpose::TransposeChip},
     squared_diff::SquaredDiffChip,
   },
   utils::helpers::print_assigned_arr,
@@ -25,7 +25,6 @@ use super::{
   avg_pool_2d::AvgPool2DChip,
   conv2d::Conv2DChip,
   layer::{Layer, LayerConfig, LayerType},
-  pad::PadChip,
 };
 
 #[derive(Clone, Debug)]

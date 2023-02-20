@@ -13,7 +13,7 @@ use crate::{
     dot_prod::DotProductChip,
     gadget::{Gadget, GadgetConfig},
   },
-  layers::pad::pad,
+  layers::shape::pad::pad,
 };
 
 use super::layer::{Layer, LayerConfig};
