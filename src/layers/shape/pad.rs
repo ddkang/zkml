@@ -9,7 +9,7 @@ use ndarray::{Array, Axis, IxDyn, Slice};
 
 use crate::gadgets::gadget::GadgetConfig;
 
-use super::layer::{Layer, LayerConfig};
+use super::super::layer::{Layer, LayerConfig};
 
 // TODO: figure out where to put this
 pub fn pad<G: Clone>(
