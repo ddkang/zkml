@@ -1,4 +1,4 @@
-use std::{collections::HashMap, marker::PhantomData, rc::Rc};
+use std::{collections::HashMap, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter},
@@ -42,15 +42,13 @@ pub fn pad<G: Clone>(
   padded
 }
 
-pub struct PadChip<F: FieldExt> {
-  pub _marker: PhantomData<F>,
-}
+pub struct PadChip {}
 
 pub struct PadConfig {
   pub padding: Vec<[usize; 2]>,
 }
 
-impl<F: FieldExt> PadChip<F> {
+impl PadChip {
   pub fn param_vec_to_config(layer_params: Vec<i64>) -> PadConfig {
     assert!(layer_params.len() % 2 == 0);
 
@@ -62,7 +60,7 @@ impl<F: FieldExt> PadChip<F> {
   }
 }
 
-impl<F: FieldExt> Layer<F> for PadChip<F> {
+impl<F: FieldExt> Layer<F> for PadChip {
   fn forward(
     &self,
     _layouter: impl Layouter<F>,
@@ -76,7 +74,7 @@ impl<F: FieldExt> Layer<F> for PadChip<F> {
     let input = &tensors[0];
 
     let zero = constants.get(&0).unwrap().clone();
-    let padding = PadChip::<F>::param_vec_to_config(layer_config.layer_params.clone());
+    let padding = PadChip::param_vec_to_config(layer_config.layer_params.clone());
     let padded = pad(input, padding.padding, zero);
 
     Ok(vec![padded])

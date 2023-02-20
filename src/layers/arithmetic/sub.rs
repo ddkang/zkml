@@ -1,4 +1,4 @@
-use std::{collections::HashMap, marker::PhantomData, rc::Rc, vec};
+use std::{collections::HashMap, rc::Rc, vec};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter},
@@ -18,11 +18,9 @@ use super::{
 };
 
 #[derive(Clone, Debug)]
-pub struct SubChip<F: FieldExt> {
-  pub _marker: PhantomData<F>,
-}
+pub struct SubChip {}
 
-impl<F: FieldExt> Arithmetic<F> for SubChip<F> {
+impl<F: FieldExt> Arithmetic<F> for SubChip {
   fn gadget_forward(
     &self,
     mut layouter: impl Layouter<F>,
@@ -36,7 +34,7 @@ impl<F: FieldExt> Arithmetic<F> for SubChip<F> {
   }
 }
 
-impl<F: FieldExt> Layer<F> for SubChip<F> {
+impl<F: FieldExt> Layer<F> for SubChip {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,

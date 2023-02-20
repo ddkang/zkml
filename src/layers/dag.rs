@@ -88,9 +88,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
 
       let out = match layer_type {
         LayerType::Add => {
-          let add_chip = AddChip {
-            _marker: PhantomData,
-          };
+          let add_chip = AddChip {};
           add_chip.forward(
             layouter.namespace(|| "dag add"),
             &vec_inps,
@@ -100,9 +98,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           )?
         }
         LayerType::AvgPool2D => {
-          let avg_pool_2d_chip = AvgPool2DChip {
-            _marker: PhantomData,
-          };
+          let avg_pool_2d_chip = AvgPool2DChip {};
           avg_pool_2d_chip.forward(
             layouter.namespace(|| "dag avg pool 2d"),
             &vec_inps,
@@ -137,9 +133,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           )?
         }
         LayerType::Mean => {
-          let mean_chip = MeanChip {
-            _marker: PhantomData,
-          };
+          let mean_chip = MeanChip {};
           mean_chip.forward(
             layouter.namespace(|| "dag mean"),
             &vec_inps,
@@ -149,9 +143,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           )?
         }
         LayerType::Pad => {
-          let pad_chip = PadChip::<F> {
-            _marker: PhantomData,
-          };
+          let pad_chip = PadChip {};
           pad_chip.forward(
             layouter.namespace(|| "dag pad"),
             &vec_inps,
@@ -161,9 +153,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           )?
         }
         LayerType::SquaredDifference => {
-          let squared_diff_chip = SquaredDiffChip {
-            _marker: PhantomData,
-          };
+          let squared_diff_chip = SquaredDiffChip {};
           squared_diff_chip.forward(
             layouter.namespace(|| "dag squared diff"),
             &vec_inps,
@@ -173,9 +163,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           )?
         }
         LayerType::Rsqrt => {
-          let rsqrt_chip = RsqrtChip {
-            _marker: PhantomData,
-          };
+          let rsqrt_chip = RsqrtChip {};
           rsqrt_chip.forward(
             layouter.namespace(|| "dag rsqrt"),
             &vec_inps,
@@ -185,9 +173,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           )?
         }
         LayerType::Mul => {
-          let mul_chip = MulChip {
-            _marker: PhantomData,
-          };
+          let mul_chip = MulChip {};
           mul_chip.forward(
             layouter.namespace(|| "dag mul"),
             &vec_inps,
@@ -197,9 +183,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           )?
         }
         LayerType::Sub => {
-          let sub_chip = SubChip {
-            _marker: PhantomData,
-          };
+          let sub_chip = SubChip {};
           sub_chip.forward(
             layouter.namespace(|| "dag sub"),
             &vec_inps,
@@ -209,9 +193,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           )?
         }
         LayerType::Noop => {
-          let noop_chip = NoopChip {
-            _marker: PhantomData,
-          };
+          let noop_chip = NoopChip {};
           noop_chip.forward(
             layouter.namespace(|| "dag noop"),
             &vec_inps,
@@ -221,9 +203,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           )?
         }
         LayerType::Transpose => {
-          let transpose_chip = TransposeChip {
-            _marker: PhantomData,
-          };
+          let transpose_chip = TransposeChip {};
           transpose_chip.forward(
             layouter.namespace(|| "dag transpose"),
             &vec_inps,
@@ -233,9 +213,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           )?
         }
         LayerType::Reshape => {
-          let reshape_chip = ReshapeChip {
-            _marker: PhantomData,
-          };
+          let reshape_chip = ReshapeChip {};
           reshape_chip.forward(
             layouter.namespace(|| "dag reshape"),
             &vec_inps,

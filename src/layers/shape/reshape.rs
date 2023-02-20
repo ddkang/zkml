@@ -1,4 +1,4 @@
-use std::{collections::HashMap, marker::PhantomData, rc::Rc};
+use std::{collections::HashMap, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter},
@@ -11,11 +11,9 @@ use crate::gadgets::gadget::GadgetConfig;
 
 use super::super::layer::{Layer, LayerConfig};
 
-pub struct ReshapeChip<F: FieldExt> {
-  pub _marker: PhantomData<F>,
-}
+pub struct ReshapeChip {}
 
-impl<F: FieldExt> Layer<F> for ReshapeChip<F> {
+impl<F: FieldExt> Layer<F> for ReshapeChip {
   fn forward(
     &self,
     _layouter: impl Layouter<F>,
