@@ -31,6 +31,8 @@ impl<F: FieldExt> AvgPool2DChip<F> {
     LayerConfig {
       layer_type: LayerType::AvgPool2D,
       layer_params,
+      inp_shapes: vec![], // FIXME
+      out_shapes: vec![],
     }
   }
 }

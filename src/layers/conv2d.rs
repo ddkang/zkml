@@ -56,6 +56,8 @@ impl<F: FieldExt> Conv2DChip<F> {
     LayerConfig {
       layer_type: LayerType::Conv2D,
       layer_params,
+      inp_shapes: vec![], // FIXME
+      out_shapes: vec![],
     }
   }
 

@@ -2,6 +2,7 @@
 pub mod averager;
 
 pub mod arithmetic;
+pub mod shape;
 
 // Concrete implementations
 pub mod avg_pool_2d;

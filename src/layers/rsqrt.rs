@@ -30,6 +30,8 @@ impl<F: FieldExt> RsqrtChip<F> {
     LayerConfig {
       layer_type: LayerType::Rsqrt,
       layer_params,
+      inp_shapes: vec![],
+      out_shapes: vec![],
     }
   }
 }

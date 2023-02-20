@@ -162,7 +162,9 @@ impl<F: FieldExt> ModelCircuit<F> {
       "Noop" => LayerType::Noop,
       "SquaredDifference" => LayerType::SquaredDifference,
       "Sub" => LayerType::Sub,
+      "Reshape" => LayerType::Reshape,
       "Rsqrt" => LayerType::Rsqrt,
+      "Transpose" => LayerType::Transpose,
       _ => panic!("unknown op: {}", x),
     };
 
@@ -174,6 +176,8 @@ impl<F: FieldExt> ModelCircuit<F> {
       tensors.insert(flat.idx, tensor);
     }
 
+    let i64_to_usize = |x: &Vec<i64>| x.iter().map(|x| *x as usize).collect::<Vec<_>>();
+
     let dag_config = {
       let ops = config
         .layers
@@ -181,29 +185,19 @@ impl<F: FieldExt> ModelCircuit<F> {
         .map(|layer| LayerConfig {
           layer_type: match_layer(&layer.layer_type),
           layer_params: layer.params.clone(),
+          inp_shapes: layer.inp_shapes.iter().map(|x| i64_to_usize(x)).collect(),
+          out_shapes: layer.out_shapes.iter().map(|x| i64_to_usize(x)).collect(),
         })
         .collect::<Vec<_>>();
       let inp_idxes = config
         .layers
         .iter()
-        .map(|layer| {
-          layer
-            .inp_idxes
-            .iter()
-            .map(|x| *x as usize)
-            .collect::<Vec<_>>()
-        })
+        .map(|layer| i64_to_usize(&layer.inp_idxes))
         .collect::<Vec<_>>();
       let out_idxes = config
         .layers
         .iter()
-        .map(|layer| {
-          layer
-            .out_idxes
-            .iter()
-            .map(|x| *x as usize)
-            .collect::<Vec<_>>()
-        })
+        .map(|layer| i64_to_usize(&layer.out_idxes))
         .collect::<Vec<_>>();
       let final_out_idxes = config
         .out_idxes

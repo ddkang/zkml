@@ -19,15 +19,19 @@ pub enum LayerType {
   Mul,
   Noop,
   Pad,
+  Reshape,
   Rsqrt,
   SquaredDifference,
   Sub,
+  Transpose,
 }
 
 #[derive(Clone, Debug)]
 pub struct LayerConfig {
   pub layer_type: LayerType,
   pub layer_params: Vec<i64>, // This is turned into layer specific configurations at runtime
+  pub inp_shapes: Vec<Vec<usize>>,
+  pub out_shapes: Vec<Vec<usize>>,
 }
 
 // General issue with rust: I'm not sure how to pass named arguments to a trait...

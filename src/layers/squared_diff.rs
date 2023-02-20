@@ -31,6 +31,8 @@ impl<F: FieldExt> SquaredDiffChip<F> {
     LayerConfig {
       layer_type: LayerType::SquaredDifference,
       layer_params,
+      inp_shapes: vec![],
+      out_shapes: vec![],
     }
   }
 }

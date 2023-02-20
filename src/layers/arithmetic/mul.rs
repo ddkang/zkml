@@ -34,6 +34,8 @@ impl<F: FieldExt> MulChip<F> {
     LayerConfig {
       layer_type: LayerType::Mul,
       layer_params,
+      inp_shapes: vec![], // FIXME
+      out_shapes: vec![],
     }
   }
 

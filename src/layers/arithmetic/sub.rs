@@ -33,6 +33,8 @@ impl<F: FieldExt> SubChip<F> {
     LayerConfig {
       layer_type: LayerType::Sub,
       layer_params,
+      inp_shapes: vec![], // FIXME
+      out_shapes: vec![],
     }
   }
 }
