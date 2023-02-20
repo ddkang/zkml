@@ -16,7 +16,9 @@ use crate::{
     mean::MeanChip,
     noop::NoopChip,
     rsqrt::RsqrtChip,
-    shape::{pad::PadChip, reshape::ReshapeChip, transpose::TransposeChip},
+    shape::{
+      mask_neg_inf::MaskNegInfChip, pad::PadChip, reshape::ReshapeChip, transpose::TransposeChip,
+    },
     squared_diff::SquaredDiffChip,
   },
   utils::helpers::print_assigned_arr,
@@ -227,6 +229,16 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           let reshape_chip = ReshapeChip {};
           reshape_chip.forward(
             layouter.namespace(|| "dag reshape"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+            &layer_config,
+          )?
+        }
+        LayerType::MaskNegInf => {
+          let mask_neg_inf_chip = MaskNegInfChip {};
+          mask_neg_inf_chip.forward(
+            layouter.namespace(|| "dag mask neg inf"),
             &vec_inps,
             constants,
             gadget_config.clone(),
