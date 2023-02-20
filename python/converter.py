@@ -95,6 +95,8 @@ class Converter:
 
       if op_idx < start_layer:
         continue
+      if op_idx > end_layer:
+        break
 
       # Keep the input tensors
       for input in op.InputsAsNumpy():
@@ -243,8 +245,6 @@ class Converter:
         'out_shapes': [get_shape(interpreter, op.Outputs(i)) for i in range(op.OutputsLength())],
         'params': params,
       })
-      if len(layers) >= end_layer:
-        break
     print(layers)
     print()
 
