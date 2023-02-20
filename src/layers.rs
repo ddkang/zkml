@@ -6,7 +6,9 @@ pub mod arithmetic;
 // Concrete implementations
 pub mod avg_pool_2d;
 pub mod conv2d;
+pub mod fully_connected;
 pub mod mean;
+pub mod noop;
 pub mod pad;
 pub mod rsqrt;
 pub mod squared_diff;

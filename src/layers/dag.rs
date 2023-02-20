@@ -12,7 +12,9 @@ use crate::{
   layers::{
     arithmetic::add::AddChip,
     arithmetic::{mul::MulChip, sub::SubChip},
+    fully_connected::FullyConnectedChip,
     mean::MeanChip,
+    noop::NoopChip,
     rsqrt::RsqrtChip,
     squared_diff::SquaredDiffChip,
   },
@@ -112,6 +114,15 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
             gadget_config.clone(),
           )?
         }
+        LayerType::FullyConnected => {
+          let fc_chip = FullyConnectedChip::<F>::construct(layer_config.clone());
+          fc_chip.forward(
+            layouter.namespace(|| "dag fully connected"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+          )?
+        }
         LayerType::Mean => {
           let mean_chip = MeanChip::<F>::construct(layer_config.clone());
           mean_chip.forward(
@@ -161,6 +172,15 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           let sub_chip = SubChip::<F>::construct();
           sub_chip.forward(
             layouter.namespace(|| "dag sub"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+          )?
+        }
+        LayerType::Noop => {
+          let noop_chip = NoopChip::<F>::construct(layer_config.clone());
+          noop_chip.forward(
+            layouter.namespace(|| "dag noop"),
             &vec_inps,
             constants,
             gadget_config.clone(),
