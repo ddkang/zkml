@@ -58,6 +58,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
     tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
     constants: &HashMap<i64, AssignedCell<F, F>>,
     gadget_config: Rc<GadgetConfig>,
+    _layer_config: &LayerConfig,
   ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
     // Reveal/commit to weights
     // TODO
@@ -88,120 +89,160 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
 
       let out = match layer_type {
         LayerType::Add => {
-          let add_chip = AddChip::<F>::construct();
+          let add_chip = AddChip {
+            _marker: PhantomData,
+          };
           add_chip.forward(
             layouter.namespace(|| "dag add"),
             &vec_inps,
             constants,
             gadget_config.clone(),
+            &layer_config,
           )?
         }
         LayerType::AvgPool2D => {
-          let avg_pool_2d_chip = AvgPool2DChip::<F>::construct(layer_config.clone());
+          let avg_pool_2d_chip = AvgPool2DChip {
+            _marker: PhantomData,
+          };
           avg_pool_2d_chip.forward(
             layouter.namespace(|| "dag avg pool 2d"),
             &vec_inps,
             constants,
             gadget_config.clone(),
+            &layer_config,
           )?
         }
         LayerType::Conv2D => {
-          let conv_2d_chip = Conv2DChip::<F>::construct(layer_config.clone());
+          let conv_2d_chip = Conv2DChip {
+            config: layer_config.clone(),
+            _marker: PhantomData,
+          };
           conv_2d_chip.forward(
             layouter.namespace(|| "dag conv 2d"),
             &vec_inps,
             constants,
             gadget_config.clone(),
+            &layer_config,
           )?
         }
         LayerType::FullyConnected => {
-          let fc_chip = FullyConnectedChip::<F>::construct(layer_config.clone());
+          let fc_chip = FullyConnectedChip {
+            _marker: PhantomData,
+          };
           fc_chip.forward(
             layouter.namespace(|| "dag fully connected"),
             &vec_inps,
             constants,
             gadget_config.clone(),
+            &layer_config,
           )?
         }
         LayerType::Mean => {
-          let mean_chip = MeanChip::<F>::construct(layer_config.clone());
+          let mean_chip = MeanChip {
+            _marker: PhantomData,
+          };
           mean_chip.forward(
             layouter.namespace(|| "dag mean"),
             &vec_inps,
             constants,
             gadget_config.clone(),
+            &layer_config,
           )?
         }
         LayerType::Pad => {
-          let pad_chip = PadChip::<F>::construct(layer_config.clone());
+          let pad_chip = PadChip::<F> {
+            _marker: PhantomData,
+          };
           pad_chip.forward(
             layouter.namespace(|| "dag pad"),
             &vec_inps,
             constants,
             gadget_config.clone(),
+            &layer_config,
           )?
         }
         LayerType::SquaredDifference => {
-          let squared_diff_chip = SquaredDiffChip::<F>::construct();
+          let squared_diff_chip = SquaredDiffChip {
+            _marker: PhantomData,
+          };
           squared_diff_chip.forward(
             layouter.namespace(|| "dag squared diff"),
             &vec_inps,
             constants,
             gadget_config.clone(),
+            &layer_config,
           )?
         }
         LayerType::Rsqrt => {
-          let rsqrt_chip = RsqrtChip::<F>::construct();
+          let rsqrt_chip = RsqrtChip {
+            _marker: PhantomData,
+          };
           rsqrt_chip.forward(
             layouter.namespace(|| "dag rsqrt"),
             &vec_inps,
             constants,
             gadget_config.clone(),
+            &layer_config,
           )?
         }
         LayerType::Mul => {
-          let mul_chip = MulChip::<F>::construct();
+          let mul_chip = MulChip {
+            _marker: PhantomData,
+          };
           mul_chip.forward(
             layouter.namespace(|| "dag mul"),
             &vec_inps,
             constants,
             gadget_config.clone(),
+            &layer_config,
           )?
         }
         LayerType::Sub => {
-          let sub_chip = SubChip::<F>::construct();
+          let sub_chip = SubChip {
+            _marker: PhantomData,
+          };
           sub_chip.forward(
             layouter.namespace(|| "dag sub"),
             &vec_inps,
             constants,
             gadget_config.clone(),
+            &layer_config,
           )?
         }
         LayerType::Noop => {
-          let noop_chip = NoopChip::<F>::construct(layer_config.clone());
+          let noop_chip = NoopChip {
+            _marker: PhantomData,
+          };
           noop_chip.forward(
             layouter.namespace(|| "dag noop"),
             &vec_inps,
             constants,
             gadget_config.clone(),
+            &layer_config,
           )?
         }
         LayerType::Transpose => {
-          let transpose_chip = TransposeChip::<F>::construct(layer_config.clone());
+          let transpose_chip = TransposeChip {
+            _marker: PhantomData,
+          };
           transpose_chip.forward(
             layouter.namespace(|| "dag transpose"),
             &vec_inps,
             constants,
             gadget_config.clone(),
+            &layer_config,
           )?
         }
         LayerType::Reshape => {
-          let reshape_chip = ReshapeChip::<F>::construct(layer_config.clone());
+          let reshape_chip = ReshapeChip {
+            _marker: PhantomData,
+          };
           reshape_chip.forward(
             layouter.namespace(|| "dag reshape"),
             &vec_inps,
             constants,
             gadget_config.clone(),
+            &layer_config,
           )?
         }
       };

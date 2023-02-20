@@ -3,7 +3,7 @@ use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter},
   halo2curves::FieldExt,
-  plonk::{ConstraintSystem, Error},
+  plonk::Error,
 };
 use ndarray::{Array, IxDyn};
 
@@ -16,7 +16,7 @@ use crate::{
   layers::pad::pad,
 };
 
-use super::layer::{Layer, LayerConfig, LayerType};
+use super::layer::{Layer, LayerConfig};
 
 #[derive(Default, Clone, Copy, Eq, PartialEq)]
 pub enum PaddingEnum {
@@ -40,27 +40,11 @@ pub struct Conv2DConfig {
 }
 
 pub struct Conv2DChip<F: FieldExt> {
-  config: LayerConfig,
-  _marker: PhantomData<F>,
+  pub config: LayerConfig,
+  pub _marker: PhantomData<F>,
 }
 
 impl<F: FieldExt> Conv2DChip<F> {
-  pub fn construct(config: LayerConfig) -> Self {
-    Self {
-      config,
-      _marker: PhantomData,
-    }
-  }
-
-  pub fn configure(_meta: ConstraintSystem<F>, layer_params: Vec<i64>) -> LayerConfig {
-    LayerConfig {
-      layer_type: LayerType::Conv2D,
-      layer_params,
-      inp_shapes: vec![], // FIXME
-      out_shapes: vec![],
-    }
-  }
-
   // TODO: this is horrible. What's the best way to fix this?
   pub fn param_vec_to_config(layer_params: Vec<i64>) -> Conv2DConfig {
     let conv_type = match layer_params[0] {
@@ -273,6 +257,7 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
     tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
     constants: &HashMap<i64, AssignedCell<F, F>>,
     gadget_config: Rc<GadgetConfig>,
+    _layer_config: &LayerConfig,
   ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
     let conv_config = &Self::param_vec_to_config(self.config.layer_params.clone());
     let zero = constants.get(&0).unwrap().clone();

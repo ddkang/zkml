@@ -311,6 +311,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
       &tensors,
       &constants,
       config.gadget_config,
+      &LayerConfig::default(),
     )?;
 
     Ok(())

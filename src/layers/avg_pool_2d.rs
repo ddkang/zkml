@@ -3,7 +3,7 @@ use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Value},
   halo2curves::FieldExt,
-  plonk::{ConstraintSystem, Error},
+  plonk::Error,
 };
 use ndarray::{Array, IxDyn};
 
@@ -11,34 +11,15 @@ use crate::gadgets::gadget::GadgetConfig;
 
 use super::{
   averager::Averager,
-  layer::{Layer, LayerConfig, LayerType},
+  layer::{Layer, LayerConfig},
 };
 
 pub struct AvgPool2DChip<F: FieldExt> {
-  config: LayerConfig,
-  _marker: PhantomData<F>,
-}
-
-impl<F: FieldExt> AvgPool2DChip<F> {
-  pub fn construct(config: LayerConfig) -> Self {
-    Self {
-      config,
-      _marker: PhantomData,
-    }
-  }
-
-  pub fn configure(_meta: ConstraintSystem<F>, layer_params: Vec<i64>) -> LayerConfig {
-    LayerConfig {
-      layer_type: LayerType::AvgPool2D,
-      layer_params,
-      inp_shapes: vec![], // FIXME
-      out_shapes: vec![],
-    }
-  }
+  pub _marker: PhantomData<F>,
 }
 
 impl<F: FieldExt> Averager<F> for AvgPool2DChip<F> {
-  fn splat<G: Clone>(&self, input: &Array<G, IxDyn>) -> Vec<Vec<G>> {
+  fn splat<G: Clone>(&self, input: &Array<G, IxDyn>, _layer_config: &LayerConfig) -> Vec<Vec<G>> {
     assert_eq!(input.shape().len(), 4);
     // Don't support batch size > 1 yet
     assert_eq!(input.shape()[0], 1);
@@ -61,9 +42,10 @@ impl<F: FieldExt> Averager<F> for AvgPool2DChip<F> {
     mut layouter: impl Layouter<F>,
     _tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
     gadget_config: Rc<GadgetConfig>,
+    layer_config: &LayerConfig,
   ) -> Result<AssignedCell<F, F>, Error> {
     // FIXME: this needs to be revealed
-    let div = self.config.layer_params[0] * self.config.layer_params[1];
+    let div = layer_config.layer_params[0] * layer_config.layer_params[1];
     let div = F::from(div as u64);
     let div = layouter.assign_region(
       || "avg pool 2d div",
@@ -89,8 +71,9 @@ impl<F: FieldExt> Layer<F> for AvgPool2DChip<F> {
     tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
     constants: &HashMap<i64, AssignedCell<F, F>>,
     gadget_config: Rc<GadgetConfig>,
+    layer_config: &LayerConfig,
   ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
-    let dived = self.avg_forward(layouter, tensors, constants, gadget_config)?;
+    let dived = self.avg_forward(layouter, tensors, constants, gadget_config, layer_config)?;
 
     let inp = &tensors[0];
     let mut outp_shape = inp.shape().to_vec();

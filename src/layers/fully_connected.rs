@@ -3,7 +3,7 @@ use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Value},
   halo2curves::FieldExt,
-  plonk::{Advice, Column, ConstraintSystem, Error},
+  plonk::{Advice, Column, Error},
 };
 use ndarray::{Array, Axis, IxDyn};
 
@@ -13,34 +13,17 @@ use crate::gadgets::{
   var_div::VarDivRoundChip,
 };
 
-use super::layer::{Layer, LayerConfig, LayerType};
+use super::layer::{Layer, LayerConfig};
 
 pub struct FullyConnectedConfig {
   pub activation: i64, // FIXME: to enum
 }
 
 pub struct FullyConnectedChip<F: FieldExt> {
-  config: LayerConfig,
-  _marker: PhantomData<F>,
+  pub _marker: PhantomData<F>,
 }
 
 impl<F: FieldExt> FullyConnectedChip<F> {
-  pub fn construct(config: LayerConfig) -> Self {
-    Self {
-      config,
-      _marker: PhantomData,
-    }
-  }
-
-  pub fn configure(_meta: ConstraintSystem<F>, layer_params: Vec<i64>) -> LayerConfig {
-    LayerConfig {
-      layer_type: LayerType::FullyConnected,
-      layer_params,
-      inp_shapes: vec![], // FIXME
-      out_shapes: vec![],
-    }
-  }
-
   pub fn compute_mm(
     input: &Array<AssignedCell<F, F>, IxDyn>,
     weight: &Array<AssignedCell<F, F>, IxDyn>,
@@ -127,6 +110,7 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
     tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
     constants: &HashMap<i64, AssignedCell<F, F>>,
     gadget_config: Rc<GadgetConfig>,
+    _layer_config: &LayerConfig,
   ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
     let input = &tensors[0];
     let ndim = input.ndim();

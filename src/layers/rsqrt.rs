@@ -3,7 +3,7 @@ use std::{collections::HashMap, marker::PhantomData, rc::Rc, vec};
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter},
   halo2curves::FieldExt,
-  plonk::{ConstraintSystem, Error},
+  plonk::Error,
 };
 use ndarray::{Array, IxDyn};
 
@@ -12,28 +12,11 @@ use crate::gadgets::{
   rsqrt::RsqrtGadgetChip,
 };
 
-use super::layer::{Layer, LayerConfig, LayerType};
+use super::layer::{Layer, LayerConfig};
 
 #[derive(Clone, Debug)]
 pub struct RsqrtChip<F: FieldExt> {
-  _marker: PhantomData<F>,
-}
-
-impl<F: FieldExt> RsqrtChip<F> {
-  pub fn construct() -> Self {
-    Self {
-      _marker: PhantomData,
-    }
-  }
-
-  pub fn configure(_meta: &mut ConstraintSystem<F>, layer_params: Vec<i64>) -> LayerConfig {
-    LayerConfig {
-      layer_type: LayerType::Rsqrt,
-      layer_params,
-      inp_shapes: vec![],
-      out_shapes: vec![],
-    }
-  }
+  pub _marker: PhantomData<F>,
 }
 
 impl<F: FieldExt> Layer<F> for RsqrtChip<F> {
@@ -43,6 +26,7 @@ impl<F: FieldExt> Layer<F> for RsqrtChip<F> {
     tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
     constants: &HashMap<i64, AssignedCell<F, F>>,
     gadget_config: Rc<GadgetConfig>,
+    _layer_config: &LayerConfig,
   ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
     let inp = &tensors[0];
     let inp_vec = inp.iter().collect::<Vec<_>>();
