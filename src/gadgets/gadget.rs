@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Region},
   halo2curves::{group::ff::PrimeField, FieldExt},
-  plonk::{Advice, Column, Error, Instance, Selector, TableColumn},
+  plonk::{Advice, Column, Error, Fixed, Instance, Selector, TableColumn},
 };
 use num_bigint::BigUint;
 
@@ -29,6 +29,7 @@ pub enum GadgetType {
 pub struct GadgetConfig {
   pub columns: Vec<Column<Advice>>,
   pub public_columns: Vec<Column<Instance>>,
+  pub fixed_columns: Vec<Column<Fixed>>,
   pub selectors: HashMap<GadgetType, Vec<Selector>>,
   pub tables: HashMap<GadgetType, Vec<TableColumn>>,
   pub maps: HashMap<GadgetType, Vec<HashMap<i64, i64>>>,

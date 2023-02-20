@@ -95,34 +95,49 @@ impl<F: FieldExt> ModelCircuit<F> {
     model_config: &ModelConfig<F>,
   ) -> Result<HashMap<i64, AssignedCell<F, F>>, Error> {
     let sf = model_config.gadget_config.scale_factor;
+    let min_val = model_config.gadget_config.min_val;
+    let max_val = model_config.gadget_config.max_val;
 
     let constants = layouter.assign_region(
       || "constants",
       |mut region| {
         let mut constants: HashMap<i64, AssignedCell<F, F>> = HashMap::new();
-        let zero = region.assign_advice(
+        let zero = region.assign_fixed(
           || "zero",
-          model_config.gadget_config.columns[0],
+          model_config.gadget_config.fixed_columns[0],
           0,
           || Value::known(F::zero()),
         )?;
-        let one = region.assign_advice(
+        let one = region.assign_fixed(
           || "one",
-          model_config.gadget_config.columns[0],
+          model_config.gadget_config.fixed_columns[0],
           1,
           || Value::known(F::one()),
         )?;
-        // FIXME
-        let sf_cell = region.assign_advice(
+        let sf_cell = region.assign_fixed(
           || "sf",
-          model_config.gadget_config.columns[0],
+          model_config.gadget_config.fixed_columns[0],
           2,
           || Value::known(F::from(sf)),
+        )?;
+        let min_val_cell = region.assign_fixed(
+          || "min_val",
+          model_config.gadget_config.fixed_columns[0],
+          3,
+          || Value::known(F::zero() - F::from((-min_val) as u64)),
+        )?;
+        let max_val_cell = region.assign_fixed(
+          || "max_val",
+          model_config.gadget_config.fixed_columns[0],
+          4,
+          || Value::known(F::from(max_val as u64)),
         )?;
 
         constants.insert(0, zero);
         constants.insert(1, one);
         constants.insert(sf as i64, sf_cell);
+        constants.insert(min_val, min_val_cell);
+        constants.insert(max_val, max_val_cell);
         Ok(constants)
       },
     )?;
@@ -251,6 +266,9 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
 
     gadget_config.public_columns = vec![meta.instance_column()];
     meta.enable_equality(gadget_config.public_columns[0]);
+
+    gadget_config.fixed_columns = vec![meta.fixed_column()];
+    meta.enable_equality(gadget_config.fixed_columns[0]);
 
     // FIXME: fix this shit
     gadget_config = AddPairsChip::<F>::configure(meta, gadget_config);
