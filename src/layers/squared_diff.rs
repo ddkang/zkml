@@ -1,7 +1,7 @@
-use std::{collections::HashMap, marker::PhantomData, rc::Rc, vec};
+use std::{collections::HashMap, rc::Rc, vec};
 
 use halo2_proofs::{
-  circuit::{AssignedCell, Layouter, Value},
+  circuit::{AssignedCell, Layouter},
   halo2curves::FieldExt,
   plonk::Error,
 };
@@ -16,11 +16,9 @@ use crate::gadgets::{
 use super::layer::{Layer, LayerConfig};
 
 #[derive(Clone, Debug)]
-pub struct SquaredDiffChip<F: FieldExt> {
-  pub _marker: PhantomData<F>,
-}
+pub struct SquaredDiffChip {}
 
-impl<F: FieldExt> Layer<F> for SquaredDiffChip<F> {
+impl<F: FieldExt> Layer<F> for SquaredDiffChip {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
@@ -61,29 +59,18 @@ impl<F: FieldExt> Layer<F> for SquaredDiffChip<F> {
     let inp1_vec = inp1.iter().collect::<Vec<_>>();
     let inp2_vec = inp2.iter().collect::<Vec<_>>();
     let vec_inputs = vec![inp1_vec, inp2_vec];
-    let constants = vec![zero.clone()];
+    let tmp_constants = vec![zero.clone()];
     let out = sq_diff_chip.forward(
       layouter.namespace(|| "sq diff chip"),
       &vec_inputs,
-      &constants,
+      &tmp_constants,
     )?;
 
     let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
-    // FIXME: ugh
-    let sf = gadget_config.scale_factor;
-    let sf = F::from(sf as u64);
-    let div = layouter.assign_region(
-      || "sq diff sf",
-      |mut region| {
-        let div = region.assign_advice(
-          || "sq diff sf",
-          gadget_config.columns[0],
-          0,
-          || Value::known(sf),
-        )?;
-        Ok(div)
-      },
-    )?;
+    let div = constants
+      .get(&(gadget_config.scale_factor as i64))
+      .unwrap()
+      .clone();
 
     let single_inputs = vec![zero, div];
     let out = out.iter().map(|x| x).collect::<Vec<_>>();

@@ -1,7 +1,7 @@
-use std::{collections::HashMap, marker::PhantomData, rc::Rc, vec};
+use std::{collections::HashMap, rc::Rc, vec};
 
 use halo2_proofs::{
-  circuit::{AssignedCell, Layouter, Value},
+  circuit::{AssignedCell, Layouter},
   halo2curves::FieldExt,
   plonk::Error,
 };
@@ -19,37 +19,9 @@ use super::{
 };
 
 #[derive(Clone, Debug)]
-pub struct MulChip<F: FieldExt> {
-  pub _marker: PhantomData<F>,
-}
+pub struct MulChip {}
 
-impl<F: FieldExt> MulChip<F> {
-  fn get_div_val(
-    &self,
-    mut layouter: impl Layouter<F>,
-    gadget_config: Rc<GadgetConfig>,
-  ) -> Result<AssignedCell<F, F>, Error> {
-    // FIXME: this needs to be revealed, fixed column
-    let div = gadget_config.scale_factor;
-    let div = F::from(div as u64);
-    let div = layouter.assign_region(
-      || "mul div",
-      |mut region| {
-        let div = region.assign_advice(
-          || "mul div",
-          gadget_config.columns[0],
-          0,
-          || Value::known(div),
-        )?;
-        Ok(div)
-      },
-    )?;
-
-    Ok(div)
-  }
-}
-
-impl<F: FieldExt> Arithmetic<F> for MulChip<F> {
+impl<F: FieldExt> Arithmetic<F> for MulChip {
   fn gadget_forward(
     &self,
     mut layouter: impl Layouter<F>,
@@ -69,7 +41,7 @@ impl<F: FieldExt> Arithmetic<F> for MulChip<F> {
 }
 
 // FIXME: move this + add to an arithmetic layer
-impl<F: FieldExt> Layer<F> for MulChip<F> {
+impl<F: FieldExt> Layer<F> for MulChip {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
@@ -86,7 +58,10 @@ impl<F: FieldExt> Layer<F> for MulChip<F> {
     )?;
 
     let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
-    let div = self.get_div_val(layouter.namespace(|| "get div"), gadget_config.clone())?;
+    let div = constants
+      .get(&(gadget_config.scale_factor as i64))
+      .unwrap()
+      .clone();
     let zero = constants.get(&0).unwrap().clone();
     let single_inputs = vec![zero, div];
     let out = out.iter().map(|x| x).collect::<Vec<_>>();

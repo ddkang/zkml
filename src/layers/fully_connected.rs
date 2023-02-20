@@ -16,7 +16,7 @@ use crate::gadgets::{
 use super::layer::{Layer, LayerConfig};
 
 pub struct FullyConnectedConfig {
-  pub activation: i64, // FIXME: to enum
+  pub activation: i64, // FIXME: to enum + shared w/ Conv2D
 }
 
 pub struct FullyConnectedChip<F: FieldExt> {

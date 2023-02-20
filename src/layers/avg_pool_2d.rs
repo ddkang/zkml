@@ -1,4 +1,4 @@
-use std::{collections::HashMap, marker::PhantomData, rc::Rc};
+use std::{collections::HashMap, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Value},
@@ -14,11 +14,9 @@ use super::{
   layer::{Layer, LayerConfig},
 };
 
-pub struct AvgPool2DChip<F: FieldExt> {
-  pub _marker: PhantomData<F>,
-}
+pub struct AvgPool2DChip {}
 
-impl<F: FieldExt> Averager<F> for AvgPool2DChip<F> {
+impl<F: FieldExt> Averager<F> for AvgPool2DChip {
   fn splat<G: Clone>(&self, input: &Array<G, IxDyn>, _layer_config: &LayerConfig) -> Vec<Vec<G>> {
     assert_eq!(input.shape().len(), 4);
     // Don't support batch size > 1 yet
@@ -64,7 +62,7 @@ impl<F: FieldExt> Averager<F> for AvgPool2DChip<F> {
   }
 }
 
-impl<F: FieldExt> Layer<F> for AvgPool2DChip<F> {
+impl<F: FieldExt> Layer<F> for AvgPool2DChip {
   fn forward(
     &self,
     layouter: impl Layouter<F>,

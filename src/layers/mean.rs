@@ -1,4 +1,4 @@
-use std::{collections::HashMap, marker::PhantomData, rc::Rc};
+use std::{collections::HashMap, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Value},
@@ -14,11 +14,9 @@ use super::{
   layer::{Layer, LayerConfig},
 };
 
-pub struct MeanChip<F: FieldExt> {
-  pub _marker: PhantomData<F>,
-}
+pub struct MeanChip {}
 
-impl<F: FieldExt> MeanChip<F> {
+impl MeanChip {
   pub fn get_keep_axis(&self, layer_config: &LayerConfig) -> usize {
     match layer_config.layer_params[0] as usize {
       1 => 2,
@@ -28,7 +26,7 @@ impl<F: FieldExt> MeanChip<F> {
   }
 }
 
-impl<F: FieldExt> Averager<F> for MeanChip<F> {
+impl<F: FieldExt> Averager<F> for MeanChip {
   fn splat<G: Clone>(&self, input: &Array<G, IxDyn>, layer_config: &LayerConfig) -> Vec<Vec<G>> {
     // Only support batch size = 1
     assert_eq!(input.shape()[0], 1);
@@ -83,7 +81,7 @@ impl<F: FieldExt> Averager<F> for MeanChip<F> {
   }
 }
 
-impl<F: FieldExt> Layer<F> for MeanChip<F> {
+impl<F: FieldExt> Layer<F> for MeanChip {
   fn forward(
     &self,
     layouter: impl Layouter<F>,
