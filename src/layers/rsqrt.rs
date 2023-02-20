@@ -9,7 +9,7 @@ use ndarray::{Array, IxDyn};
 
 use crate::gadgets::{
   gadget::{Gadget, GadgetConfig},
-  rsqrt::RsqrtGadgetChip,
+  nonlinear::rsqrt::RsqrtGadgetChip,
 };
 
 use super::layer::{Layer, LayerConfig};
