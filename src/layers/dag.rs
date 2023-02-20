@@ -13,6 +13,7 @@ use crate::{
     arithmetic::{add::AddChip, mul::MulChip, sub::SubChip},
     batch_mat_mul::BatchMatMulChip,
     fully_connected::FullyConnectedChip,
+    logistic::LogisticChip,
     mean::MeanChip,
     noop::NoopChip,
     rsqrt::RsqrtChip,
@@ -196,6 +197,16 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
             &layer_config,
           )?
         }
+        LayerType::Logistic => {
+          let logistic_chip = LogisticChip {};
+          logistic_chip.forward(
+            layouter.namespace(|| "dag logistic"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+            &layer_config,
+          )?
+        }
         LayerType::Mul => {
           let mul_chip = MulChip {};
           mul_chip.forward(
@@ -272,6 +283,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
 
     let tmp = final_out[0].iter().map(|x| x.clone()).collect::<Vec<_>>();
     print_assigned_arr("final out", &tmp);
+    println!("final out idxes: {:?}", self.dag_config.final_out_idxes);
 
     Ok(final_out)
   }

@@ -22,7 +22,7 @@ use crate::{
     gadget::{Gadget, GadgetConfig, GadgetType},
     mul_pairs::MulPairsChip,
     nonlinear::exp::ExpChip,
-    nonlinear::rsqrt::RsqrtGadgetChip,
+    nonlinear::{logistic::LogisticGadgetChip, rsqrt::RsqrtGadgetChip},
     sub_pairs::SubPairsChip,
     var_div::VarDivRoundChip,
   },
@@ -168,21 +168,22 @@ impl<F: FieldExt> ModelCircuit<F> {
     };
 
     let match_layer = |x: &str| match x {
-      "Conv2D" => LayerType::Conv2D,
       "AveragePool2D" => LayerType::AvgPool2D,
       "Add" => LayerType::Add,
       "BatchMatMul" => LayerType::BatchMatMul,
+      "Conv2D" => LayerType::Conv2D,
       "FullyConnected" => LayerType::FullyConnected,
-      "Pad" => LayerType::Pad,
+      "Logistic" => LayerType::Logistic,
       "MaskNegInf" => LayerType::MaskNegInf,
       "Mean" => LayerType::Mean,
       "Mul" => LayerType::Mul,
       "Noop" => LayerType::Noop,
+      "Pad" => LayerType::Pad,
+      "Reshape" => LayerType::Reshape,
+      "Rsqrt" => LayerType::Rsqrt,
       "Softmax" => LayerType::Softmax,
       "SquaredDifference" => LayerType::SquaredDifference,
       "Sub" => LayerType::Sub,
-      "Reshape" => LayerType::Reshape,
-      "Rsqrt" => LayerType::Rsqrt,
       "Transpose" => LayerType::Transpose,
       _ => panic!("unknown op: {}", x),
     };
@@ -283,6 +284,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
     gadget_config = MulPairsChip::<F>::configure(meta, gadget_config);
     gadget_config = SubPairsChip::<F>::configure(meta, gadget_config);
     gadget_config = ExpChip::<F>::configure(meta, gadget_config);
+    gadget_config = LogisticGadgetChip::<F>::configure(meta, gadget_config);
 
     ModelConfig {
       gadget_config: gadget_config.into(),

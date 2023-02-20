@@ -18,6 +18,7 @@ pub enum GadgetType {
   BiasDivFloorRelu6,
   DotProduct,
   Exp,
+  Logistic,
   VarDivRound,
   SquaredDiff,
   SubPairs,
