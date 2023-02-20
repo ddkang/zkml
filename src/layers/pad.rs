@@ -43,8 +43,7 @@ pub fn pad<G: Clone>(
 }
 
 pub struct PadChip<F: FieldExt> {
-  config: LayerConfig,
-  _marker: PhantomData<F>,
+  pub _marker: PhantomData<F>,
 }
 
 pub struct PadConfig {
@@ -52,13 +51,6 @@ pub struct PadConfig {
 }
 
 impl<F: FieldExt> PadChip<F> {
-  pub fn construct(config: LayerConfig) -> Self {
-    Self {
-      config,
-      _marker: PhantomData,
-    }
-  }
-
   pub fn param_vec_to_config(layer_params: Vec<i64>) -> PadConfig {
     assert!(layer_params.len() % 2 == 0);
 
@@ -77,13 +69,14 @@ impl<F: FieldExt> Layer<F> for PadChip<F> {
     tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
     constants: &HashMap<i64, AssignedCell<F, F>>,
     _gadget_config: Rc<GadgetConfig>,
+    layer_config: &LayerConfig,
   ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
     // FIXME: the pad from tflite is actually two, but mine is one
     // assert_eq!(tensors.len(), 1);
     let input = &tensors[0];
 
     let zero = constants.get(&0).unwrap().clone();
-    let padding = PadChip::<F>::param_vec_to_config(self.config.layer_params.clone());
+    let padding = PadChip::<F>::param_vec_to_config(layer_config.layer_params.clone());
     let padded = pad(input, padding.padding, zero);
 
     Ok(vec![padded])

@@ -12,17 +12,7 @@ use crate::gadgets::gadget::GadgetConfig;
 use super::layer::{Layer, LayerConfig};
 
 pub struct NoopChip<F: FieldExt> {
-  config: LayerConfig,
-  _marker: PhantomData<F>,
-}
-
-impl<F: FieldExt> NoopChip<F> {
-  pub fn construct(config: LayerConfig) -> Self {
-    Self {
-      config,
-      _marker: PhantomData,
-    }
-  }
+  pub _marker: PhantomData<F>,
 }
 
 impl<F: FieldExt> Layer<F> for NoopChip<F> {
@@ -32,8 +22,9 @@ impl<F: FieldExt> Layer<F> for NoopChip<F> {
     tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
     _constants: &HashMap<i64, AssignedCell<F, F>>,
     _gadget_config: Rc<GadgetConfig>,
+    layer_config: &LayerConfig,
   ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
-    let ret_idx = self.config.layer_params[0] as usize;
+    let ret_idx = layer_config.layer_params[0] as usize;
     Ok(vec![tensors[ret_idx].clone()])
   }
 }

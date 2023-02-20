@@ -10,14 +10,17 @@ use ndarray::{Array, IxDyn};
 use crate::gadgets::gadget::Gadget;
 use crate::gadgets::{adder::AdderChip, gadget::GadgetConfig, var_div::VarDivRoundChip};
 
+use super::layer::LayerConfig;
+
 pub trait Averager<F: FieldExt> {
-  fn splat<G: Clone>(&self, input: &Array<G, IxDyn>) -> Vec<Vec<G>>;
+  fn splat<G: Clone>(&self, input: &Array<G, IxDyn>, layer_config: &LayerConfig) -> Vec<Vec<G>>;
 
   fn get_div_val(
     &self,
     layouter: impl Layouter<F>,
     tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
     gadget_config: Rc<GadgetConfig>,
+    layer_config: &LayerConfig,
   ) -> Result<AssignedCell<F, F>, Error>;
 
   fn avg_forward(
@@ -26,13 +29,14 @@ pub trait Averager<F: FieldExt> {
     tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
     constants: &HashMap<i64, AssignedCell<F, F>>,
     gadget_config: Rc<GadgetConfig>,
+    layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     // Due to Mean BS
     // assert_eq!(tensors.len(), 1);
     let zero = constants.get(&0).unwrap().clone();
 
     let inp = &tensors[0];
-    let splat_inp = self.splat(inp);
+    let splat_inp = self.splat(inp, layer_config);
 
     let adder_chip = AdderChip::<F>::construct(gadget_config.clone());
     let single_inputs = vec![zero.clone()];
@@ -51,6 +55,7 @@ pub trait Averager<F: FieldExt> {
       layouter.namespace(|| "average div"),
       tensors,
       gadget_config.clone(),
+      layer_config,
     )?;
     let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
 

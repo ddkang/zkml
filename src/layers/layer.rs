@@ -9,7 +9,7 @@ use ndarray::{Array, IxDyn};
 
 use crate::gadgets::gadget::GadgetConfig;
 
-#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Hash, Eq, PartialEq)]
 pub enum LayerType {
   Add,
   AvgPool2D,
@@ -17,6 +17,7 @@ pub enum LayerType {
   FullyConnected,
   Mean,
   Mul,
+  #[default]
   Noop,
   Pad,
   Reshape,
@@ -26,7 +27,7 @@ pub enum LayerType {
   Transpose,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct LayerConfig {
   pub layer_type: LayerType,
   pub layer_params: Vec<i64>, // This is turned into layer specific configurations at runtime
@@ -43,5 +44,6 @@ pub trait Layer<F: FieldExt> {
     tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
     constants: &HashMap<i64, AssignedCell<F, F>>,
     gadget_config: Rc<GadgetConfig>,
+    layer_config: &LayerConfig,
   ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error>;
 }

@@ -3,7 +3,7 @@ use std::{collections::HashMap, marker::PhantomData, rc::Rc, vec};
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Value},
   halo2curves::FieldExt,
-  plonk::{ConstraintSystem, Error},
+  plonk::Error,
 };
 use ndarray::{Array, IxDyn};
 
@@ -14,31 +14,16 @@ use crate::gadgets::{
 };
 
 use super::{
-  super::layer::{Layer, LayerConfig, LayerType},
+  super::layer::{Layer, LayerConfig},
   Arithmetic,
 };
 
 #[derive(Clone, Debug)]
 pub struct MulChip<F: FieldExt> {
-  _marker: PhantomData<F>,
+  pub _marker: PhantomData<F>,
 }
 
 impl<F: FieldExt> MulChip<F> {
-  pub fn construct() -> Self {
-    Self {
-      _marker: PhantomData,
-    }
-  }
-
-  pub fn configure(_meta: &mut ConstraintSystem<F>, layer_params: Vec<i64>) -> LayerConfig {
-    LayerConfig {
-      layer_type: LayerType::Mul,
-      layer_params,
-      inp_shapes: vec![], // FIXME
-      out_shapes: vec![],
-    }
-  }
-
   fn get_div_val(
     &self,
     mut layouter: impl Layouter<F>,
@@ -91,6 +76,7 @@ impl<F: FieldExt> Layer<F> for MulChip<F> {
     tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
     constants: &HashMap<i64, AssignedCell<F, F>>,
     gadget_config: Rc<GadgetConfig>,
+    _layer_config: &LayerConfig,
   ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
     let (out, out_shape) = self.arithmetic_forward(
       layouter.namespace(|| ""),

@@ -12,17 +12,7 @@ use crate::gadgets::gadget::GadgetConfig;
 use super::super::layer::{Layer, LayerConfig};
 
 pub struct ReshapeChip<F: FieldExt> {
-  config: LayerConfig,
-  _marker: PhantomData<F>,
-}
-
-impl<F: FieldExt> ReshapeChip<F> {
-  pub fn construct(config: LayerConfig) -> Self {
-    Self {
-      config,
-      _marker: PhantomData,
-    }
-  }
+  pub _marker: PhantomData<F>,
 }
 
 impl<F: FieldExt> Layer<F> for ReshapeChip<F> {
@@ -32,9 +22,10 @@ impl<F: FieldExt> Layer<F> for ReshapeChip<F> {
     tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
     _constants: &HashMap<i64, AssignedCell<F, F>>,
     _gadget_config: Rc<GadgetConfig>,
+    layer_config: &LayerConfig,
   ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
     let inp = &tensors[0];
-    let shape = self.config.out_shapes[0].clone();
+    let shape = layer_config.out_shapes[0].clone();
 
     println!("Reshape: {:?} -> {:?}", inp.shape(), shape);
     let flat = inp.iter().map(|x| x.clone()).collect();

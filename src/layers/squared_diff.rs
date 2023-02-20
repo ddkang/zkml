@@ -3,7 +3,7 @@ use std::{collections::HashMap, marker::PhantomData, rc::Rc, vec};
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Value},
   halo2curves::FieldExt,
-  plonk::{ConstraintSystem, Error},
+  plonk::Error,
 };
 use ndarray::{Array, IxDyn};
 
@@ -13,28 +13,11 @@ use crate::gadgets::{
   var_div::VarDivRoundChip,
 };
 
-use super::layer::{Layer, LayerConfig, LayerType};
+use super::layer::{Layer, LayerConfig};
 
 #[derive(Clone, Debug)]
 pub struct SquaredDiffChip<F: FieldExt> {
-  _marker: PhantomData<F>,
-}
-
-impl<F: FieldExt> SquaredDiffChip<F> {
-  pub fn construct() -> Self {
-    Self {
-      _marker: PhantomData,
-    }
-  }
-
-  pub fn configure(_meta: &mut ConstraintSystem<F>, layer_params: Vec<i64>) -> LayerConfig {
-    LayerConfig {
-      layer_type: LayerType::SquaredDifference,
-      layer_params,
-      inp_shapes: vec![],
-      out_shapes: vec![],
-    }
-  }
+  pub _marker: PhantomData<F>,
 }
 
 impl<F: FieldExt> Layer<F> for SquaredDiffChip<F> {
@@ -44,6 +27,7 @@ impl<F: FieldExt> Layer<F> for SquaredDiffChip<F> {
     tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
     constants: &HashMap<i64, AssignedCell<F, F>>,
     gadget_config: Rc<GadgetConfig>,
+    _layer_config: &LayerConfig,
   ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
     assert_eq!(tensors.len(), 2);
     let mut inp1 = tensors[0].clone();

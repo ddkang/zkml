@@ -3,7 +3,7 @@ use std::{collections::HashMap, marker::PhantomData, rc::Rc, vec};
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter},
   halo2curves::FieldExt,
-  plonk::{ConstraintSystem, Error},
+  plonk::Error,
 };
 use ndarray::{Array, IxDyn};
 
@@ -13,30 +13,13 @@ use crate::gadgets::{
 };
 
 use super::{
-  super::layer::{Layer, LayerConfig, LayerType},
+  super::layer::{Layer, LayerConfig},
   Arithmetic,
 };
 
 #[derive(Clone, Debug)]
 pub struct AddChip<F: FieldExt> {
-  _marker: PhantomData<F>,
-}
-
-impl<F: FieldExt> AddChip<F> {
-  pub fn construct() -> Self {
-    Self {
-      _marker: PhantomData,
-    }
-  }
-
-  pub fn configure(_meta: &mut ConstraintSystem<F>, layer_params: Vec<i64>) -> LayerConfig {
-    LayerConfig {
-      layer_type: LayerType::Add,
-      layer_params,
-      inp_shapes: vec![], // FIXME
-      out_shapes: vec![],
-    }
-  }
+  pub _marker: PhantomData<F>,
 }
 
 impl<F: FieldExt> Arithmetic<F> for AddChip<F> {
@@ -60,6 +43,7 @@ impl<F: FieldExt> Layer<F> for AddChip<F> {
     tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
     constants: &HashMap<i64, AssignedCell<F, F>>,
     gadget_config: Rc<GadgetConfig>,
+    _layer_config: &LayerConfig,
   ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
     let (out, out_shape) = self.arithmetic_forward(
       layouter.namespace(|| ""),
