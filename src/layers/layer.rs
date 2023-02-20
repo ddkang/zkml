@@ -16,6 +16,7 @@ pub enum LayerType {
   BatchMatMul,
   Conv2D,
   FullyConnected,
+  MaskNegInf,
   Mean,
   Mul,
   #[default]

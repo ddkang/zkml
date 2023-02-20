@@ -173,6 +173,7 @@ impl<F: FieldExt> ModelCircuit<F> {
       "BatchMatMul" => LayerType::BatchMatMul,
       "FullyConnected" => LayerType::FullyConnected,
       "Pad" => LayerType::Pad,
+      "MaskNegInf" => LayerType::MaskNegInf,
       "Mean" => LayerType::Mean,
       "Mul" => LayerType::Mul,
       "Noop" => LayerType::Noop,
