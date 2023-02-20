@@ -4,6 +4,19 @@ import numpy as np
 import tflite
 import msgpack
 
+def get_shape(interpreter: tf.lite.Interpreter, tensor_idx):
+  if tensor_idx == -1:
+    return []
+  tensor = interpreter.get_tensor(tensor_idx)
+  return list(tensor.shape)
+
+
+def get_inputs(op: tflite.Operator):
+  idxes = op.InputsAsNumpy()
+  idxes = idxes.tolist()
+  idxes = list(filter(lambda x: x != -1, idxes))
+  return idxes
+
 class Converter:
   def __init__(self, model_path, scale_factor, k, num_cols):
     self.model_path = model_path
@@ -11,23 +24,59 @@ class Converter:
     self.k = k
     self.num_cols = num_cols
 
-  def to_dict(self, inps):
-    interpreter = tf.lite.Interpreter(
+    self.interpreter = tf.lite.Interpreter(
       model_path=self.model_path,
       experimental_preserve_all_tensors=True
     )
-    interpreter.allocate_tensors()
-
-    input_details = interpreter.get_input_details()
-    output_details = interpreter.get_output_details()
-
-    for i, inp in enumerate(inps):
-      interpreter.set_tensor(input_details[i]['index'], inp)
+    self.interpreter.allocate_tensors()
 
     with open(self.model_path, 'rb') as f:
       buf = f.read()
-      model = tflite.Model.GetRootAsModel(buf, 0)
-    graph = model.Subgraphs(0)
+      self.model = tflite.Model.GetRootAsModel(buf, 0)
+    self.graph = self.model.Subgraphs(0)
+
+
+  def _convert_add(self, op, generated_tensors: set):
+    # Get inputs
+    inputs = get_inputs(op)
+    print(generated_tensors)
+    print('Add inputs: ', inputs)
+    if len(inputs) != 2:
+      raise RuntimeError('Add must have 2 inputs')
+
+    # If both tensors are generated, do nothing
+    print(inputs[0] in generated_tensors, inputs[1] in generated_tensors)
+    if (inputs[0] in generated_tensors) and (inputs[1] in generated_tensors):
+      return ('Add', [])
+
+    nb_generated = (inputs[0] in generated_tensors) + (inputs[1] in generated_tensors)
+    if nb_generated != 1:
+      raise RuntimeError('Add must have 1 generated tensor')
+
+    # Check if there are any negative infinities
+    const_tensor = self.interpreter.get_tensor(inputs[0]) if inputs[0] not in generated_tensors else self.interpreter.get_tensor(inputs[1])
+    if np.any(const_tensor == -np.inf):
+      # Ensure that the constant tensor is all -inf and 0
+      if not np.all(np.logical_or(np.isneginf(const_tensor), const_tensor == 0)):
+        raise RuntimeError('Add constant tensor must be -inf and 0 only')
+      mask = (const_tensor == -np.inf).astype(np.int64)
+      params = [len(mask.shape)] + list(mask.shape)
+      params += mask.flatten().tolist()
+      return ('MaskNegInf', params)
+    else:
+      return ('Add', [])
+
+  def to_dict(self, inps, max_layers):
+    interpreter = self.interpreter
+    model = self.model
+    graph = self.graph
+
+    input_details = interpreter.get_input_details()
+    # output_details = interpreter.get_output_details()
+
+    for i, inp in enumerate(inps):
+      interpreter.set_tensor(input_details[i]['index'], inp)
+    interpreter.invoke()
 
     # Get layers
     generated_tensor_idxes = set()
@@ -87,10 +136,24 @@ class Converter:
           [opt.Padding()] + \
           [activation] + \
           [opt.StrideH(), opt.StrideW()]
+      # Fully connected
+      elif op_code == tflite.BuiltinOperator.FULLY_CONNECTED:
+        layer_type = 'FullyConnected'
+        op_opt = op.BuiltinOptions()
+        opt = tflite.FullyConnectedOptions()
+        opt.Init(op_opt.Bytes, op_opt.Pos)
+        if opt.FusedActivationFunction() != tflite.ActivationFunctionType.NONE and opt.FusedActivationFunction() != tflite.ActivationFunctionType.RELU6:
+          raise NotImplementedError('Only ReLU6 and None supported')
+        activation = 1 if opt.FusedActivationFunction() == 3 else 0
+        params = [activation]
+      elif op_code == tflite.BuiltinOperator.BATCH_MATMUL:
+        layer_type = 'BatchMatMul'
+        params = []
+
+      ## Arithmetic
       # Add
       elif op_code == tflite.BuiltinOperator.ADD:
-        layer_type = 'Add'
-        params = []
+        layer_type, params = self._convert_add(op, generated_tensor_idxes)
       # Mul
       elif op_code == tflite.BuiltinOperator.MUL:
         layer_type = 'Mul'
@@ -102,19 +165,13 @@ class Converter:
       # Pad
       elif op_code == tflite.BuiltinOperator.PAD:
         layer_type = 'Pad'
-        # FIXME: the padding input is a tensor, not a parameter. Fix in rust
         tensor_idx = op.Inputs(1)
         tensor = interpreter.get_tensor(tensor_idx).flatten().astype(np.int64)
         params = tensor.tolist()
       # Softmax
       elif op_code == tflite.BuiltinOperator.SOFTMAX:
-        continue
-        print('softmax')
-      # Reshape
-      elif op_code == tflite.BuiltinOperator.RESHAPE:
-        continue
-        print('reshape')
-        print(op.InputsLength())
+        layer_type = 'Softmax'
+        params = []
       # Mean
       elif op_code == tflite.BuiltinOperator.MEAN:
         layer_type = 'Mean'
@@ -127,9 +184,15 @@ class Converter:
       elif op_code == tflite.BuiltinOperator.SQUARED_DIFFERENCE:
         layer_type = 'SquaredDifference'
         params = []
+
+      # Pointwise
       elif op_code == tflite.BuiltinOperator.RSQRT:
         layer_type = 'Rsqrt'
         params = []
+      elif op_code == tflite.BuiltinOperator.LOGISTIC:
+        layer_type = 'Logistic'
+        params = []
+
       # The following are no-ops in the sense that they don't change the tensor
       # However, we need to pass along the right tensors
       # The param says which input to pass along
@@ -146,9 +209,18 @@ class Converter:
       elif op_code == tflite.BuiltinOperator.PACK:
         layer_type = 'Noop'
         params = [0]
-      elif op_code == tflite.BuiltinOperator.RESHAPE:
+      elif op_code == tflite.BuiltinOperator.CONCATENATION:
+        # FIXME: This is not in general a no-op
         layer_type = 'Noop'
         params = [0]
+
+      ## Shape
+      elif op_code == tflite.BuiltinOperator.RESHAPE:
+        layer_type = 'Reshape'
+        params = []
+      elif op_code == tflite.BuiltinOperator.TRANSPOSE:
+        layer_type = 'Transpose'
+        params = get_shape(interpreter, op.Inputs(0)) + interpreter.get_tensor(op.Inputs(1)).flatten().astype(np.int64).tolist()
       else:
         op_name = None
         for attr in dir(tflite.BuiltinOperator):
@@ -157,17 +229,23 @@ class Converter:
               op_name = attr
         raise NotImplementedError('Unsupported operator: {}, {}'.format(op_code, op_name))
 
+      inp_idxes = get_inputs(op)
       layers.append({
         'layer_type': layer_type,
-        'inp_idxes': [op.Inputs(i) for i in range(op.InputsLength())],
+        'inp_idxes': inp_idxes,
+        'inp_shapes': [get_shape(interpreter, inp_idx) for inp_idx in inp_idxes],
         'out_idxes': [op.Outputs(i) for i in range(op.OutputsLength())],
+        'out_shapes': [get_shape(interpreter, op.Outputs(i)) for i in range(op.OutputsLength())],
         'params': params,
       })
+      if len(layers) >= max_layers:
+        break
     print(layers)
     print()
 
 
     # Get tensors
+    print('keep tensors:', keep_tensors)
     tensors = []
     for tensor_idx in range(graph.TensorsLength()):
       if tensor_idx not in keep_tensors:
@@ -209,6 +287,7 @@ class Converter:
       'layers': layers,
       'tensors': tensors,
     }
+    print()
     print(d['layers'][-1])
     print(d['out_idxes'])
     # d['out_idxes'] = [14]
@@ -216,8 +295,8 @@ class Converter:
     print(d['out_idxes'])
     return d
 
-  def to_msgpack(self, inps):
-    d = self.to_dict(inps)
+  def to_msgpack(self, inps, max_layers=10000):
+    d = self.to_dict(inps, max_layers)
     return msgpack.packb(d, use_bin_type=True)
 
 
@@ -229,12 +308,13 @@ def main():
   parser.add_argument('--scale_factor', type=int, default=2**16)
   parser.add_argument('--k', type=int, default=19)
   parser.add_argument('--num_cols', type=int, default=6)
+  parser.add_argument('--max_layers', type=int, default=10000)
   args = parser.parse_args()
 
   converter = Converter(args.model, args.scale_factor, args.k, args.num_cols)
   inp_shape = [int(x) for x in args.input_shape.split(',')]
   inps = [np.zeros(inp_shape, dtype=np.float32)]
-  packed = converter.to_msgpack(inps)
+  packed = converter.to_msgpack(inps, max_layers=args.max_layers)
 
   with open(args.output, 'wb') as f:
     f.write(packed)
