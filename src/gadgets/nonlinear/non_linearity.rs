@@ -7,8 +7,10 @@ use halo2_proofs::{
   poly::Rotation,
 };
 
-use super::super::gadget::{convert_to_u64, GadgetConfig, GadgetType};
+use crate::gadgets::gadget::convert_to_u128;
+
 use super::super::gadget::{Gadget, USE_SELECTORS};
+use super::super::gadget::{GadgetConfig, GadgetType};
 
 const NUM_COLS_PER_OP: usize = 2;
 
@@ -99,8 +101,8 @@ pub trait NonLinearGadget<F: FieldExt>: Gadget<F> {
       let offset = i * 2;
       inp[i].copy_advice(|| "", region, columns[offset + 0], row_offset)?;
       let outp = inp[i].value().map(|x: &F| {
-        let pos = convert_to_u64(&(*x + shift_val_pos)) as i64 - shift_val_pos_i64;
-        let x = pos - min_val;
+        let pos = convert_to_u128(&(*x + shift_val_pos)) as i128 - shift_val_pos_i64 as i128;
+        let x = pos as i64 - min_val;
         let val = map.get(&x).unwrap();
         F::from(*val as u64)
       });

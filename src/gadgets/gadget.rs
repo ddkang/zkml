@@ -5,7 +5,8 @@ use halo2_proofs::{
   halo2curves::{group::ff::PrimeField, FieldExt},
   plonk::{Advice, Column, Error, Fixed, Instance, Selector, TableColumn},
 };
-use num_bigint::BigUint;
+use num_bigint::{BigUint, ToBigUint};
+use num_traits::cast::ToPrimitive;
 
 // FIXME: how to enable this?
 pub const USE_SELECTORS: bool = false;
@@ -58,6 +59,11 @@ pub fn convert_to_u64<F: PrimeField>(x: &F) -> u64 {
   } else {
     panic!();
   }
+}
+
+pub fn convert_to_u128<F: PrimeField>(x: &F) -> u128 {
+  let big = BigUint::from_bytes_le(x.to_repr().as_ref());
+  big.to_biguint().unwrap().to_u128().unwrap()
 }
 
 pub trait Gadget<F: FieldExt> {

@@ -7,9 +7,7 @@ use halo2_proofs::{
   poly::Rotation,
 };
 
-use crate::gadgets::gadget::convert_to_u64;
-
-use super::gadget::{Gadget, GadgetConfig, GadgetType, USE_SELECTORS};
+use super::gadget::{convert_to_u128, Gadget, GadgetConfig, GadgetType, USE_SELECTORS};
 
 type VarDivRoundConfig = GadgetConfig;
 
@@ -156,8 +154,8 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundChip<F> {
 
       let div_mod = a.value().zip(b.value()).map(|(a, b)| {
         let a_pos = *a + div_inp_min_val_pos;
-        let a = convert_to_u64(&a_pos);
-        let b = convert_to_u64(b);
+        let a = convert_to_u128(&a_pos);
+        let b = convert_to_u128(b);
         let c = ((2 * a + b) / (2 * b)) as i64 - (div_inp_min_val_pos_i64 / b as i64);
         let r = (2 * a + b) % (2 * b);
         (c, r)
@@ -179,7 +177,7 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundChip<F> {
         || "",
         self.config.columns[offset + 2],
         row_offset,
-        || div_mod.map(|(_, r)| F::from(r)),
+        || div_mod.map(|(_, r)| F::from(r as u64)),
       )?;
       div_out.push(div_cell);
     }
