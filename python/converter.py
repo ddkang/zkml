@@ -66,7 +66,7 @@ class Converter:
     else:
       return ('Add', [])
 
-  def to_dict(self, inps, max_layers):
+  def to_dict(self, inps, start_layer, end_layer):
     interpreter = self.interpreter
     model = self.model
     graph = self.graph
@@ -92,6 +92,11 @@ class Converter:
       # Skip generated tensors
       for output in op.OutputsAsNumpy():
         generated_tensor_idxes.add(output)
+
+      if op_idx < start_layer:
+        continue
+
+      # Keep the input tensors
       for input in op.InputsAsNumpy():
         keep_tensors.add(input)
 
@@ -238,7 +243,7 @@ class Converter:
         'out_shapes': [get_shape(interpreter, op.Outputs(i)) for i in range(op.OutputsLength())],
         'params': params,
       })
-      if len(layers) >= max_layers:
+      if len(layers) >= end_layer:
         break
     print(layers)
     print()
@@ -295,8 +300,8 @@ class Converter:
     print(d['out_idxes'])
     return d
 
-  def to_msgpack(self, inps, max_layers=10000):
-    d = self.to_dict(inps, max_layers)
+  def to_msgpack(self, inps, start_layer, end_layer):
+    d = self.to_dict(inps, start_layer, end_layer)
     return msgpack.packb(d, use_bin_type=True)
 
 
@@ -308,13 +313,14 @@ def main():
   parser.add_argument('--scale_factor', type=int, default=2**16)
   parser.add_argument('--k', type=int, default=19)
   parser.add_argument('--num_cols', type=int, default=6)
-  parser.add_argument('--max_layers', type=int, default=10000)
+  parser.add_argument('--start_layer', type=int, default=0)
+  parser.add_argument('--end_layer', type=int, default=10000)
   args = parser.parse_args()
 
   converter = Converter(args.model, args.scale_factor, args.k, args.num_cols)
   inp_shape = [int(x) for x in args.input_shape.split(',')]
   inps = [np.zeros(inp_shape, dtype=np.float32)]
-  packed = converter.to_msgpack(inps, max_layers=args.max_layers)
+  packed = converter.to_msgpack(inps, start_layer=args.start_layer, end_layer=args.end_layer)
 
   with open(args.output, 'wb') as f:
     f.write(packed)
