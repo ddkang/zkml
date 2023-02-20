@@ -157,10 +157,18 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundChip<F> {
         let a_pos = *a + div_inp_min_val_pos;
         let a = convert_to_u128(&a_pos);
         let b = convert_to_u128(b);
-        let c = a.rounded_div(b) - (div_inp_min_val_pos_i64 as u128 / b);
-        // let c = ((2 * a + b) / (2 * b)) - (div_inp_min_val_pos_i64 as u128 / b);
-        let c = c as i64; // The intermediate can go to u128, but the result must be in i64
-        let r = (2 * a + b) % (2 * b);
+        let c_pos = a.rounded_div(b);
+        let c = (c_pos as i128 - (div_inp_min_val_pos_i64 as u128 / b) as i128) as i64;
+        // let r = (2 * a + b) % (2 * b);
+
+        let c_floor = a / b;
+        let rem_floor = (a - c_floor * b) as i64;
+        let rem_tmp = if c_floor != c_pos {
+          rem_floor + b as i64
+        } else {
+          rem_floor
+        };
+        let r = 2 * rem_tmp + (b as i64);
         let r = r as i64;
         (c, r)
       });
