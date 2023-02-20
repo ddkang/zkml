@@ -113,7 +113,7 @@ impl<F: FieldExt> ModelCircuit<F> {
           || Value::known(F::one()),
         )?;
         // FIXME
-        let sf = region.assign_advice(
+        let sf_cell = region.assign_advice(
           || "sf",
           model_config.gadget_config.columns[0],
           2,
@@ -122,7 +122,7 @@ impl<F: FieldExt> ModelCircuit<F> {
 
         constants.insert(0, zero);
         constants.insert(1, one);
-        constants.insert(2, sf);
+        constants.insert(sf as i64, sf_cell);
         Ok(constants)
       },
     )?;
@@ -155,9 +155,11 @@ impl<F: FieldExt> ModelCircuit<F> {
       "Conv2D" => LayerType::Conv2D,
       "AveragePool2D" => LayerType::AvgPool2D,
       "Add" => LayerType::Add,
+      "FullyConnected" => LayerType::FullyConnected,
       "Pad" => LayerType::Pad,
       "Mean" => LayerType::Mean,
       "Mul" => LayerType::Mul,
+      "Noop" => LayerType::Noop,
       "SquaredDifference" => LayerType::SquaredDifference,
       "Sub" => LayerType::Sub,
       "Rsqrt" => LayerType::Rsqrt,
