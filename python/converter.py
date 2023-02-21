@@ -237,6 +237,11 @@ class Converter:
         raise NotImplementedError('Unsupported operator: {}, {}'.format(op_code, op_name))
 
       inp_idxes = get_inputs(op)
+      # FIXME: hack for testing
+      if op_idx == 99:
+        mask = [0, 1]
+      else:
+        mask = []
       layers.append({
         'layer_type': layer_type,
         'inp_idxes': inp_idxes,
@@ -244,6 +249,7 @@ class Converter:
         'out_idxes': [op.Outputs(i) for i in range(op.OutputsLength())],
         'out_shapes': [get_shape(interpreter, op.Outputs(i)) for i in range(op.OutputsLength())],
         'params': params,
+        'mask': mask,
       })
     print(layers)
     print()

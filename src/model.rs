@@ -207,6 +207,7 @@ impl<F: FieldExt> ModelCircuit<F> {
           layer_params: layer.params.clone(),
           inp_shapes: layer.inp_shapes.iter().map(|x| i64_to_usize(x)).collect(),
           out_shapes: layer.out_shapes.iter().map(|x| i64_to_usize(x)).collect(),
+          mask: layer.mask.clone(),
         })
         .collect::<Vec<_>>();
       let inp_idxes = config
