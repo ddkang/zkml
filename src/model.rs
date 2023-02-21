@@ -127,11 +127,12 @@ impl<F: FieldExt> ModelCircuit<F> {
           3,
           || Value::known(F::zero() - F::from((-min_val) as u64)),
         )?;
+        // TODO: the table goes from min_val to max_val - 1... fix this
         let max_val_cell = region.assign_fixed(
           || "max_val",
           model_config.gadget_config.fixed_columns[0],
           4,
-          || Value::known(F::from(max_val as u64)),
+          || Value::known(F::from((max_val - 1) as u64)),
         )?;
 
         constants.insert(0, zero);
