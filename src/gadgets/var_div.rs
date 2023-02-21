@@ -168,8 +168,6 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundChip<F> {
         let rem_floor = (a as i128) - (c_pos * b) as i128;
         let r = 2 * rem_floor + (b as i128);
         let r = r as i64;
-        println!("r: {}", r);
-        println!();
         (c, r)
       });
 
