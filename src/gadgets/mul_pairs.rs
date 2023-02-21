@@ -88,7 +88,7 @@ impl<F: FieldExt> Gadget<F> for MulPairsChip<F> {
     let inp2 = &vec_inputs[1];
     assert_eq!(inp1.len(), inp2.len());
 
-    let selector = self.config.selectors.get(&GadgetType::AddPairs).unwrap()[0];
+    let selector = self.config.selectors.get(&GadgetType::MulPairs).unwrap()[0];
     let columns = &self.config.columns;
 
     if USE_SELECTORS {
