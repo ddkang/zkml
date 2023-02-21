@@ -7,10 +7,13 @@ use halo2_proofs::{
 };
 use ndarray::{Array, IxDyn};
 
-use crate::gadgets::{
-  gadget::{Gadget, GadgetConfig},
-  squared_diff::SquaredDiffGadgetChip,
-  var_div::VarDivRoundChip,
+use crate::{
+  gadgets::{
+    gadget::{Gadget, GadgetConfig},
+    squared_diff::SquaredDiffGadgetChip,
+    var_div::VarDivRoundChip,
+  },
+  utils::helpers::broadcast,
 };
 
 use super::layer::{Layer, LayerConfig};
@@ -28,30 +31,10 @@ impl<F: FieldExt> Layer<F> for SquaredDiffChip {
     _layer_config: &LayerConfig,
   ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
     assert_eq!(tensors.len(), 2);
-    let mut inp1 = tensors[0].clone();
-    let mut inp2 = tensors[1].clone();
+    let inp1 = &tensors[0];
+    let inp2 = &tensors[1];
     // Broadcoasting allowed... can't check shapes easily
-
-    println!("inp1: {:?}", inp1.shape());
-    println!("inp2: {:?}", inp2.shape());
-    inp1 = {
-      let tmp = inp1.broadcast(inp2.shape());
-      if tmp.is_none() {
-        inp1
-      } else {
-        tmp.unwrap().to_owned()
-      }
-    };
-    inp2 = {
-      let tmp = inp2.broadcast(inp1.shape());
-      if tmp.is_none() {
-        inp2
-      } else {
-        tmp.unwrap().to_owned()
-      }
-    };
-    println!("inp1: {:?}", inp1.shape());
-    println!("inp2: {:?}", inp2.shape());
+    let (inp1, inp2) = broadcast(inp1, inp2);
 
     let zero = constants.get(&0).unwrap().clone();
 

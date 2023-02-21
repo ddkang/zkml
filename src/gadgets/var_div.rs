@@ -133,7 +133,6 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundChip<F> {
 
     let div_outp_min_val_i64 = self.config.div_outp_min_val;
     let div_inp_min_val_pos_i64 = -self.config.shift_min_val;
-    let div_inp_min_val_pos = F::from(div_inp_min_val_pos_i64 as u64);
 
     let selector = self.config.selectors.get(&GadgetType::VarDivRound).unwrap()[0];
 
@@ -154,22 +153,23 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundChip<F> {
       a.copy_advice(|| "", region, self.config.columns[offset], row_offset)?;
 
       let div_mod = a.value().zip(b.value()).map(|(a, b)| {
+        let b = convert_to_u128(b);
+        // Needs to be divisible by b
+        let div_inp_min_val_pos_i64 = div_inp_min_val_pos_i64 / (b as i64) * (b as i64);
+        let div_inp_min_val_pos = F::from(div_inp_min_val_pos_i64 as u64);
+
         let a_pos = *a + div_inp_min_val_pos;
         let a = convert_to_u128(&a_pos);
-        let b = convert_to_u128(b);
+        // c = (2 * a + b) / (2 * b)
         let c_pos = a.rounded_div(b);
         let c = (c_pos as i128 - (div_inp_min_val_pos_i64 as u128 / b) as i128) as i64;
-        // let r = (2 * a + b) % (2 * b);
 
-        let c_floor = a / b;
-        let rem_floor = (a - c_floor * b) as i64;
-        let rem_tmp = if c_floor != c_pos {
-          rem_floor + b as i64
-        } else {
-          rem_floor
-        };
-        let r = 2 * rem_tmp + (b as i64);
+        // r = (2 * a + b) % (2 * b)
+        let rem_floor = (a as i128) - (c_pos * b) as i128;
+        let r = 2 * rem_floor + (b as i128);
         let r = r as i64;
+        println!("r: {}", r);
+        println!();
         (c, r)
       });
 
