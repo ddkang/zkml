@@ -6,6 +6,7 @@ use halo2_proofs::{
   plonk::{ConstraintSystem, Error, Expression},
   poly::Rotation,
 };
+use rounded_div::RoundedDiv;
 
 use crate::gadgets::gadget::{convert_to_u64, USE_SELECTORS};
 
@@ -43,6 +44,7 @@ impl<F: FieldExt> SqrtBigChip<F> {
       meta.lookup_table_column()
     };
 
+    // TODO: prove that these constraints work
     meta.create_gate("sqrt_big arithm", |meta| {
       let s = meta.query_selector(selector);
 
@@ -53,8 +55,8 @@ impl<F: FieldExt> SqrtBigChip<F> {
         let sqrt = meta.query_advice(columns[offset + 1], Rotation::cur());
         let rem = meta.query_advice(columns[offset + 2], Rotation::cur());
 
-        let lhs = two.clone() * inp.clone() + sqrt.clone();
-        let rhs = (two.clone() * sqrt.clone() + rem.clone()) * sqrt.clone();
+        let lhs = inp.clone();
+        let rhs = sqrt.clone() * sqrt.clone() + rem.clone();
         constraints.push(s.clone() * (lhs - rhs));
       }
       constraints
@@ -71,9 +73,10 @@ impl<F: FieldExt> SqrtBigChip<F> {
 
       meta.lookup("sqrt_big rem lookup", |meta| {
         let s = meta.query_selector(selector);
+        let sqrt = meta.query_advice(columns[offset + 1], Rotation::cur());
         let rem = meta.query_advice(columns[offset + 2], Rotation::cur());
 
-        vec![(s.clone() * rem, inp_lookup)]
+        vec![(s.clone() * (rem + sqrt), inp_lookup)]
       });
 
       meta.lookup("sqrt_big sqrt - rem lookup", |meta| {
@@ -143,7 +146,8 @@ impl<F: FieldExt> Gadget<F> for SqrtBigChip<F> {
         let inp_val = convert_to_u64(x) as i64;
         let fsqrt = (inp_val as f64).sqrt();
         let sqrt = fsqrt.round() as i64;
-        let rem = 2 * (inp_val - sqrt * sqrt) + sqrt;
+        let rem = inp_val - sqrt * sqrt;
+        println!("inp_val: {}, sqrt: {}, rem: {}", inp_val, sqrt, rem);
         (sqrt, rem)
       });
 
