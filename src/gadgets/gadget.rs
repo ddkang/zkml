@@ -21,6 +21,7 @@ pub enum GadgetType {
   Exp,
   Logistic,
   VarDivRound,
+  SqrtBig,
   SquaredDiff,
   SubPairs,
   Rsqrt,
