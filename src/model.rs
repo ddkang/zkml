@@ -243,6 +243,7 @@ impl<F: FieldExt> ModelCircuit<F> {
     used_gadgets.insert(GadgetType::BiasDivRoundRelu6);
     used_gadgets.insert(GadgetType::DotProduct);
     used_gadgets.insert(GadgetType::Rsqrt);
+    used_gadgets.insert(GadgetType::Exp);
 
     ModelCircuit {
       tensors,
@@ -325,6 +326,10 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
         GadgetType::Rsqrt => {
           let chip = RsqrtGadgetChip::<F>::construct(gadget_rc.clone());
           chip.load_lookups(layouter.namespace(|| "rsqrt lookup"))?;
+        }
+        GadgetType::Exp => {
+          let chip = ExpChip::<F>::construct(gadget_rc.clone());
+          chip.load_lookups(layouter.namespace(|| "exp lookup"))?;
         }
         _ => panic!("unsupported gadget"),
       }
