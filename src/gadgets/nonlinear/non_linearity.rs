@@ -1,7 +1,7 @@
 use std::{collections::HashMap, rc::Rc};
 
 use halo2_proofs::{
-  circuit::{AssignedCell, Layouter, Region},
+  circuit::{AssignedCell, Layouter, Region, Value},
   halo2curves::FieldExt,
   plonk::{ConstraintSystem, Error, Expression, Selector},
   poly::Rotation,
@@ -32,8 +32,10 @@ pub trait NonLinearGadget<F: FieldExt>: Gadget<F> {
 
     let mut tables = gadget_config.tables;
     let inp_lookup = if tables.contains_key(&GadgetType::BiasDivRoundRelu6) {
-      tables.get(&GadgetType::BiasDivRoundRelu6).unwrap()[0]
+      tables.get(&GadgetType::BiasDivRoundRelu6).unwrap()[1]
     } else {
+      panic!("currently only supports with BiasDivRoundRelu6");
+      #[allow(unreachable_code)]
       meta.lookup_table_column()
     };
     let outp_lookup = meta.lookup_table_column();
@@ -44,11 +46,11 @@ pub trait NonLinearGadget<F: FieldExt>: Gadget<F> {
         let s = meta.query_selector(selector);
         let inp = meta.query_advice(columns[offset + 0], Rotation::cur());
         let outp = meta.query_advice(columns[offset + 1], Rotation::cur());
-        let shift_val = gadget_config.shift_min_val;
-        let shift_val = Expression::Constant(F::from((-shift_val) as u64));
+        let shift_val = gadget_config.min_val;
+        let shift_val_pos = Expression::Constant(F::from((-shift_val) as u64));
 
         vec![
-          (s.clone() * (inp + shift_val), inp_lookup),
+          (s.clone() * (inp + shift_val_pos), inp_lookup),
           (s.clone() * outp, outp_lookup),
         ]
       });
@@ -60,12 +62,12 @@ pub trait NonLinearGadget<F: FieldExt>: Gadget<F> {
     tables.insert(gadget_type, vec![inp_lookup, outp_lookup]);
 
     let mut maps = gadget_config.maps;
-    let relu_map = Self::generate_map(
+    let non_linear_map = Self::generate_map(
       gadget_config.scale_factor,
       gadget_config.min_val,
       gadget_config.max_val,
     );
-    maps.insert(gadget_type, vec![relu_map]);
+    maps.insert(gadget_type, vec![non_linear_map]);
 
     GadgetConfig {
       columns,
@@ -74,6 +76,35 @@ pub trait NonLinearGadget<F: FieldExt>: Gadget<F> {
       maps,
       ..gadget_config
     }
+  }
+
+  fn load_lookups(
+    &self,
+    mut layouter: impl Layouter<F>,
+    config: Rc<GadgetConfig>,
+    gadget_type: GadgetType,
+  ) -> Result<(), Error> {
+    let map = self.get_map();
+    let table_col = config.tables.get(&gadget_type).unwrap()[1];
+
+    let range = config.max_val - config.min_val;
+    layouter.assign_table(
+      || "non linear table",
+      |mut table| {
+        for i in 0..range {
+          let tmp = map.get(&i).unwrap();
+          let val = if i == 0 { 0 } else { *tmp };
+          table.assign_cell(
+            || "non linear cell",
+            table_col,
+            i as usize,
+            || Value::known(F::from(val as u64)),
+          )?;
+        }
+        Ok(())
+      },
+    )?;
+    Ok(())
   }
 
   fn op_row_region(
