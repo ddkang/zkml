@@ -69,11 +69,11 @@ impl<F: FieldExt> Gadget<F> for MulPairsChip<F> {
   }
 
   fn num_inputs_per_row(&self) -> usize {
-    self.num_cols_per_op() / NUM_COLS_PER_OP
+    self.config.columns.len() / NUM_COLS_PER_OP
   }
 
   fn num_outputs_per_row(&self) -> usize {
-    self.num_cols_per_op() / NUM_COLS_PER_OP
+    self.config.columns.len() / NUM_COLS_PER_OP
   }
 
   // TODO: This + below is basically copied from add pairs - make arithmetic generic
