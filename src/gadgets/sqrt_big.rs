@@ -6,7 +6,6 @@ use halo2_proofs::{
   plonk::{ConstraintSystem, Error, Expression},
   poly::Rotation,
 };
-use rounded_div::RoundedDiv;
 
 use crate::gadgets::gadget::{convert_to_u64, USE_SELECTORS};
 
@@ -147,7 +146,6 @@ impl<F: FieldExt> Gadget<F> for SqrtBigChip<F> {
         let fsqrt = (inp_val as f64).sqrt();
         let sqrt = fsqrt.round() as i64;
         let rem = inp_val - sqrt * sqrt;
-        println!("inp_val: {}, sqrt: {}, rem: {}", inp_val, sqrt, rem);
         (sqrt, rem)
       });
 
@@ -162,7 +160,12 @@ impl<F: FieldExt> Gadget<F> for SqrtBigChip<F> {
         || "sqrt_big",
         self.config.columns[offset + 2],
         row_offset,
-        || outp.map(|x| F::from(x.1 as u64)),
+        || {
+          outp.map(|x| {
+            let rem_pos = x.1 + x.0;
+            F::from(rem_pos as u64) - F::from(x.0 as u64)
+          })
+        },
       )?;
       outp_cells.push(sqrt_cell);
     }
