@@ -1,7 +1,7 @@
 use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
-  circuit::{AssignedCell, Region},
+  circuit::{AssignedCell, Layouter, Region},
   halo2curves::FieldExt,
   plonk::{ConstraintSystem, Error},
 };
@@ -75,6 +75,11 @@ impl<F: FieldExt> Gadget<F> for LogisticGadgetChip<F> {
 
   fn num_outputs_per_row(&self) -> usize {
     self.config.columns.len() / NUM_COLS_PER_OP
+  }
+
+  fn load_lookups(&self, layouter: impl Layouter<F>) -> Result<(), Error> {
+    NonLinearGadget::load_lookups(self, layouter, self.config.clone(), GadgetType::Logistic)?;
+    Ok(())
   }
 
   fn op_row_region(

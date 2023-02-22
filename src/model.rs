@@ -245,6 +245,7 @@ impl<F: FieldExt> ModelCircuit<F> {
     used_gadgets.insert(GadgetType::DotProduct);
     used_gadgets.insert(GadgetType::Rsqrt);
     used_gadgets.insert(GadgetType::Exp);
+    used_gadgets.insert(GadgetType::Logistic);
 
     ModelCircuit {
       tensors,
@@ -332,6 +333,10 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
         GadgetType::Exp => {
           let chip = ExpChip::<F>::construct(gadget_rc.clone());
           chip.load_lookups(layouter.namespace(|| "exp lookup"))?;
+        }
+        GadgetType::Logistic => {
+          let chip = LogisticGadgetChip::<F>::construct(gadget_rc.clone());
+          chip.load_lookups(layouter.namespace(|| "logistic lookup"))?;
         }
         _ => panic!("unsupported gadget"),
       }
