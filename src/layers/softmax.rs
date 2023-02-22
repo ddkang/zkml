@@ -11,6 +11,7 @@ use crate::gadgets::{
   adder::AdderChip,
   gadget::{Gadget, GadgetConfig},
   nonlinear::exp::ExpChip,
+  sqrt_big::SqrtBigChip,
   var_div::VarDivRoundChip,
 };
 
@@ -55,6 +56,7 @@ impl<F: FieldExt> Layer<F> for SoftmaxChip {
     if inp.ndim() == 3 {
       for i in 0..inp.shape()[0] {
         for j in 0..inp.shape()[1] {
+          // Compute the sum
           let exp_slice = exped.slice(s![i, j, ..]);
           let sum = adder_chip.forward(
             layouter.namespace(|| format!("sum {}", i)),
@@ -62,16 +64,34 @@ impl<F: FieldExt> Layer<F> for SoftmaxChip {
             &vec![zero.clone()],
           )?;
           let sum = sum[0].clone();
+
+          // Divide by the scale factor
           let sum_div_sf = var_div_chip.forward(
             layouter.namespace(|| format!("div {}", i)),
             &vec![vec![&sum]],
             &vec![zero.clone(), sf.clone()],
           )?;
           let sum_div_sf = sum_div_sf[0].clone();
+
+          // Compute the sqrt of the sum div SF
+          let sqrt_big_chip = SqrtBigChip::<F>::construct(gadget_config.clone());
+          let sqrt = sqrt_big_chip.forward(
+            layouter.namespace(|| format!("sqrt {}", i)),
+            &vec![vec![&sum_div_sf]],
+            &vec![zero.clone()],
+          )?;
+          let sqrt = sqrt[0].clone();
+
           let dived = var_div_chip.forward(
             layouter.namespace(|| format!("div {}", i)),
             &vec![exp_slice.iter().collect()],
-            &vec![zero.clone(), sum_div_sf],
+            &vec![zero.clone(), sqrt.clone()],
+          )?;
+          let dived = dived.iter().collect::<Vec<_>>();
+          let dived = var_div_chip.forward(
+            layouter.namespace(|| format!("div {}", i)),
+            &vec![dived],
+            &vec![zero.clone(), sqrt.clone()],
           )?;
           outp.extend(dived);
         }
