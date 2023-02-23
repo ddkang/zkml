@@ -18,11 +18,32 @@ pub struct MeanChip {}
 
 impl MeanChip {
   pub fn get_keep_axis(&self, layer_config: &LayerConfig) -> usize {
+    let inp_shape = &layer_config.inp_shapes[0];
+    let out_shape = &layer_config.out_shapes[0];
+
+    let mut num_same = 0;
+    let mut keep_axis: i64 = -1;
+    for i in 0..inp_shape.len() {
+      if inp_shape[i] == out_shape[i] {
+        keep_axis = i as i64;
+        num_same += 1;
+      }
+    }
+
+    if keep_axis == -1 {
+      panic!("All axes are different");
+    }
+    if num_same > 1 {
+      panic!("More than one axis is the same");
+    }
+    num_same as usize
+    /*
     match layer_config.layer_params[0] as usize {
       1 => 2,
       2 => 1,
       _ => panic!("Invalid axis"),
     }
+    */
   }
 }
 
