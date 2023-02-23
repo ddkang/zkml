@@ -1,4 +1,6 @@
 import argparse
+import ast
+from typing import Literal, Union
 import tensorflow as tf
 import numpy as np
 import tflite
@@ -10,9 +12,13 @@ def get_shape(interpreter: tf.lite.Interpreter, tensor_idx):
   tensor = interpreter.get_tensor(tensor_idx)
   return list(tensor.shape)
 
+def handle_numpy_or_literal(inp: Union[np.ndarray, Literal[0]]):
+  if isinstance(inp, int):
+    return np.array([inp])
+  return inp
 
 def get_inputs(op: tflite.Operator):
-  idxes = op.InputsAsNumpy()
+  idxes = handle_numpy_or_literal(op.InputsAsNumpy())
   idxes = idxes.tolist()
   idxes = list(filter(lambda x: x != -1, idxes))
   return idxes
@@ -70,6 +76,8 @@ class Converter:
     interpreter = self.interpreter
     model = self.model
     graph = self.graph
+    if graph is None:
+      raise RuntimeError('Graph is None')
 
     input_details = interpreter.get_input_details()
     # output_details = interpreter.get_output_details()
@@ -87,10 +95,15 @@ class Converter:
     keep_tensors = set()
     for op_idx in range(graph.OperatorsLength()):
       op = graph.Operators(op_idx)
-      op_code = model.OperatorCodes(op.OpcodeIndex()).BuiltinCode()
+      if op is None:
+        raise RuntimeError('Operator is None')
+      model_opcode = model.OperatorCodes(op.OpcodeIndex())
+      if model_opcode is None:
+        raise RuntimeError('Operator code is None')
+      op_code = model_opcode.BuiltinCode()
 
       # Skip generated tensors
-      for output in op.OutputsAsNumpy():
+      for output in handle_numpy_or_literal(op.OutputsAsNumpy()):
         generated_tensor_idxes.add(output)
 
       if op_idx < start_layer:
@@ -99,13 +112,15 @@ class Converter:
         break
 
       # Keep the input tensors
-      for input in op.InputsAsNumpy():
+      for input in handle_numpy_or_literal(op.InputsAsNumpy()):
         keep_tensors.add(input)
 
       # AvgPool2D
       if op_code == tflite.BuiltinOperator.AVERAGE_POOL_2D:
         layer_type = 'AveragePool2D'
         op_opt = op.BuiltinOptions()
+        if op_opt is None:
+          raise RuntimeError('AvgPool2D options is None')
         opt = tflite.Pool2DOptions()
         opt.Init(op_opt.Bytes, op_opt.Pos)
         params = [opt.FilterHeight(), opt.FilterWidth(), opt.StrideH(), opt.StrideW()]
@@ -113,6 +128,8 @@ class Converter:
       elif op_code == tflite.BuiltinOperator.CONV_2D:
         layer_type = 'Conv2D'
         op_opt = op.BuiltinOptions()
+        if op_opt is None:
+          raise RuntimeError('Conv2D options is None')
         opt = tflite.Conv2DOptions()
         opt.Init(op_opt.Bytes, op_opt.Pos)
         if opt.DilationHFactor() != 1 or opt.DilationWFactor() != 1:
@@ -130,6 +147,8 @@ class Converter:
       elif op_code == tflite.BuiltinOperator.DEPTHWISE_CONV_2D:
         layer_type = 'Conv2D'
         op_opt = op.BuiltinOptions()
+        if op_opt is None:
+          raise RuntimeError('DepthwiseConv2D options is None')
         opt = tflite.DepthwiseConv2DOptions()
         opt.Init(op_opt.Bytes, op_opt.Pos)
         if opt.DilationHFactor() != 1 or opt.DilationWFactor() != 1:
@@ -147,6 +166,8 @@ class Converter:
       elif op_code == tflite.BuiltinOperator.FULLY_CONNECTED:
         layer_type = 'FullyConnected'
         op_opt = op.BuiltinOptions()
+        if op_opt is None:
+          raise RuntimeError('Fully connected options is None')
         opt = tflite.FullyConnectedOptions()
         opt.Init(op_opt.Bytes, op_opt.Pos)
         if opt.FusedActivationFunction() != tflite.ActivationFunctionType.NONE and opt.FusedActivationFunction() != tflite.ActivationFunctionType.RELU6:
@@ -261,11 +282,15 @@ class Converter:
     for tensor_idx in range(graph.TensorsLength()):
       if tensor_idx not in keep_tensors:
         continue
-      if tensor_idx in generated_tensor_idxes:
-        print(f'skipping generated tensor: {format(tensor_idx)}, {graph.Tensors(tensor_idx).Name()}')
-        continue
 
       tensor = graph.Tensors(tensor_idx)
+      if tensor is None:
+        raise NotImplementedError('Tensor is None')
+
+      if tensor_idx in generated_tensor_idxes:
+        print(f'skipping generated tensor: {format(tensor_idx)}, {tensor.Name()}')
+        continue
+
       shape = []
       for i in range(tensor.ShapeLength()):
         shape.append(int(tensor.Shape(i)))
@@ -314,7 +339,7 @@ class Converter:
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--model', type=str, required=True)
-  parser.add_argument('--input_shape', type=str, required=True)
+  parser.add_argument('--input_shapes', type=str, required=True)
   parser.add_argument('--output', type=str, required=True)
   parser.add_argument('--scale_factor', type=int, default=2**16)
   parser.add_argument('--k', type=int, default=19)
@@ -324,9 +349,15 @@ def main():
   args = parser.parse_args()
 
   converter = Converter(args.model, args.scale_factor, args.k, args.num_cols)
-  inp_shape = [int(x) for x in args.input_shape.split(',')]
-  inps = [np.zeros(inp_shape, dtype=np.float32)]
+  # inp_shape = [int(x) for x in args.input_shape.split(',')]
+  # inps = [np.zeros(inp_shape, dtype=np.float32)]
+
+  inp_shapes = ast.literal_eval(args.input_shapes)
+  inps = [np.zeros(inp_shape, dtype=np.float32) for inp_shape in inp_shapes]
+  print(inp_shapes)
   packed = converter.to_msgpack(inps, start_layer=args.start_layer, end_layer=args.end_layer)
+  if packed is None:
+    raise Exception('Failed to convert model')
 
   with open(args.output, 'wb') as f:
     f.write(packed)
