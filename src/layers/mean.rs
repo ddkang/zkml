@@ -20,10 +20,12 @@ impl MeanChip {
   pub fn get_keep_axis(&self, layer_config: &LayerConfig) -> usize {
     let inp_shape = &layer_config.inp_shapes[0];
     let out_shape = &layer_config.out_shapes[0];
+    assert_eq!(inp_shape[0], 1);
+    assert_eq!(out_shape[0], 1);
 
     let mut num_same = 0;
     let mut keep_axis: i64 = -1;
-    for i in 0..inp_shape.len() {
+    for i in 1..inp_shape.len() {
       if inp_shape[i] == out_shape[i] {
         keep_axis = i as i64;
         num_same += 1;
@@ -36,14 +38,7 @@ impl MeanChip {
     if num_same > 1 {
       panic!("More than one axis is the same");
     }
-    num_same as usize
-    /*
-    match layer_config.layer_params[0] as usize {
-      1 => 2,
-      2 => 1,
-      _ => panic!("Invalid axis"),
-    }
-    */
+    keep_axis as usize
   }
 }
 
@@ -52,7 +47,7 @@ impl<F: FieldExt> Averager<F> for MeanChip {
     // Only support batch size = 1
     assert_eq!(input.shape()[0], 1);
     // Only support batch + 2D, summing over one axis
-    assert_eq!(input.shape().len(), 3);
+    // assert_eq!(input.shape().len(), 3);
     let keep_axis = self.get_keep_axis(layer_config);
 
     let mut splat = vec![];
@@ -116,13 +111,10 @@ impl<F: FieldExt> Layer<F> for MeanChip {
     let inp = &tensors[0];
     let keep_axis = self.get_keep_axis(layer_config);
     // FIXME: only support batch size = 1
-    let outp_shape = match keep_axis {
-      1 => vec![1, inp.shape()[keep_axis], 1],
-      2 => vec![1, 1, inp.shape()[keep_axis]],
-      _ => panic!("Invalid axis"),
-    };
+    let mut out_shape = vec![1; inp.shape().len()];
+    out_shape[keep_axis] = inp.shape()[keep_axis];
 
-    let out = Array::from_shape_vec(IxDyn(&outp_shape), dived).unwrap();
+    let out = Array::from_shape_vec(IxDyn(&out_shape), dived).unwrap();
     Ok(vec![out])
   }
 }
