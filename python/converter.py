@@ -206,7 +206,7 @@ class Converter:
         tensor_idx = op.Inputs(1)
         tensor = interpreter.get_tensor(tensor_idx).flatten().astype(np.int64)
         if len(tensor) != 1:
-          raise NotImplementedError('Only mean over one axis is supported')
+          raise NotImplementedError(f'Only mean over one axis is supported on layer: {op_idx}')
         params = tensor.tolist()
       # Squared difference
       elif op_code == tflite.BuiltinOperator.SQUARED_DIFFERENCE:
@@ -239,6 +239,10 @@ class Converter:
         params = [0]
       elif op_code == tflite.BuiltinOperator.CONCATENATION:
         # FIXME: This is not in general a no-op
+        layer_type = 'Noop'
+        params = [0]
+      elif op_code == tflite.BuiltinOperator.STRIDED_SLICE:
+        # FIXME: this is not in general a no-op
         layer_type = 'Noop'
         params = [0]
 
