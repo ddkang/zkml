@@ -203,11 +203,11 @@ class Converter:
       # Mean
       elif op_code == tflite.BuiltinOperator.MEAN:
         layer_type = 'Mean'
-        tensor_idx = op.Inputs(1)
-        tensor = interpreter.get_tensor(tensor_idx).flatten().astype(np.int64)
-        if len(tensor) != 1:
-          raise NotImplementedError(f'Only mean over one axis is supported on layer: {op_idx}')
-        params = tensor.tolist()
+        inp_shape = interpreter.get_tensor(op.Inputs(0)).shape
+        mean_idxes = interpreter.get_tensor(op.Inputs(1)).flatten().astype(np.int64)
+        if len(mean_idxes) + 2 != len(inp_shape):
+          raise NotImplementedError(f'Only mean over all but one axis is supported: {op_idx}')
+        params = mean_idxes.tolist()
       # Squared difference
       elif op_code == tflite.BuiltinOperator.SQUARED_DIFFERENCE:
         layer_type = 'SquaredDifference'
