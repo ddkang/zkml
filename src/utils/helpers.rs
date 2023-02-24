@@ -16,7 +16,7 @@ pub fn print_pos_int<F: FieldExt>(prefix: &str, x: Value<F>) {
   });
 }
 
-pub fn print_assigned_arr<F: FieldExt>(prefix: &str, arr: &Vec<AssignedCell<F, F>>) {
+pub fn print_assigned_arr<F: FieldExt>(prefix: &str, arr: &Vec<&AssignedCell<F, F>>) {
   for (idx, x) in arr.iter().enumerate() {
     print_pos_int(
       &format!("{}[{}]", prefix, idx),

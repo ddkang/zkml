@@ -1,15 +1,10 @@
 use std::{collections::HashMap, rc::Rc};
 
-use halo2_proofs::{
-  circuit::{AssignedCell, Layouter},
-  halo2curves::FieldExt,
-  plonk::Error,
-};
-use ndarray::{Array, IxDyn};
+use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
 
 use crate::gadgets::gadget::GadgetConfig;
 
-use super::layer::{Layer, LayerConfig};
+use super::layer::{AssignedTensor, CellRc, Layer, LayerConfig};
 
 pub struct NoopChip {}
 
@@ -17,11 +12,11 @@ impl<F: FieldExt> Layer<F> for NoopChip {
   fn forward(
     &self,
     _layouter: impl Layouter<F>,
-    tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
-    _constants: &HashMap<i64, AssignedCell<F, F>>,
+    tensors: &Vec<AssignedTensor<F>>,
+    _constants: &HashMap<i64, CellRc<F>>,
     _gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
-  ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
+  ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let ret_idx = layer_config.layer_params[0] as usize;
     Ok(vec![tensors[ret_idx].clone()])
   }

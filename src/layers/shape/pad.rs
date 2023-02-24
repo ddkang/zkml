@@ -7,16 +7,18 @@ use halo2_proofs::{
 };
 use ndarray::{Array, Axis, IxDyn, Slice};
 
-use crate::gadgets::gadget::GadgetConfig;
+use crate::{gadgets::gadget::GadgetConfig, layers::layer::AssignedTensor};
 
 use super::super::layer::{Layer, LayerConfig};
 
 // TODO: figure out where to put this
 pub fn pad<G: Clone>(
-  input: &Array<G, IxDyn>,
+  input: &Array<Rc<G>, IxDyn>,
   padding: Vec<[usize; 2]>,
-  pad_val: G,
-) -> Array<G, IxDyn> {
+  pad_val: &Rc<G>,
+) -> Array<Rc<G>, IxDyn> {
+  let tmp = input.iter().collect();
+  let input = Array::from_shape_vec(input.raw_dim(), tmp).unwrap();
   assert_eq!(input.ndim(), padding.len());
   let mut padded_shape = input.raw_dim();
   for (ax, (&ax_len, &[pad_lo, pad_hi])) in input.shape().iter().zip(&padding).enumerate() {
@@ -36,8 +38,12 @@ pub fn pad<G: Clone>(
       );
     }
     // Copy the data from the original array.
-    orig_portion.assign(input);
+    orig_portion.assign(&input.view());
   }
+
+  let dim = padded.raw_dim();
+  let tmp = padded.into_iter().map(|x| x.clone()).collect();
+  let padded = Array::from_shape_vec(dim, tmp).unwrap();
 
   padded
 }
@@ -64,18 +70,18 @@ impl<F: FieldExt> Layer<F> for PadChip {
   fn forward(
     &self,
     _layouter: impl Layouter<F>,
-    tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
-    constants: &HashMap<i64, AssignedCell<F, F>>,
+    tensors: &Vec<AssignedTensor<F>>,
+    constants: &HashMap<i64, Rc<AssignedCell<F, F>>>,
     _gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
-  ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
+  ) -> Result<Vec<AssignedTensor<F>>, Error> {
     // FIXME: the pad from tflite is actually two, but mine is one
     // assert_eq!(tensors.len(), 1);
     let input = &tensors[0];
 
     let zero = constants.get(&0).unwrap().clone();
     let padding = PadChip::param_vec_to_config(layer_config.layer_params.clone());
-    let padded = pad(input, padding.padding, zero);
+    let padded = pad(input, padding.padding, &zero);
 
     Ok(vec![padded])
   }

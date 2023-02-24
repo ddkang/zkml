@@ -7,10 +7,13 @@ use halo2_proofs::{
 };
 use ndarray::{Array, IxDyn};
 
-use crate::gadgets::{
-  gadget::{Gadget, GadgetConfig},
-  mul_pairs::MulPairsChip,
-  var_div::VarDivRoundChip,
+use crate::{
+  gadgets::{
+    gadget::{Gadget, GadgetConfig},
+    mul_pairs::MulPairsChip,
+    var_div::VarDivRoundChip,
+  },
+  layers::layer::{AssignedTensor, CellRc},
 };
 
 use super::{
@@ -45,11 +48,11 @@ impl<F: FieldExt> Layer<F> for MulChip {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
-    tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
-    constants: &HashMap<i64, AssignedCell<F, F>>,
+    tensors: &Vec<AssignedTensor<F>>,
+    constants: &HashMap<i64, CellRc<F>>,
     gadget_config: Rc<GadgetConfig>,
     _layer_config: &LayerConfig,
-  ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
+  ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let (out, out_shape) = self.arithmetic_forward(
       layouter.namespace(|| ""),
       tensors,
@@ -58,19 +61,17 @@ impl<F: FieldExt> Layer<F> for MulChip {
     )?;
 
     let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
-    let div = constants
-      .get(&(gadget_config.scale_factor as i64))
-      .unwrap()
-      .clone();
-    let zero = constants.get(&0).unwrap().clone();
-    let single_inputs = vec![zero, div];
-    let out = out.iter().map(|x| x).collect::<Vec<_>>();
+    let div = constants.get(&(gadget_config.scale_factor as i64)).unwrap();
+    let zero = constants.get(&0).unwrap();
+    let single_inputs = vec![(**zero).clone(), (**div).clone()];
+    let out = out.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
     let out = var_div_chip.forward(
       layouter.namespace(|| "average div"),
       &vec![out],
       &single_inputs,
     )?;
 
+    let out = out.into_iter().map(|x| Rc::new(x)).collect::<Vec<_>>();
     let out = Array::from_shape_vec(IxDyn(out_shape.as_slice()), out).unwrap();
     Ok(vec![out])
   }

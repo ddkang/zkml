@@ -1,13 +1,12 @@
 use std::{collections::HashMap, rc::Rc};
 
-use halo2_proofs::{
-  circuit::{AssignedCell, Layouter},
-  halo2curves::FieldExt,
-  plonk::Error,
-};
+use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
 use ndarray::{Array, IxDyn};
 
-use crate::gadgets::gadget::GadgetConfig;
+use crate::{
+  gadgets::gadget::GadgetConfig,
+  layers::layer::{AssignedTensor, CellRc},
+};
 
 use super::super::layer::{Layer, LayerConfig};
 
@@ -17,11 +16,11 @@ impl<F: FieldExt> Layer<F> for MaskNegInfChip {
   fn forward(
     &self,
     _layouter: impl Layouter<F>,
-    tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
-    constants: &HashMap<i64, AssignedCell<F, F>>,
+    tensors: &Vec<AssignedTensor<F>>,
+    constants: &HashMap<i64, CellRc<F>>,
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
-  ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
+  ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let inp = &tensors[0];
     let mask_ndim = layer_config.layer_params[0] as usize;
     let mask_shape = layer_config.layer_params[1..mask_ndim + 1]

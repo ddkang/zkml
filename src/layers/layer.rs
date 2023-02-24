@@ -41,15 +41,17 @@ pub struct LayerConfig {
   pub mask: Vec<i64>,
 }
 
+pub type CellRc<F> = Rc<AssignedCell<F, F>>;
+pub type AssignedTensor<F> = Array<CellRc<F>, IxDyn>;
 // General issue with rust: I'm not sure how to pass named arguments to a trait...
 // Currently, the caller must be aware of the order of the tensors and results
 pub trait Layer<F: FieldExt> {
   fn forward(
     &self,
     layouter: impl Layouter<F>,
-    tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
-    constants: &HashMap<i64, AssignedCell<F, F>>,
+    tensors: &Vec<AssignedTensor<F>>,
+    constants: &HashMap<i64, CellRc<F>>,
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
-  ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error>;
+  ) -> Result<Vec<AssignedTensor<F>>, Error>;
 }
