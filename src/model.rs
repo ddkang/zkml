@@ -186,6 +186,7 @@ impl<F: FieldExt> ModelCircuit<F> {
       "Reshape" => LayerType::Reshape,
       "Rsqrt" => LayerType::Rsqrt,
       "Softmax" => LayerType::Softmax,
+      "Square" => LayerType::Square,
       "SquaredDifference" => LayerType::SquaredDifference,
       "Sub" => LayerType::Sub,
       "Transpose" => LayerType::Transpose,
