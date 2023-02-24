@@ -124,6 +124,11 @@ class Converter:
         opt = tflite.Pool2DOptions()
         opt.Init(op_opt.Bytes, op_opt.Pos)
         params = [opt.FilterHeight(), opt.FilterWidth(), opt.StrideH(), opt.StrideW()]
+      # FIXME: hack for Keras... not sure why this isn't being converted properly
+      elif op_code == tflite.BuiltinOperator.CUSTOM:
+        layer_type = 'Conv2D'
+        activation = 0
+        params = [0, 0, activation, 1, 1]
       # Conv2D
       elif op_code == tflite.BuiltinOperator.CONV_2D:
         layer_type = 'Conv2D'
@@ -208,6 +213,9 @@ class Converter:
         if len(mean_idxes) + 2 != len(inp_shape):
           raise NotImplementedError(f'Only mean over all but one axis is supported: {op_idx}')
         params = mean_idxes.tolist()
+      elif op_code == tflite.BuiltinOperator.SQUARE:
+        layer_type = 'Square'
+        params = []
       # Squared difference
       elif op_code == tflite.BuiltinOperator.SQUARED_DIFFERENCE:
         layer_type = 'SquaredDifference'
@@ -243,6 +251,12 @@ class Converter:
         params = [0]
       elif op_code == tflite.BuiltinOperator.STRIDED_SLICE:
         # FIXME: this is not in general a no-op
+        layer_type = 'Noop'
+        params = [0]
+      elif op_code == tflite.BuiltinOperator.BROADCAST_ARGS:
+        layer_type = 'Noop'
+        params = [0]
+      elif op_code == tflite.BuiltinOperator.BROADCAST_TO:
         layer_type = 'Noop'
         params = [0]
 
@@ -301,18 +315,20 @@ class Converter:
       if shape == []:
         shape = [1]
 
-      tensor_data = interpreter.get_tensor(tensor_idx).flatten()
+      tensor_data = interpreter.get_tensor(tensor_idx)
       if tensor.Type() == tflite.TensorType.FLOAT32:
         tensor_data = (tensor_data * self.scale_factor).round().astype(np.int64)
       elif tensor.Type() == tflite.TensorType.INT32:
         tensor_data = tensor_data.astype(np.int64)
+      elif tensor.Type() == tflite.TensorType.INT64:
+        continue
       else:
         raise NotImplementedError('Unsupported tensor type: {}'.format(tensor.Type()))
 
       tensors.append({
         'idx': tensor_idx,
         'shape': shape,
-        'data': tensor_data.tolist(),
+        'data': tensor_data.flatten().tolist(),
       })
       # print(tensor_idx, tensor.Type(), tensor.Name(), tensors[-1]['shape'])
       # print(np.abs(tensor_data).max())
