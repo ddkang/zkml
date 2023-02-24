@@ -1,0 +1,124 @@
+use std::{marker::PhantomData, rc::Rc};
+
+use halo2_proofs::{
+  circuit::{AssignedCell, Region},
+  halo2curves::FieldExt,
+  plonk::{ConstraintSystem, Error},
+  poly::Rotation,
+};
+
+use crate::gadgets::gadget::USE_SELECTORS;
+
+use super::gadget::{Gadget, GadgetConfig, GadgetType};
+
+pub struct SquareGadgetChip<F: FieldExt> {
+  config: Rc<GadgetConfig>,
+  _marker: PhantomData<F>,
+}
+
+impl<F: FieldExt> SquareGadgetChip<F> {
+  pub fn construct(config: Rc<GadgetConfig>) -> Self {
+    Self {
+      config,
+      _marker: PhantomData,
+    }
+  }
+
+  // TODO: it would be more efficient to do the division here directly
+  pub fn configure(meta: &mut ConstraintSystem<F>, gadget_config: GadgetConfig) -> GadgetConfig {
+    let selector = meta.selector();
+    let columns = gadget_config.columns;
+
+    meta.create_gate("square gate", |meta| {
+      let s = meta.query_selector(selector);
+      let gate_inp = meta.query_advice(columns[0], Rotation::cur());
+      let gate_output = meta.query_advice(columns[1], Rotation::cur());
+
+      let res = gate_inp.clone() * gate_inp;
+
+      vec![s * (res - gate_output)]
+    });
+
+    let mut selectors = gadget_config.selectors;
+    selectors.insert(GadgetType::Square, vec![selector]);
+
+    GadgetConfig {
+      columns,
+      selectors,
+      ..gadget_config
+    }
+  }
+}
+
+impl<F: FieldExt> Gadget<F> for SquareGadgetChip<F> {
+  fn name(&self) -> String {
+    "SquareChip".to_string()
+  }
+
+  fn num_cols_per_op(&self) -> usize {
+    2
+  }
+
+  fn num_inputs_per_row(&self) -> usize {
+    self.config.columns.len() / self.num_cols_per_op()
+  }
+
+  fn num_outputs_per_row(&self) -> usize {
+    self.num_inputs_per_row()
+  }
+
+  fn op_row_region(
+    &self,
+    region: &mut Region<F>,
+    row_offset: usize,
+    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
+    _single_inputs: &Vec<AssignedCell<F, F>>,
+  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    assert_eq!(vec_inputs.len(), 1);
+
+    if USE_SELECTORS {
+      let selector = self.config.selectors.get(&GadgetType::Square).unwrap()[0];
+      selector.enable(region, row_offset)?;
+    }
+
+    let inps = &vec_inputs[0];
+    let mut outp = vec![];
+    for (i, inp) in inps.iter().enumerate() {
+      let offset = i * self.num_cols_per_op();
+      inp.copy_advice(|| "", region, self.config.columns[offset], row_offset)?;
+      let outp_val = inp.value().map(|x: &F| x.to_owned() * x.to_owned());
+      let outp_cell = region.assign_advice(
+        || "square output",
+        self.config.columns[offset + 1],
+        row_offset,
+        || outp_val,
+      )?;
+      outp.push(outp_cell);
+    }
+
+    Ok(outp)
+  }
+
+  fn forward(
+    &self,
+    mut layouter: impl halo2_proofs::circuit::Layouter<F>,
+    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
+    single_inputs: &Vec<AssignedCell<F, F>>,
+  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    let zero = &single_inputs[0];
+
+    let mut inp = vec_inputs[0].clone();
+    let initial_len = inp.len();
+    while inp.len() % self.num_cols_per_op() != 0 {
+      inp.push(zero);
+    }
+
+    let vec_inputs = vec![inp];
+    let res = self.op_aligned_rows(
+      layouter.namespace(|| format!("forward row {}", self.name())),
+      &vec_inputs,
+      &single_inputs,
+    )?;
+    Ok(res[0..initial_len].to_vec())
+  }
+}
