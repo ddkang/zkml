@@ -109,7 +109,7 @@ impl<F: FieldExt> Gadget<F> for SquareGadgetChip<F> {
 
     let mut inp = vec_inputs[0].clone();
     let initial_len = inp.len();
-    while inp.len() % self.num_cols_per_op() != 0 {
+    while inp.len() % self.num_inputs_per_row() != 0 {
       inp.push(zero);
     }
 
