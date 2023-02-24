@@ -115,13 +115,18 @@ impl<F: FieldExt> Conv2DChip<F> {
     tensors: &Vec<Array<G, IxDyn>>,
     zero: G,
   ) -> (Vec<Vec<G>>, Vec<Vec<G>>, Vec<G>) {
-    assert_eq!(tensors.len(), 3);
+    // assert_eq!(tensors.len(), 3);
+    assert!(tensors.len() <= 3);
 
     let conv_config = &Self::param_vec_to_config(self.config.layer_params.clone());
 
     let inp = &tensors[0];
     let weights = &tensors[1];
-    let biases = &tensors[2];
+    let biases = if tensors.len() == 3 {
+      tensors[2].iter().map(|x| x.clone()).collect::<Vec<_>>()
+    } else {
+      vec![zero.clone(); tensors[1].shape()[3]]
+    };
 
     let h: usize = inp.shape()[1];
     let w: usize = inp.shape()[2];
@@ -163,7 +168,7 @@ impl<F: FieldExt> Conv2DChip<F> {
         for chan_out in 0..weights.shape()[0] {
           inp_cells.push(vec![]);
           weights_cells.push(vec![]);
-          biases_cells.push(biases[[chan_out]].clone());
+          biases_cells.push(biases[chan_out].clone());
 
           for ci in 0..weights.shape()[1] {
             for cj in 0..weights.shape()[2] {
