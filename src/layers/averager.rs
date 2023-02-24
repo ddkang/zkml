@@ -10,7 +10,7 @@ use ndarray::{Array, IxDyn};
 use crate::gadgets::gadget::Gadget;
 use crate::gadgets::{adder::AdderChip, gadget::GadgetConfig, var_div::VarDivRoundChip};
 
-use super::layer::LayerConfig;
+use super::layer::{AssignedTensor, CellRc, LayerConfig};
 
 pub trait Averager<F: FieldExt> {
   fn splat<G: Clone>(&self, input: &Array<G, IxDyn>, layer_config: &LayerConfig) -> Vec<Vec<G>>;
@@ -18,7 +18,7 @@ pub trait Averager<F: FieldExt> {
   fn get_div_val(
     &self,
     layouter: impl Layouter<F>,
-    tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
+    tensors: &Vec<AssignedTensor<F>>,
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
   ) -> Result<AssignedCell<F, F>, Error>;
@@ -26,23 +26,23 @@ pub trait Averager<F: FieldExt> {
   fn avg_forward(
     &self,
     mut layouter: impl Layouter<F>,
-    tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
-    constants: &HashMap<i64, AssignedCell<F, F>>,
+    tensors: &Vec<AssignedTensor<F>>,
+    constants: &HashMap<i64, CellRc<F>>,
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+  ) -> Result<Vec<CellRc<F>>, Error> {
     // Due to Mean BS
     // assert_eq!(tensors.len(), 1);
-    let zero = constants.get(&0).unwrap().clone();
+    let zero = constants.get(&0).unwrap();
 
     let inp = &tensors[0];
     let splat_inp = self.splat(inp, layer_config);
 
     let adder_chip = AdderChip::<F>::construct(gadget_config.clone());
-    let single_inputs = vec![zero.clone()];
+    let single_inputs = vec![(**zero).clone()];
     let mut added = vec![];
     for i in 0..splat_inp.len() {
-      let tmp = splat_inp[i].iter().map(|x| x).collect::<Vec<_>>();
+      let tmp = splat_inp[i].iter().map(|x| x.as_ref()).collect::<Vec<_>>();
       let tmp = adder_chip.forward(
         layouter.namespace(|| format!("average {}", i)),
         &vec![tmp],
@@ -59,13 +59,14 @@ pub trait Averager<F: FieldExt> {
     )?;
     let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
 
-    let single_inputs = vec![zero, div];
+    let single_inputs = vec![(**zero).clone(), div];
     let added = added.iter().map(|x| x).collect::<Vec<_>>();
     let dived = var_div_chip.forward(
       layouter.namespace(|| "average div"),
       &vec![added],
       &single_inputs,
     )?;
+    let dived = dived.into_iter().map(|x| Rc::new(x)).collect::<Vec<_>>();
 
     Ok(dived)
   }

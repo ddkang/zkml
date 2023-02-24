@@ -6,7 +6,7 @@ use std::{
 };
 
 use halo2_proofs::{
-  circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value},
+  circuit::{Layouter, SimpleFloorPlanner, Value},
   halo2curves::FieldExt,
   plonk::{Advice, Circuit, Column, ConstraintSystem, Error},
 };
@@ -31,7 +31,7 @@ use crate::{
   },
   layers::{
     dag::{DAGLayerChip, DAGLayerConfig},
-    layer::{Layer, LayerConfig, LayerType},
+    layer::{AssignedTensor, CellRc, Layer, LayerConfig, LayerType},
   },
   utils::loader::{load_model_msgpack, ModelMsgpack},
 };
@@ -60,7 +60,7 @@ impl<F: FieldExt> ModelCircuit<F> {
     mut layouter: impl Layouter<F>,
     columns: &Vec<Column<Advice>>,
     tensors: &HashMap<i64, Array<Value<F>, IxDyn>>,
-  ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
+  ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let tensors = layouter.assign_region(
       || "asssignment",
       |mut region| {
@@ -74,7 +74,7 @@ impl<F: FieldExt> ModelCircuit<F> {
             let row_idx = cell_idx / columns.len();
             let col_idx = cell_idx % columns.len();
             let cell = region.assign_advice(|| "assignment", columns[col_idx], row_idx, || *val)?;
-            flat.push(cell);
+            flat.push(Rc::new(cell));
             cell_idx += 1;
           }
           let tensor = Array::from_shape_vec(tensor.shape(), flat).unwrap();
@@ -97,7 +97,7 @@ impl<F: FieldExt> ModelCircuit<F> {
     &self,
     mut layouter: impl Layouter<F>,
     model_config: &ModelConfig<F>,
-  ) -> Result<HashMap<i64, AssignedCell<F, F>>, Error> {
+  ) -> Result<HashMap<i64, CellRc<F>>, Error> {
     let sf = model_config.gadget_config.scale_factor;
     let min_val = model_config.gadget_config.min_val;
     let max_val = model_config.gadget_config.max_val;
@@ -105,7 +105,7 @@ impl<F: FieldExt> ModelCircuit<F> {
     let constants = layouter.assign_region(
       || "constants",
       |mut region| {
-        let mut constants: HashMap<i64, AssignedCell<F, F>> = HashMap::new();
+        let mut constants: HashMap<i64, CellRc<F>> = HashMap::new();
         let zero = region.assign_fixed(
           || "zero",
           model_config.gadget_config.fixed_columns[0],
@@ -138,11 +138,11 @@ impl<F: FieldExt> ModelCircuit<F> {
           || Value::known(F::from((max_val - 1) as u64)),
         )?;
 
-        constants.insert(0, zero);
-        constants.insert(1, one);
-        constants.insert(sf as i64, sf_cell);
-        constants.insert(min_val, min_val_cell);
-        constants.insert(max_val, max_val_cell);
+        constants.insert(0, Rc::new(zero));
+        constants.insert(1, Rc::new(one));
+        constants.insert(sf as i64, Rc::new(sf_cell));
+        constants.insert(min_val, Rc::new(min_val_cell));
+        constants.insert(max_val, Rc::new(max_val_cell));
         Ok(constants)
       },
     )?;

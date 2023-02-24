@@ -1,10 +1,6 @@
 use std::{collections::HashMap, rc::Rc, vec};
 
-use halo2_proofs::{
-  circuit::{AssignedCell, Layouter},
-  halo2curves::FieldExt,
-  plonk::Error,
-};
+use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
 use ndarray::{Array, IxDyn};
 
 use crate::gadgets::{
@@ -12,7 +8,7 @@ use crate::gadgets::{
   nonlinear::rsqrt::RsqrtGadgetChip,
 };
 
-use super::layer::{Layer, LayerConfig};
+use super::layer::{AssignedTensor, CellRc, Layer, LayerConfig};
 
 #[derive(Clone, Debug)]
 pub struct RsqrtChip {}
@@ -21,11 +17,11 @@ impl<F: FieldExt> Layer<F> for RsqrtChip {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
-    tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
-    constants: &HashMap<i64, AssignedCell<F, F>>,
+    tensors: &Vec<AssignedTensor<F>>,
+    constants: &HashMap<i64, CellRc<F>>,
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
-  ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
+  ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let inp = &tensors[0];
     let mut inp_vec = vec![];
 
@@ -36,9 +32,9 @@ impl<F: FieldExt> Layer<F> for RsqrtChip {
     }
 
     let min_val = gadget_config.min_val;
-    let min_val = constants.get(&min_val).unwrap().clone();
+    let min_val = constants.get(&min_val).unwrap();
     let max_val = gadget_config.max_val;
-    let max_val = constants.get(&max_val).unwrap().clone();
+    let max_val = constants.get(&max_val).unwrap();
     for (i, val) in inp.iter().enumerate() {
       let i = i as i64;
       if mask_map.contains_key(&i) {
@@ -54,14 +50,15 @@ impl<F: FieldExt> Layer<F> for RsqrtChip {
         inp_vec.push(val.clone());
       }
     }
-    let inp_vec = inp_vec.iter().map(|x| x).collect();
+    let inp_vec = inp_vec.iter().map(|x| x.as_ref()).collect();
 
-    let zero = constants.get(&0).unwrap().clone();
+    let zero = constants.get(&0).unwrap();
     let rsqrt_chip = RsqrtGadgetChip::<F>::construct(gadget_config.clone());
     let vec_inps = vec![inp_vec];
-    let constants = vec![zero, min_val, max_val];
+    let constants = vec![(**zero).clone(), (**min_val).clone(), (**max_val).clone()];
     let out = rsqrt_chip.forward(layouter.namespace(|| "rsqrt chip"), &vec_inps, &constants)?;
 
+    let out = out.into_iter().map(|x| Rc::new(x)).collect::<Vec<_>>();
     let out = Array::from_shape_vec(IxDyn(inp.shape()), out).unwrap();
 
     Ok(vec![out])

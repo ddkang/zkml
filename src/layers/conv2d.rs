@@ -16,7 +16,7 @@ use crate::{
   layers::shape::pad::pad,
 };
 
-use super::layer::{Layer, LayerConfig};
+use super::layer::{AssignedTensor, Layer, LayerConfig};
 
 #[derive(Default, Clone, Copy, Eq, PartialEq)]
 pub enum PaddingEnum {
@@ -112,9 +112,9 @@ impl<F: FieldExt> Conv2DChip<F> {
 
   pub fn splat<G: Clone>(
     &self,
-    tensors: &Vec<Array<G, IxDyn>>,
-    zero: G,
-  ) -> (Vec<Vec<G>>, Vec<Vec<G>>, Vec<G>) {
+    tensors: &Vec<Array<Rc<G>, IxDyn>>,
+    zero: Rc<G>,
+  ) -> (Vec<Vec<Rc<G>>>, Vec<Vec<Rc<G>>>, Vec<Rc<G>>) {
     // assert_eq!(tensors.len(), 3);
     assert!(tensors.len() <= 3);
 
@@ -122,10 +122,11 @@ impl<F: FieldExt> Conv2DChip<F> {
 
     let inp = &tensors[0];
     let weights = &tensors[1];
+    let zero_arr = Array::from_elem(IxDyn(&vec![1]), zero.clone());
     let biases = if tensors.len() == 3 {
-      tensors[2].iter().map(|x| x.clone()).collect::<Vec<_>>()
+      &tensors[2]
     } else {
-      vec![zero.clone(); tensors[1].shape()[3]]
+      &zero_arr
     };
 
     let h: usize = inp.shape()[1];
@@ -147,15 +148,7 @@ impl<F: FieldExt> Conv2DChip<F> {
     println!("Padding: {:?}", (ph, pw));
     let padding = vec![[0, 0], [ph.0, ph.1], [pw.0, pw.1], [0, 0]];
 
-    let inp_pad = pad(&inp, padding, zero);
-
-    // We only support valid padding with stride = 1 at the moment
-    /*
-    if conv_config.padding == PaddingEnum::Valid {
-      assert_eq!(si, 1);
-      assert_eq!(sj, 1);
-    }
-    */
+    let inp_pad = pad(&inp, padding, &zero);
 
     let (oh, ow) = Self::out_hw(h, w, si, sj, ch, cw, conv_config.padding);
 
@@ -168,7 +161,11 @@ impl<F: FieldExt> Conv2DChip<F> {
         for chan_out in 0..weights.shape()[0] {
           inp_cells.push(vec![]);
           weights_cells.push(vec![]);
-          biases_cells.push(biases[chan_out].clone());
+          if tensors.len() == 3 {
+            biases_cells.push(biases[chan_out].clone());
+          } else {
+            biases_cells.push(zero.clone());
+          }
 
           for ci in 0..weights.shape()[1] {
             for cj in 0..weights.shape()[2] {
@@ -192,9 +189,9 @@ impl<F: FieldExt> Conv2DChip<F> {
 
   pub fn splat_depthwise<G: Clone>(
     &self,
-    tensors: &Vec<Array<G, IxDyn>>,
-    zero: G,
-  ) -> (Vec<Vec<G>>, Vec<Vec<G>>, Vec<G>) {
+    tensors: &Vec<Array<Rc<G>, IxDyn>>,
+    zero: Rc<G>,
+  ) -> (Vec<Vec<Rc<G>>>, Vec<Vec<Rc<G>>>, Vec<Rc<G>>) {
     let input = &tensors[0];
     let weights = &tensors[1];
     let biases = &tensors[2];
@@ -222,7 +219,7 @@ impl<F: FieldExt> Conv2DChip<F> {
 
     let padding = vec![[0, 0], [ph.0, ph.1], [pw.0, pw.1], [0, 0]];
 
-    let inp_pad = pad(&input, padding, zero);
+    let inp_pad = pad(&input, padding, &zero);
 
     let mut inp_cells = vec![];
     let mut weight_cells = vec![];
@@ -259,13 +256,13 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
-    tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
-    constants: &HashMap<i64, AssignedCell<F, F>>,
+    tensors: &Vec<AssignedTensor<F>>,
+    constants: &HashMap<i64, Rc<AssignedCell<F, F>>>,
     gadget_config: Rc<GadgetConfig>,
     _layer_config: &LayerConfig,
-  ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
+  ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let conv_config = &Self::param_vec_to_config(self.config.layer_params.clone());
-    let zero = constants.get(&0).unwrap().clone();
+    let zero = constants.get(&0).unwrap();
 
     println!("tensors: {:?}", tensors.len());
     for tensor in tensors {
@@ -288,20 +285,20 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
       .zip(splat_weights.iter())
       .zip(splat_biases.iter())
     {
-      let inp_vec = inp_vec.iter().map(|x| x).collect::<Vec<_>>();
-      let weight_vec = weight_vec.iter().map(|x| x).collect::<Vec<_>>();
-      let vec_inputs = vec![inp_vec, weight_vec];
-      let constants = vec![zero.clone()];
+      let inp_vec = inp_vec.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
+      let weight_vec = weight_vec.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
+      let vec_inputs = vec![inp_vec.clone(), weight_vec.clone()];
+      let constants = vec![(**zero).clone()];
       let outp =
         dot_prod_chip.forward(layouter.namespace(|| "dot_prod"), &vec_inputs, &constants)?;
       outp_flat.push(outp[0].clone());
-      biases.push(bias);
+      biases.push(bias.as_ref());
     }
     println!("outp_flat: {:?}", outp_flat.len());
 
     // Compute the bias + div + relu
     let bdr_chip = BiasDivRoundRelu6Chip::<F>::construct(gadget_config.clone());
-    let tmp = vec![zero.clone()];
+    let tmp = vec![(**zero).clone()];
     let outp_flat = outp_flat.iter().map(|x| x).collect::<Vec<_>>();
     let outp = bdr_chip.forward(
       layouter.namespace(|| "bias_div_relu"),
@@ -312,9 +309,18 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
     // TODO: this is also horrible. The bdr chip outputs interleaved [(relu'd, div'd), (relu'd, div'd), ...]
     // Uninterleave depending on whether or not we're doing the relu
     let outp = if conv_config.do_relu {
-      outp.iter().step_by(2).cloned().collect::<Vec<_>>()
+      outp
+        .into_iter()
+        .step_by(2)
+        .map(|x| Rc::new(x))
+        .collect::<Vec<_>>()
     } else {
-      outp.iter().skip(1).step_by(2).cloned().collect::<Vec<_>>()
+      outp
+        .into_iter()
+        .skip(1)
+        .step_by(2)
+        .map(|x| Rc::new(x))
+        .collect::<Vec<_>>()
     };
 
     let inp = &tensors[0];

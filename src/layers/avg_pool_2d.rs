@@ -11,7 +11,7 @@ use crate::gadgets::gadget::GadgetConfig;
 
 use super::{
   averager::Averager,
-  layer::{Layer, LayerConfig},
+  layer::{AssignedTensor, CellRc, Layer, LayerConfig},
 };
 
 pub struct AvgPool2DChip {}
@@ -38,7 +38,7 @@ impl<F: FieldExt> Averager<F> for AvgPool2DChip {
   fn get_div_val(
     &self,
     mut layouter: impl Layouter<F>,
-    _tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
+    _tensors: &Vec<AssignedTensor<F>>,
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
   ) -> Result<AssignedCell<F, F>, Error> {
@@ -66,11 +66,11 @@ impl<F: FieldExt> Layer<F> for AvgPool2DChip {
   fn forward(
     &self,
     layouter: impl Layouter<F>,
-    tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
-    constants: &HashMap<i64, AssignedCell<F, F>>,
+    tensors: &Vec<AssignedTensor<F>>,
+    constants: &HashMap<i64, CellRc<F>>,
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
-  ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
+  ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let dived = self.avg_forward(layouter, tensors, constants, gadget_config, layer_config)?;
 
     let inp = &tensors[0];

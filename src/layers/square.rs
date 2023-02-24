@@ -1,10 +1,6 @@
 use std::{collections::HashMap, rc::Rc, vec};
 
-use halo2_proofs::{
-  circuit::{AssignedCell, Layouter},
-  halo2curves::FieldExt,
-  plonk::Error,
-};
+use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
 use ndarray::{Array, IxDyn};
 
 use crate::gadgets::{
@@ -13,7 +9,7 @@ use crate::gadgets::{
   var_div::VarDivRoundChip,
 };
 
-use super::layer::{Layer, LayerConfig};
+use super::layer::{AssignedTensor, CellRc, Layer, LayerConfig};
 
 #[derive(Clone, Debug)]
 pub struct SquareChip {}
@@ -22,19 +18,20 @@ impl<F: FieldExt> Layer<F> for SquareChip {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
-    tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
-    constants: &HashMap<i64, AssignedCell<F, F>>,
+    tensors: &Vec<AssignedTensor<F>>,
+    constants: &HashMap<i64, CellRc<F>>,
     gadget_config: Rc<GadgetConfig>,
     _layer_config: &LayerConfig,
-  ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
+  ) -> Result<Vec<AssignedTensor<F>>, Error> {
     assert_eq!(tensors.len(), 1);
 
     let inp = &tensors[0];
+    let zero = constants.get(&0).unwrap();
 
     let square_chip = SquareGadgetChip::<F>::construct(gadget_config.clone());
-    let inp_vec = inp.iter().collect::<Vec<_>>();
+    let inp_vec = inp.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
     let vec_inputs = vec![inp_vec];
-    let single_inps = vec![constants.get(&0).unwrap().clone()];
+    let single_inps = vec![(**zero).clone()];
     let out = square_chip.forward(
       layouter.namespace(|| "square chip"),
       &vec_inputs,
@@ -42,11 +39,8 @@ impl<F: FieldExt> Layer<F> for SquareChip {
     )?;
 
     let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
-    let div = constants
-      .get(&(gadget_config.scale_factor as i64))
-      .unwrap()
-      .clone();
-    let single_inps = vec![constants.get(&0).unwrap().clone(), div];
+    let div = constants.get(&(gadget_config.scale_factor as i64)).unwrap();
+    let single_inps = vec![(**zero).clone(), (**div).clone()];
     let out = out.iter().collect::<Vec<_>>();
     let vec_inputs = vec![out];
     let out = var_div_chip.forward(
@@ -55,6 +49,7 @@ impl<F: FieldExt> Layer<F> for SquareChip {
       &single_inps,
     )?;
 
+    let out = out.into_iter().map(|x| Rc::new(x)).collect::<Vec<_>>();
     let out = Array::from_shape_vec(IxDyn(inp.shape()), out).unwrap();
     Ok(vec![out])
   }

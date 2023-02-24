@@ -1,17 +1,13 @@
 use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 
-use halo2_proofs::{
-  circuit::{AssignedCell, Layouter},
-  halo2curves::FieldExt,
-  plonk::Error,
-};
+use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
 use ndarray::{Array, Axis, IxDyn};
 
 use crate::gadgets::gadget::GadgetConfig;
 
 use super::{
   fully_connected::FullyConnectedChip,
-  layer::{Layer, LayerConfig},
+  layer::{AssignedTensor, CellRc, Layer, LayerConfig},
 };
 
 pub struct BatchMatMulChip {}
@@ -20,11 +16,11 @@ impl<F: FieldExt> Layer<F> for BatchMatMulChip {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
-    tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
-    constants: &HashMap<i64, AssignedCell<F, F>>,
+    tensors: &Vec<AssignedTensor<F>>,
+    constants: &HashMap<i64, CellRc<F>>,
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
-  ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
+  ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let inp1 = &tensors[0];
     let inp2 = &tensors[1];
     println!("inp1: {:?}", inp1.shape());
@@ -41,7 +37,7 @@ impl<F: FieldExt> Layer<F> for BatchMatMulChip {
       _marker: PhantomData,
     };
 
-    let mut outp: Vec<AssignedCell<F, F>> = vec![];
+    let mut outp: Vec<CellRc<F>> = vec![];
     for i in 0..inp1.shape()[0] {
       let inp1_slice = inp1.index_axis(Axis(0), i).to_owned();
       // Due to tensorflow BS, transpose the "weights"

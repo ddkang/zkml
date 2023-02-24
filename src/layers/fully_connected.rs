@@ -13,7 +13,7 @@ use crate::gadgets::{
   var_div::VarDivRoundChip,
 };
 
-use super::layer::{Layer, LayerConfig};
+use super::layer::{AssignedTensor, CellRc, Layer, LayerConfig};
 
 pub struct FullyConnectedConfig {
   pub activation: i64, // FIXME: to enum + shared w/ Conv2D
@@ -25,8 +25,8 @@ pub struct FullyConnectedChip<F: FieldExt> {
 
 impl<F: FieldExt> FullyConnectedChip<F> {
   pub fn compute_mm(
-    input: &Array<AssignedCell<F, F>, IxDyn>,
-    weight: &Array<AssignedCell<F, F>, IxDyn>,
+    input: &AssignedTensor<F>,
+    weight: &AssignedTensor<F>,
   ) -> Array<Value<F>, IxDyn> {
     assert_eq!(input.ndim(), 2);
     assert_eq!(weight.ndim(), 2);
@@ -107,11 +107,11 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
-    tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
-    constants: &HashMap<i64, AssignedCell<F, F>>,
+    tensors: &Vec<AssignedTensor<F>>,
+    constants: &HashMap<i64, CellRc<F>>,
     gadget_config: Rc<GadgetConfig>,
     _layer_config: &LayerConfig,
-  ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
+  ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let input = &tensors[0];
     let ndim = input.ndim();
     let shape = input.shape().clone();
@@ -124,7 +124,7 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
         .unwrap()
     };
     let weight = &tensors[1].t().into_owned();
-    let zero = constants.get(&0).unwrap().clone();
+    let zero = constants.get(&0).unwrap();
 
     // Compute and assign the result
     let mm_result = Self::compute_mm(&input, weight);
@@ -161,7 +161,7 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
       let r1_res_i = dot_prod_chip.forward(
         layouter.namespace(|| format!("r1_res_{}", i)),
         &vec![mm_ci, r1_ref.clone()],
-        &vec![zero.clone()],
+        &vec![(**zero).clone()],
       )?;
       r1_res.push(r1_res_i[0].clone());
     }
@@ -171,7 +171,7 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
     let r1_res_r2 = dot_prod_chip.forward(
       layouter.namespace(|| "r1_res_r2"),
       &vec![r1_res_ref, r2_ref.clone()],
-      &vec![zero.clone()],
+      &vec![(**zero).clone()],
     )?;
     let r1_res_r2 = r1_res_r2[0].clone();
     println!("r1_res_r2: {:?}", r1_res_r2);
@@ -182,11 +182,11 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
     println!("r1_ref: {:?}", r1_ref.len());
     for i in 0..input.shape()[1] {
       let tmp = input.index_axis(Axis(1), i).clone();
-      let input_ci = tmp.iter().collect::<Vec<_>>();
+      let input_ci = tmp.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
       let r1_input_i = dot_prod_chip.forward(
         layouter.namespace(|| format!("r1_input_{}", i)),
         &vec![input_ci, r1_ref.clone()],
-        &vec![zero.clone()],
+        &vec![(**zero).clone()],
       )?;
       r1_input.push(r1_input_i[0].clone());
     }
@@ -195,11 +195,11 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
     let mut weight_r2 = vec![];
     for i in 0..weight.shape()[0] {
       let tmp = weight.index_axis(Axis(0), i).clone();
-      let weight_ci = tmp.iter().collect::<Vec<_>>();
+      let weight_ci = tmp.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
       let weight_r2_i = dot_prod_chip.forward(
         layouter.namespace(|| format!("weight_r2_{}", i)),
         &vec![weight_ci, r2_ref.clone()],
-        &vec![zero.clone()],
+        &vec![(**zero).clone()],
       )?;
       weight_r2.push(weight_r2_i[0].clone());
     }
@@ -210,7 +210,7 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
     let r1_inp_weight_r2 = dot_prod_chip.forward(
       layouter.namespace(|| "r1_inp_weight_r2"),
       &vec![r1_input_ref, weight_r2_ref],
-      &vec![zero.clone()],
+      &vec![(**zero).clone()],
     )?;
 
     let r1_inp_weight_r2 = r1_inp_weight_r2[0].clone();
@@ -231,16 +231,14 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
     // TODO: bias, division, activation
     let mm_flat = mm_result.iter().collect::<Vec<_>>();
     let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
-    let sf = constants
-      .get(&(gadget_config.scale_factor as i64))
-      .unwrap()
-      .clone();
+    let sf = constants.get(&(gadget_config.scale_factor as i64)).unwrap();
     let mm_div = var_div_chip.forward(
       layouter.namespace(|| "mm_div"),
       &vec![mm_flat],
-      &vec![zero.clone(), sf.clone()],
+      &vec![(**zero).clone(), (**sf).clone()],
     )?;
 
+    let mm_div = mm_div.into_iter().map(|x| Rc::new(x)).collect::<Vec<_>>();
     let mm_result = Array::from_shape_vec(IxDyn(mm_result.shape()), mm_div).unwrap();
 
     Ok(vec![mm_result])

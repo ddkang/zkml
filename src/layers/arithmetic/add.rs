@@ -7,9 +7,12 @@ use halo2_proofs::{
 };
 use ndarray::{Array, IxDyn};
 
-use crate::gadgets::{
-  add_pairs::AddPairsChip,
-  gadget::{Gadget, GadgetConfig},
+use crate::{
+  gadgets::{
+    add_pairs::AddPairsChip,
+    gadget::{Gadget, GadgetConfig},
+  },
+  layers::layer::{AssignedTensor, CellRc},
 };
 
 use super::{
@@ -38,11 +41,11 @@ impl<F: FieldExt> Layer<F> for AddChip {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
-    tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
-    constants: &HashMap<i64, AssignedCell<F, F>>,
+    tensors: &Vec<AssignedTensor<F>>,
+    constants: &HashMap<i64, CellRc<F>>,
     gadget_config: Rc<GadgetConfig>,
     _layer_config: &LayerConfig,
-  ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
+  ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let (out, out_shape) = self.arithmetic_forward(
       layouter.namespace(|| ""),
       tensors,

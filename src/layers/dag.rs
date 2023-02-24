@@ -1,11 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 
-use halo2_proofs::{
-  circuit::{AssignedCell, Layouter},
-  halo2curves::FieldExt,
-  plonk::Error,
-};
-use ndarray::{Array, IxDyn};
+use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
 
 use crate::{
   gadgets::gadget::GadgetConfig,
@@ -30,7 +25,7 @@ use crate::{
 use super::{
   avg_pool_2d::AvgPool2DChip,
   conv2d::Conv2DChip,
-  layer::{Layer, LayerConfig, LayerType},
+  layer::{AssignedTensor, CellRc, Layer, LayerConfig, LayerType},
 };
 
 #[derive(Clone, Debug)]
@@ -60,11 +55,11 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
-    tensors: &Vec<Array<AssignedCell<F, F>, IxDyn>>,
-    constants: &HashMap<i64, AssignedCell<F, F>>,
+    tensors: &Vec<AssignedTensor<F>>,
+    constants: &HashMap<i64, CellRc<F>>,
     gadget_config: Rc<GadgetConfig>,
     _layer_config: &LayerConfig,
-  ) -> Result<Vec<Array<AssignedCell<F, F>, IxDyn>>, Error> {
+  ) -> Result<Vec<AssignedTensor<F>>, Error> {
     // Reveal/commit to weights
     // TODO
 
@@ -292,7 +287,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
       final_out.push(tensor_map.get(idx).unwrap().clone());
     }
 
-    let tmp = final_out[0].iter().map(|x| x.clone()).collect::<Vec<_>>();
+    let tmp = final_out[0].iter().map(|x| x.as_ref()).collect::<Vec<_>>();
     print_assigned_arr("final out", &tmp);
     println!("final out idxes: {:?}", self.dag_config.final_out_idxes);
 
