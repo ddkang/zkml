@@ -21,6 +21,7 @@ use crate::{
       mask_neg_inf::MaskNegInfChip, pad::PadChip, reshape::ReshapeChip, transpose::TransposeChip,
     },
     softmax::SoftmaxChip,
+    square::SquareChip,
     squared_diff::SquaredDiffChip,
   },
   utils::helpers::print_assigned_arr,
@@ -261,6 +262,16 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           let mask_neg_inf_chip = MaskNegInfChip {};
           mask_neg_inf_chip.forward(
             layouter.namespace(|| "dag mask neg inf"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+            &layer_config,
+          )?
+        }
+        LayerType::Square => {
+          let square_chip = SquareChip {};
+          square_chip.forward(
+            layouter.namespace(|| "dag square"),
             &vec_inps,
             constants,
             gadget_config.clone(),

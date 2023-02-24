@@ -6,6 +6,7 @@ pub mod dot_prod;
 pub mod gadget;
 pub mod mul_pairs;
 pub mod sqrt_big;
+pub mod square;
 pub mod squared_diff;
 pub mod sub_pairs;
 pub mod var_div;

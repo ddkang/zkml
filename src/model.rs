@@ -24,6 +24,7 @@ use crate::{
     nonlinear::exp::ExpChip,
     nonlinear::{logistic::LogisticGadgetChip, rsqrt::RsqrtGadgetChip},
     sqrt_big::SqrtBigChip,
+    square::SquareGadgetChip,
     squared_diff::SquaredDiffGadgetChip,
     sub_pairs::SubPairsChip,
     var_div::VarDivRoundChip,
@@ -294,6 +295,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
     gadget_config = LogisticGadgetChip::<F>::configure(meta, gadget_config);
     gadget_config = SquaredDiffGadgetChip::<F>::configure(meta, gadget_config);
     gadget_config = SqrtBigChip::<F>::configure(meta, gadget_config);
+    gadget_config = SquareGadgetChip::<F>::configure(meta, gadget_config);
 
     ModelConfig {
       gadget_config: gadget_config.into(),

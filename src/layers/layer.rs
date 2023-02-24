@@ -26,6 +26,7 @@ pub enum LayerType {
   Reshape,
   Rsqrt,
   Softmax,
+  Square,
   SquaredDifference,
   Sub,
   Transpose,
