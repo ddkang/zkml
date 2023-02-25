@@ -48,7 +48,10 @@ use crate::{
     square::SquareChip,
     squared_diff::SquaredDiffChip,
   },
-  utils::loader::{load_model_msgpack, ModelMsgpack},
+  utils::{
+    helpers::{NUM_RANDOMS, RAND_START_IDX},
+    loader::{load_model_msgpack, ModelMsgpack},
+  },
 };
 
 lazy_static! {
@@ -152,6 +155,20 @@ impl<F: FieldExt> ModelCircuit<F> {
           4,
           || Value::known(F::from((max_val - 1) as u64)),
         )?;
+
+        // TODO: I've made some very bad life decisions
+        // TOOD: read this from the config
+        let mut r = F::from(0x123456789abcdef);
+        for i in 0..NUM_RANDOMS {
+          let rand = region.assign_fixed(
+            || format!("rand_{}", i),
+            model_config.gadget_config.fixed_columns[0],
+            (5 + i).try_into().unwrap(),
+            || Value::known(r),
+          )?;
+          r = r.square();
+          constants.insert(RAND_START_IDX + (i as i64), Rc::new(rand));
+        }
 
         constants.insert(0, Rc::new(zero));
         constants.insert(1, Rc::new(one));

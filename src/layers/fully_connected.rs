@@ -7,10 +7,13 @@ use halo2_proofs::{
 };
 use ndarray::{Array, Axis, IxDyn};
 
-use crate::gadgets::{
-  dot_prod::DotProductChip,
-  gadget::{Gadget, GadgetConfig, GadgetType},
-  var_div::VarDivRoundChip,
+use crate::{
+  gadgets::{
+    dot_prod::DotProductChip,
+    gadget::{Gadget, GadgetConfig, GadgetType},
+    var_div::VarDivRoundChip,
+  },
+  utils::helpers::{NUM_RANDOMS, RAND_START_IDX},
 };
 
 use super::layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig};
@@ -85,7 +88,7 @@ impl<F: FieldExt> FullyConnectedChip<F> {
     Ok(Array::from_shape_vec(IxDyn(out_shape.as_slice()), outp).unwrap())
   }
 
-  pub fn random_vector(
+  pub fn _random_vector(
     columns: &Vec<Column<Advice>>,
     mut layouter: impl Layouter<F>,
     size: usize,
@@ -113,6 +116,23 @@ impl<F: FieldExt> FullyConnectedChip<F> {
         },
       )
       .unwrap();
+
+    Ok(outp)
+  }
+
+  pub fn random_vector(
+    constants: &HashMap<i64, CellRc<F>>,
+    size: usize,
+  ) -> Result<Vec<CellRc<F>>, Error> {
+    if size > NUM_RANDOMS as usize {
+      panic!("random vector size too large");
+    }
+    let mut outp = vec![];
+    for idx in 0..size {
+      let idx = RAND_START_IDX + (idx as i64);
+      let cell = constants.get(&idx).unwrap().clone();
+      outp.push(cell);
+    }
 
     Ok(outp)
   }
@@ -151,22 +171,12 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
     .unwrap();
 
     // Generate random vectors
-    let r1 = Self::random_vector(
-      &gadget_config.columns,
-      layouter.namespace(|| ""),
-      mm_result.shape()[0],
-    )
-    .unwrap();
-    let r2 = Self::random_vector(
-      &gadget_config.columns,
-      layouter.namespace(|| ""),
-      mm_result.shape()[1],
-    )
-    .unwrap();
+    let r1 = Self::random_vector(constants, mm_result.shape()[0]).unwrap();
+    let r2 = Self::random_vector(constants, mm_result.shape()[1]).unwrap();
 
     let dot_prod_chip = DotProductChip::<F>::construct(gadget_config.clone());
-    let r1_ref = r1.iter().collect::<Vec<_>>();
-    let r2_ref = r2.iter().collect::<Vec<_>>();
+    let r1_ref = r1.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
+    let r2_ref = r2.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
 
     // Compute r1 * result
     let mut r1_res = vec![];
