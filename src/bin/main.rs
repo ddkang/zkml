@@ -3,7 +3,6 @@ use zkml::{
   model::ModelCircuit,
   utils::{
     loader::{load_model_msgpack, ModelMsgpack},
-    proving::time_circuit_kzg,
   },
 };
 

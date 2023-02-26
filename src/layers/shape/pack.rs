@@ -1,7 +1,7 @@
 use std::{collections::HashMap, rc::Rc};
 
 use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
-use ndarray::{IxDyn, stack, Axis};
+use ndarray::{stack, Axis};
 
 use crate::{
   gadgets::gadget::GadgetConfig,

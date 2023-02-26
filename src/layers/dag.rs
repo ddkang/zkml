@@ -13,7 +13,7 @@ use crate::{
     noop::NoopChip,
     rsqrt::RsqrtChip,
     shape::{
-      mask_neg_inf::MaskNegInfChip, pad::PadChip, reshape::ReshapeChip, transpose::TransposeChip, pack::PackChip,
+      mask_neg_inf::MaskNegInfChip, pad::PadChip, reshape::ReshapeChip, transpose::TransposeChip, pack::PackChip, concatenate::ConcatenateChip,
     },
     softmax::SoftmaxChip,
     square::SquareChip,
@@ -124,6 +124,16 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
             _marker: PhantomData,
           };
           conv_2d_chip.forward(
+            layouter.namespace(|| "dag conv 2d"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+            &layer_config,
+          )?
+        }
+        LayerType::Concatenate => {
+          let concatenate_chip = ConcatenateChip { };
+          concatenate_chip.forward(
             layouter.namespace(|| "dag conv 2d"),
             &vec_inps,
             constants,

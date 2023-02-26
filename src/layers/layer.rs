@@ -23,6 +23,7 @@ pub enum LayerType {
   #[default]
   Noop,
   Pack,
+  Concatenate,
   Pad,
   Reshape,
   Rsqrt,

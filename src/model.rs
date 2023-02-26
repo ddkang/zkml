@@ -183,6 +183,7 @@ impl<F: FieldExt> ModelCircuit<F> {
       "Mul" => LayerType::Mul,
       "Noop" => LayerType::Noop,
       "Pack" => LayerType::Pack,
+      "Concatenate" => LayerType::Concatenate,
       "Pad" => LayerType::Pad,
       "Reshape" => LayerType::Reshape,
       "Rsqrt" => LayerType::Rsqrt,

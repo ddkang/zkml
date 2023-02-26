@@ -1,7 +1,7 @@
 use std::{collections::HashMap, rc::Rc};
 
 use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
-use ndarray::IxDyn;
+use ndarray::{concatenate, Axis};
 
 use crate::{
   gadgets::gadget::GadgetConfig,
@@ -21,26 +21,15 @@ impl<F: FieldExt> Layer<F> for ConcatenateChip {
     _gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
-    assert_eq!(layer_config.layer_params.len() % 2, 0);
-    layer_config.layer_params[0];
+    // Ensure that all of the tensors have the same dimensions
+    let axis = layer_config.layer_params[0];
+    let mut tensor_views = vec![];
 
-    let ndim = layer_config.layer_params.len() / 2;
-    let inp_shape = layer_config.layer_params[0..ndim]
-      .to_vec()
-      .iter()
-      .map(|x| *x as usize)
-      .collect::<Vec<_>>();
-    let permutation = layer_config.layer_params[ndim..]
-      .to_vec()
-      .iter()
-      .map(|x| *x as usize)
-      .collect::<Vec<_>>();
-
-    let inp = tensors[0].to_owned();
-    let inp = inp.into_shape(IxDyn(&inp_shape)).unwrap();
-
-    let inp = inp.permuted_axes(IxDyn(&permutation));
-
-    Ok(vec![inp])
+    for tensor in tensors.iter() {
+      tensor_views.push(tensor.view());
+    }
+    let stacked_tensor = concatenate(Axis(axis as usize), &tensor_views).unwrap();
+    
+    Ok(vec![stacked_tensor])
   }
 }
