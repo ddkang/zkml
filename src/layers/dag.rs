@@ -7,7 +7,7 @@ use crate::{
   layers::{
     arithmetic::{add::AddChip, mul::MulChip, sub::SubChip},
     batch_mat_mul::BatchMatMulChip,
-    fully_connected::FullyConnectedChip,
+    fully_connected::{FullyConnectedChip, FullyConnectedConfig},
     logistic::LogisticChip,
     mean::MeanChip,
     noop::NoopChip,
@@ -134,6 +134,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
         LayerType::FullyConnected => {
           let fc_chip = FullyConnectedChip {
             _marker: PhantomData,
+            config: FullyConnectedConfig::construct(true),
           };
           fc_chip.forward(
             layouter.namespace(|| "dag fully connected"),

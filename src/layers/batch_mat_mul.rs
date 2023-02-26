@@ -3,7 +3,7 @@ use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
 use ndarray::{Array, Axis, IxDyn};
 
-use crate::gadgets::gadget::GadgetConfig;
+use crate::{gadgets::gadget::GadgetConfig, layers::fully_connected::FullyConnectedConfig};
 
 use super::{
   fully_connected::FullyConnectedChip,
@@ -35,6 +35,7 @@ impl<F: FieldExt> Layer<F> for BatchMatMulChip {
 
     let fc_chip = FullyConnectedChip::<F> {
       _marker: PhantomData,
+      config: FullyConnectedConfig::construct(true),
     };
 
     let mut outp: Vec<CellRc<F>> = vec![];

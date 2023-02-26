@@ -16,11 +16,18 @@ use crate::gadgets::{
 use super::layer::{AssignedTensor, CellRc, Layer, LayerConfig};
 
 pub struct FullyConnectedConfig {
-  pub activation: i64, // FIXME: to enum + shared w/ Conv2D
+  pub normalize: bool, // Should be true
+}
+
+impl FullyConnectedConfig {
+  pub fn construct(normalize: bool) -> Self {
+    Self { normalize }
+  }
 }
 
 pub struct FullyConnectedChip<F: FieldExt> {
   pub _marker: PhantomData<F>,
+  pub config: FullyConnectedConfig,
 }
 
 impl<F: FieldExt> FullyConnectedChip<F> {
@@ -229,18 +236,24 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
     )?;
 
     // TODO: bias, division, activation
-    let mm_flat = mm_result.iter().collect::<Vec<_>>();
-    let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
-    let sf = constants.get(&(gadget_config.scale_factor as i64)).unwrap();
-    let mm_div = var_div_chip.forward(
-      layouter.namespace(|| "mm_div"),
-      &vec![mm_flat],
-      &vec![(**zero).clone(), (**sf).clone()],
-    )?;
+    let final_result_flat = if self.config.normalize {
+      let mm_flat = mm_result.iter().collect::<Vec<_>>();
+      let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
+      let sf = constants.get(&(gadget_config.scale_factor as i64)).unwrap();
+      let mm_div = var_div_chip.forward(
+        layouter.namespace(|| "mm_div"),
+        &vec![mm_flat],
+        &vec![(**zero).clone(), (**sf).clone()],
+      )?;
+      mm_div.into_iter().map(|x| Rc::new(x)).collect::<Vec<_>>()
+    } else {
+      mm_result
+        .iter()
+        .map(|x| Rc::new(x.clone()))
+        .collect::<Vec<_>>()
+    };
+    let final_result = Array::from_shape_vec(IxDyn(mm_result.shape()), final_result_flat).unwrap();
 
-    let mm_div = mm_div.into_iter().map(|x| Rc::new(x)).collect::<Vec<_>>();
-    let mm_result = Array::from_shape_vec(IxDyn(mm_result.shape()), mm_div).unwrap();
-
-    Ok(vec![mm_result])
+    Ok(vec![final_result])
   }
 }
