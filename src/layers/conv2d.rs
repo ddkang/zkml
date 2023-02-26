@@ -1,3 +1,5 @@
+// TODO: Speed up Depthwise operations with Freivald's algorithm
+
 use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
@@ -13,7 +15,10 @@ use crate::{
     dot_prod::DotProductChip,
     gadget::{Gadget, GadgetConfig},
   },
-  layers::{shape::pad::pad, fully_connected::FullyConnectedChip},
+  layers::{
+    fully_connected::{FullyConnectedChip, FullyConnectedConfig},
+    shape::pad::pad,
+  },
 };
 
 use super::layer::{AssignedTensor, Layer, LayerConfig};
@@ -159,6 +164,7 @@ impl<F: FieldExt> Conv2DChip<F> {
     let mut input_row_idx = 0;
     let mut weight_row_idx = 0;
 
+    // (output_channels x inp_channels * C_H * C_W)
     for chan_out in 0..weights.shape()[0] {
       weights_cells.push(vec![]);
       for ci in 0..weights.shape()[1] {
@@ -171,9 +177,9 @@ impl<F: FieldExt> Conv2DChip<F> {
       weight_row_idx += 1;
     }
 
+    // (O_H * O_W x inp_channels * C_H * C_W)
     for i in 0..oh {
       for j in 0..ow {
-        // Build the matrix for A (c_h * c_w * c_in x H * W)
         inp_cells.push(vec![]);
         for ci in 0..weights.shape()[1] {
           for cj in 0..weights.shape()[2] {
@@ -183,7 +189,7 @@ impl<F: FieldExt> Conv2DChip<F> {
               inp_cells[input_row_idx].push(inp_pad[[0, idx_i, idx_j, ck]].clone());
             }
           }
-       }
+        }
         input_row_idx += 1;
       }
     }
@@ -280,10 +286,17 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
     let conv_config = &Self::param_vec_to_config(self.config.layer_params.clone());
     let zero = constants.get(&0).unwrap();
 
-    println!("tensors: {:?}", tensors.len());
-    for tensor in tensors {
-      println!("tensor: {:?}", tensor.shape());
-    }
+    let inp = &tensors[0];
+    let weights = &tensors[1];
+    let (oh, ow) = Self::out_hw(
+      inp.shape()[1],
+      inp.shape()[2],
+      conv_config.stride.0,
+      conv_config.stride.1,
+      weights.shape()[1],
+      weights.shape()[2],
+      conv_config.padding,
+    );
 
     let (splat_inp, splat_weights, splat_biases) = match conv_config.conv_type {
       ConvLayerEnum::Conv2D => self.splat(tensors, zero.clone()),
@@ -294,44 +307,40 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
 
     let outp_flat: Vec<AssignedCell<F, F>> = match conv_config.conv_type {
       ConvLayerEnum::Conv2D => {
-        let out_shape = vec![1, splat_inp.len(), splat_weights.len()];
-
         let fc_chip = FullyConnectedChip::<F> {
           _marker: PhantomData,
+          config: FullyConnectedConfig::construct(false),
         };
 
-        let mut flattened_inp = vec![];
-        let mut flattened_weights = vec![];
+        let flattened_inp = splat_inp.iter().flat_map(|x| x.iter()).cloned().collect();
+        let flattened_weights = splat_weights
+          .iter()
+          .flat_map(|x| x.iter())
+          .cloned()
+          .collect();
 
-        for i in 0..splat_inp.len() {
-          flattened_inp.extend_from_slice(&splat_inp[i]);
-        }
-        for i in 0..splat_weights.len() {
-          flattened_weights.extend_from_slice(&splat_weights[i]);
-        }
-        
-        let inp_array = Array::from_shape_vec(IxDyn(&vec![splat_inp.len(), splat_inp[0].len()]), flattened_inp).unwrap();
-        inp_array.t();
-        let weights_array = Array::from_shape_vec(IxDyn(&vec![splat_weights.len(), splat_weights[0].len()]), flattened_weights).unwrap();
+        let conv_size = splat_inp[0].len();
+        let out_channels = weights.shape()[0];
+        let inp_array =
+          Array::from_shape_vec(IxDyn(&vec![oh * ow, conv_size]), flattened_inp).unwrap();
+        let weights_array =
+          Array::from_shape_vec(IxDyn(&vec![out_channels, conv_size]), flattened_weights).unwrap();
 
         let outp_slice = fc_chip.forward(
           layouter.namespace(|| ""),
-          &vec![weights_array, inp_array],
+          &vec![weights_array.clone(), inp_array.clone()],
           constants,
           gadget_config.clone(),
           layer_config,
         )?;
 
-        let mut outp_flat = vec![];
-
-        for c in 0..splat_inp.len() {
-          for r in 0..splat_weights.len() {
-            outp_flat.push((*outp_slice[0][[r, c]]).clone());
-          }
-        }
-
+        let outp_flat = outp_slice[0]
+          .t()
+          .iter()
+          .map(|x| (**x).clone())
+          .collect::<Vec<_>>();
         outp_flat
-      },
+      }
       ConvLayerEnum::DepthwiseConv2D => {
         // Do the dot products
         let dot_prod_chip = DotProductChip::<F>::construct(gadget_config.clone());
@@ -387,19 +396,6 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
         .collect::<Vec<_>>()
     };
 
-    let inp = &tensors[0];
-    println!("inp: {:?}", inp.shape());
-    println!("outp: {:?}", outp.len());
-    let weights = &tensors[1];
-    let (oh, ow) = Self::out_hw(
-      inp.shape()[1],
-      inp.shape()[2],
-      conv_config.stride.0,
-      conv_config.stride.1,
-      weights.shape()[1],
-      weights.shape()[2],
-      conv_config.padding,
-    );
     let oc = match conv_config.conv_type {
       ConvLayerEnum::Conv2D => weights.shape()[0],
       ConvLayerEnum::DepthwiseConv2D => weights.shape()[3],
