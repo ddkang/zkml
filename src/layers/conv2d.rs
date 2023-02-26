@@ -13,7 +13,7 @@ use crate::{
     dot_prod::DotProductChip,
     gadget::{Gadget, GadgetConfig},
   },
-  layers::shape::pad::pad,
+  layers::{shape::pad::pad, fully_connected::FullyConnectedChip},
 };
 
 use super::layer::{AssignedTensor, Layer, LayerConfig};
@@ -156,30 +156,46 @@ impl<F: FieldExt> Conv2DChip<F> {
     let mut weights_cells = vec![];
     let mut biases_cells = vec![];
     let mut row_idx = 0;
+    let mut input_row_idx = 0;
+    let mut weight_row_idx = 0;
+
+    for chan_out in 0..weights.shape()[0] {
+      weights_cells.push(vec![]);
+      for ci in 0..weights.shape()[1] {
+        for cj in 0..weights.shape()[2] {
+          for ck in 0..weights.shape()[3] {
+            weights_cells[weight_row_idx].push(weights[[chan_out, ci, cj, ck]].clone());
+          }
+        }
+      }
+      weight_row_idx += 1;
+    }
+
+    for i in 0..oh {
+      for j in 0..ow {
+        // Build the matrix for A (c_h * c_w * c_in x H * W)
+        inp_cells.push(vec![]);
+        for ci in 0..weights.shape()[1] {
+          for cj in 0..weights.shape()[2] {
+            for ck in 0..weights.shape()[3] {
+              let idx_i = i * si + ci;
+              let idx_j = j * sj + cj;
+              inp_cells[input_row_idx].push(inp_pad[[0, idx_i, idx_j, ck]].clone());
+            }
+          }
+       }
+        input_row_idx += 1;
+      }
+    }
+
     for i in 0..oh {
       for j in 0..ow {
         for chan_out in 0..weights.shape()[0] {
-          inp_cells.push(vec![]);
-          weights_cells.push(vec![]);
           if tensors.len() == 3 {
             biases_cells.push(biases[chan_out].clone());
           } else {
             biases_cells.push(zero.clone());
           }
-
-          for ci in 0..weights.shape()[1] {
-            for cj in 0..weights.shape()[2] {
-              for ck in 0..weights.shape()[3] {
-                let idx_i = i * si + ci;
-                let idx_j = j * sj + cj;
-
-                inp_cells[row_idx].push(inp_pad[[0, idx_i, idx_j, ck]].clone());
-                weights_cells[row_idx].push(weights[[chan_out, ci, cj, ck]].clone());
-              }
-            }
-          }
-
-          row_idx += 1;
         }
       }
     }
@@ -259,7 +275,7 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
     tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, Rc<AssignedCell<F, F>>>,
     gadget_config: Rc<GadgetConfig>,
-    _layer_config: &LayerConfig,
+    layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let conv_config = &Self::param_vec_to_config(self.config.layer_params.clone());
     let zero = constants.get(&0).unwrap();
@@ -276,25 +292,73 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
     println!("splat_inp: {:?}", splat_inp.len());
     println!("splat_weights: {:?}", splat_weights.len());
 
-    // Do the dot products
-    let dot_prod_chip = DotProductChip::<F>::construct(gadget_config.clone());
-    let mut outp_flat = vec![];
+    let outp_flat: Vec<AssignedCell<F, F>> = match conv_config.conv_type {
+      ConvLayerEnum::Conv2D => {
+        let out_shape = vec![1, splat_inp.len(), splat_weights.len()];
+
+        let fc_chip = FullyConnectedChip::<F> {
+          _marker: PhantomData,
+        };
+
+        let mut flattened_inp = vec![];
+        let mut flattened_weights = vec![];
+
+        for i in 0..splat_inp.len() {
+          flattened_inp.extend_from_slice(&splat_inp[i]);
+        }
+        for i in 0..splat_weights.len() {
+          flattened_weights.extend_from_slice(&splat_weights[i]);
+        }
+        
+        let inp_array = Array::from_shape_vec(IxDyn(&vec![splat_inp.len(), splat_inp[0].len()]), flattened_inp).unwrap();
+        inp_array.t();
+        let weights_array = Array::from_shape_vec(IxDyn(&vec![splat_weights.len(), splat_weights[0].len()]), flattened_weights).unwrap();
+
+        let outp_slice = fc_chip.forward(
+          layouter.namespace(|| ""),
+          &vec![weights_array, inp_array],
+          constants,
+          gadget_config.clone(),
+          layer_config,
+        )?;
+
+        let mut outp_flat = vec![];
+
+        for c in 0..splat_inp.len() {
+          for r in 0..splat_weights.len() {
+            outp_flat.push((*outp_slice[0][[r, c]]).clone());
+          }
+        }
+
+        outp_flat
+      },
+      ConvLayerEnum::DepthwiseConv2D => {
+        // Do the dot products
+        let dot_prod_chip = DotProductChip::<F>::construct(gadget_config.clone());
+        let mut outp_flat = vec![];
+        for ((inp_vec, weight_vec), bias) in splat_inp
+          .iter()
+          .zip(splat_weights.iter())
+          .zip(splat_biases.iter())
+        {
+          let inp_vec = inp_vec.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
+          let weight_vec = weight_vec.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
+          let vec_inputs = vec![inp_vec.clone(), weight_vec.clone()];
+          let constants = vec![(**zero).clone()];
+          let outp =
+            dot_prod_chip.forward(layouter.namespace(|| "dot_prod"), &vec_inputs, &constants)?;
+          outp_flat.push(outp[0].clone());
+        }
+        println!("outp_flat: {:?}", outp_flat.len());
+
+        outp_flat
+      }
+    };
+
     let mut biases = vec![];
-    for ((inp_vec, weight_vec), bias) in splat_inp
-      .iter()
-      .zip(splat_weights.iter())
-      .zip(splat_biases.iter())
-    {
-      let inp_vec = inp_vec.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
-      let weight_vec = weight_vec.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
-      let vec_inputs = vec![inp_vec.clone(), weight_vec.clone()];
-      let constants = vec![(**zero).clone()];
-      let outp =
-        dot_prod_chip.forward(layouter.namespace(|| "dot_prod"), &vec_inputs, &constants)?;
-      outp_flat.push(outp[0].clone());
+    for bias in splat_biases.iter() {
       biases.push(bias.as_ref());
     }
-    println!("outp_flat: {:?}", outp_flat.len());
 
     // Compute the bias + div + relu
     let bdr_chip = BiasDivRoundRelu6Chip::<F>::construct(gadget_config.clone());
