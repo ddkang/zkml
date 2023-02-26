@@ -22,6 +22,7 @@ pub enum LayerType {
   Mul,
   #[default]
   Noop,
+  Pack,
   Pad,
   Reshape,
   Rsqrt,

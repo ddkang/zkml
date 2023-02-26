@@ -182,6 +182,7 @@ impl<F: FieldExt> ModelCircuit<F> {
       "Mean" => LayerType::Mean,
       "Mul" => LayerType::Mul,
       "Noop" => LayerType::Noop,
+      "Pack" => LayerType::Pack,
       "Pad" => LayerType::Pad,
       "Reshape" => LayerType::Reshape,
       "Rsqrt" => LayerType::Rsqrt,

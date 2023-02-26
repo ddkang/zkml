@@ -13,7 +13,7 @@ use crate::{
     noop::NoopChip,
     rsqrt::RsqrtChip,
     shape::{
-      mask_neg_inf::MaskNegInfChip, pad::PadChip, reshape::ReshapeChip, transpose::TransposeChip,
+      mask_neg_inf::MaskNegInfChip, pad::PadChip, reshape::ReshapeChip, transpose::TransposeChip, pack::PackChip,
     },
     softmax::SoftmaxChip,
     square::SquareChip,
@@ -137,6 +137,16 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           };
           fc_chip.forward(
             layouter.namespace(|| "dag fully connected"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+            &layer_config,
+          )?
+        }
+        LayerType::Pack => {
+          let pack_chip = PackChip {};
+          pack_chip.forward(
+            layouter.namespace(|| "dag pack"),
             &vec_inps,
             constants,
             gadget_config.clone(),
