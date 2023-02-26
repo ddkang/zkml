@@ -134,7 +134,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
         LayerType::Concatenate => {
           let concatenate_chip = ConcatenateChip { };
           concatenate_chip.forward(
-            layouter.namespace(|| "dag conv 2d"),
+            layouter.namespace(|| "dag concatenate"),
             &vec_inps,
             constants,
             gadget_config.clone(),
