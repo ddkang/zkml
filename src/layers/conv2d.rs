@@ -325,13 +325,15 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
         let weights_array =
           Array::from_shape_vec(IxDyn(&vec![out_channels, conv_size]), flattened_weights).unwrap();
 
-        let outp_slice = fc_chip.forward(
-          layouter.namespace(|| ""),
-          &vec![weights_array.clone(), inp_array.clone()],
-          constants,
-          gadget_config.clone(),
-          layer_config,
-        )?;
+        let outp_slice = fc_chip
+          .forward(
+            layouter.namespace(|| ""),
+            &vec![weights_array.clone(), inp_array.clone()],
+            constants,
+            gadget_config.clone(),
+            layer_config,
+          )
+          .unwrap();
 
         let outp_flat = outp_slice[0]
           .t()
@@ -349,8 +351,9 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
           let weight_vec = weight_vec.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
           let vec_inputs = vec![inp_vec.clone(), weight_vec.clone()];
           let constants = vec![(**zero).clone()];
-          let outp =
-            dot_prod_chip.forward(layouter.namespace(|| "dot_prod"), &vec_inputs, &constants)?;
+          let outp = dot_prod_chip
+            .forward(layouter.namespace(|| "dot_prod"), &vec_inputs, &constants)
+            .unwrap();
           outp_flat.push(outp[0].clone());
         }
         println!("outp_flat: {:?}", outp_flat.len());
@@ -368,11 +371,13 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
     let bdr_chip = BiasDivRoundRelu6Chip::<F>::construct(gadget_config.clone());
     let tmp = vec![(**zero).clone()];
     let outp_flat = outp_flat.iter().map(|x| x).collect::<Vec<_>>();
-    let outp = bdr_chip.forward(
-      layouter.namespace(|| "bias_div_relu"),
-      &vec![outp_flat, biases],
-      &tmp,
-    )?;
+    let outp = bdr_chip
+      .forward(
+        layouter.namespace(|| "bias_div_relu"),
+        &vec![outp_flat, biases],
+        &tmp,
+      )
+      .unwrap();
 
     // TODO: this is also horrible. The bdr chip outputs interleaved [(relu'd, div'd), (relu'd, div'd), ...]
     // Uninterleave depending on whether or not we're doing the relu

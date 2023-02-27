@@ -45,18 +45,22 @@ impl<F: FieldExt> Averager<F> for AvgPool2DChip {
     // FIXME: this needs to be revealed
     let div = layer_config.layer_params[0] * layer_config.layer_params[1];
     let div = F::from(div as u64);
-    let div = layouter.assign_region(
-      || "avg pool 2d div",
-      |mut region| {
-        let div = region.assign_advice(
-          || "avg pool 2d div",
-          gadget_config.columns[0],
-          0,
-          || Value::known(div),
-        )?;
-        Ok(div)
-      },
-    )?;
+    let div = layouter
+      .assign_region(
+        || "avg pool 2d div",
+        |mut region| {
+          let div = region
+            .assign_advice(
+              || "avg pool 2d div",
+              gadget_config.columns[0],
+              0,
+              || Value::known(div),
+            )
+            .unwrap();
+          Ok(div)
+        },
+      )
+      .unwrap();
 
     Ok(div)
   }
@@ -71,7 +75,9 @@ impl<F: FieldExt> Layer<F> for AvgPool2DChip {
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
-    let dived = self.avg_forward(layouter, tensors, constants, gadget_config, layer_config)?;
+    let dived = self
+      .avg_forward(layouter, tensors, constants, gadget_config, layer_config)
+      .unwrap();
 
     let inp = &tensors[0];
     let mut outp_shape = inp.shape().to_vec();
