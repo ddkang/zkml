@@ -34,7 +34,7 @@ impl<F: FieldExt> VarDivRoundChip<F> {
 
     let tables = gadget_config.tables;
     let lookup = if tables.contains_key(&GadgetType::BiasDivRoundRelu6) {
-      tables.get(&GadgetType::BiasDivRoundRelu6).unwrap()[1]
+      tables.get(&GadgetType::BiasDivRoundRelu6).unwrap()[0]
     } else {
       meta.lookup_table_column()
     };
