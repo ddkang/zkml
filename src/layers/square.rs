@@ -4,12 +4,12 @@ use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
 use ndarray::{Array, IxDyn};
 
 use crate::gadgets::{
-  gadget::{Gadget, GadgetConfig},
+  gadget::{Gadget, GadgetConfig, GadgetType},
   square::SquareGadgetChip,
   var_div::VarDivRoundChip,
 };
 
-use super::layer::{AssignedTensor, CellRc, Layer, LayerConfig};
+use super::layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig};
 
 #[derive(Clone, Debug)]
 pub struct SquareChip {}
@@ -52,5 +52,11 @@ impl<F: FieldExt> Layer<F> for SquareChip {
     let out = out.into_iter().map(|x| Rc::new(x)).collect::<Vec<_>>();
     let out = Array::from_shape_vec(IxDyn(inp.shape()), out).unwrap();
     Ok(vec![out])
+  }
+}
+
+impl GadgetConsumer for SquareChip {
+  fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
+    vec![GadgetType::Square, GadgetType::VarDivRound]
   }
 }

@@ -3,11 +3,14 @@ use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
 use ndarray::{Array, Axis, IxDyn};
 
-use crate::{gadgets::gadget::GadgetConfig, layers::fully_connected::FullyConnectedConfig};
+use crate::{
+  gadgets::gadget::{GadgetConfig, GadgetType},
+  layers::fully_connected::FullyConnectedConfig,
+};
 
 use super::{
   fully_connected::FullyConnectedChip,
-  layer::{AssignedTensor, CellRc, Layer, LayerConfig},
+  layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig},
 };
 
 pub struct BatchMatMulChip {}
@@ -57,5 +60,15 @@ impl<F: FieldExt> Layer<F> for BatchMatMulChip {
 
     let outp = Array::from_shape_vec(IxDyn(out_shape.as_slice()), outp).unwrap();
     Ok(vec![outp])
+  }
+}
+
+impl GadgetConsumer for BatchMatMulChip {
+  fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
+    vec![
+      GadgetType::Adder,
+      GadgetType::DotProduct,
+      GadgetType::VarDivRound,
+    ]
   }
 }

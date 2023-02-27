@@ -9,11 +9,11 @@ use ndarray::{Array, IxDyn};
 
 use crate::{
   gadgets::{
-    gadget::{Gadget, GadgetConfig},
+    gadget::{Gadget, GadgetConfig, GadgetType},
     mul_pairs::MulPairsChip,
     var_div::VarDivRoundChip,
   },
-  layers::layer::{AssignedTensor, CellRc},
+  layers::layer::{AssignedTensor, CellRc, GadgetConsumer},
 };
 
 use super::{
@@ -74,5 +74,11 @@ impl<F: FieldExt> Layer<F> for MulChip {
     let out = out.into_iter().map(|x| Rc::new(x)).collect::<Vec<_>>();
     let out = Array::from_shape_vec(IxDyn(out_shape.as_slice()), out).unwrap();
     Ok(vec![out])
+  }
+}
+
+impl GadgetConsumer for MulChip {
+  fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
+    vec![GadgetType::MulPairs, GadgetType::VarDivRound]
   }
 }

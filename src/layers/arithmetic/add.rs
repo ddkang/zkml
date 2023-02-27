@@ -10,9 +10,9 @@ use ndarray::{Array, IxDyn};
 use crate::{
   gadgets::{
     add_pairs::AddPairsChip,
-    gadget::{Gadget, GadgetConfig},
+    gadget::{Gadget, GadgetConfig, GadgetType},
   },
-  layers::layer::{AssignedTensor, CellRc},
+  layers::layer::{AssignedTensor, CellRc, GadgetConsumer},
 };
 
 use super::{
@@ -55,5 +55,11 @@ impl<F: FieldExt> Layer<F> for AddChip {
     let out = Array::from_shape_vec(IxDyn(out_shape.as_slice()), out).unwrap();
 
     Ok(vec![out])
+  }
+}
+
+impl GadgetConsumer for AddChip {
+  fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
+    vec![GadgetType::AddPairs]
   }
 }

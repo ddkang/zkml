@@ -7,11 +7,11 @@ use halo2_proofs::{
 };
 use ndarray::{Array, IxDyn};
 
-use crate::gadgets::gadget::GadgetConfig;
+use crate::gadgets::gadget::{GadgetConfig, GadgetType};
 
 use super::{
   averager::Averager,
-  layer::{AssignedTensor, CellRc, Layer, LayerConfig},
+  layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig},
 };
 
 pub struct AvgPool2DChip {}
@@ -79,5 +79,11 @@ impl<F: FieldExt> Layer<F> for AvgPool2DChip {
     outp_shape[2] = 1;
     let out = Array::from_shape_vec(IxDyn(&outp_shape), dived).unwrap();
     Ok(vec![out])
+  }
+}
+
+impl GadgetConsumer for AvgPool2DChip {
+  fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
+    vec![GadgetType::Adder, GadgetType::VarDivRound]
   }
 }

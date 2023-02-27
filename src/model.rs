@@ -2,7 +2,7 @@ use std::{
   collections::{HashMap, HashSet},
   marker::PhantomData,
   rc::Rc,
-  sync::Mutex,
+  sync::{Arc, Mutex},
 };
 
 use halo2_proofs::{
@@ -21,7 +21,7 @@ use crate::{
     dot_prod::DotProductChip,
     gadget::{Gadget, GadgetConfig, GadgetType},
     mul_pairs::MulPairsChip,
-    nonlinear::exp::ExpChip,
+    nonlinear::exp::ExpGadgetChip,
     nonlinear::{logistic::LogisticGadgetChip, rsqrt::RsqrtGadgetChip},
     sqrt_big::SqrtBigChip,
     square::SquareGadgetChip,
@@ -30,8 +30,23 @@ use crate::{
     var_div::VarDivRoundChip,
   },
   layers::{
+    arithmetic::{add::AddChip, mul::MulChip, sub::SubChip},
+    avg_pool_2d::AvgPool2DChip,
+    batch_mat_mul::BatchMatMulChip,
+    conv2d::Conv2DChip,
     dag::{DAGLayerChip, DAGLayerConfig},
-    layer::{AssignedTensor, CellRc, Layer, LayerConfig, LayerType},
+    fully_connected::{FullyConnectedChip, FullyConnectedConfig},
+    layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig, LayerType},
+    logistic::LogisticChip,
+    mean::MeanChip,
+    noop::NoopChip,
+    rsqrt::RsqrtChip,
+    shape::{
+      mask_neg_inf::MaskNegInfChip, pad::PadChip, reshape::ReshapeChip, transpose::TransposeChip,
+    },
+    softmax::SoftmaxChip,
+    square::SquareChip,
+    squared_diff::SquaredDiffChip,
   },
   utils::loader::{load_model_msgpack, ModelMsgpack},
 };
@@ -42,7 +57,7 @@ lazy_static! {
 
 #[derive(Clone, Debug)]
 pub struct ModelCircuit<F: FieldExt> {
-  pub used_gadgets: HashSet<GadgetType>,
+  pub used_gadgets: Arc<HashSet<GadgetType>>,
   pub dag_config: DAGLayerConfig,
   pub tensors: HashMap<i64, Array<Value<F>, IxDyn>>,
   pub _marker: PhantomData<F>,
@@ -152,19 +167,6 @@ impl<F: FieldExt> ModelCircuit<F> {
   pub fn generate_from_file(config_file: &str, inp_file: &str) -> ModelCircuit<F> {
     let config: ModelMsgpack = load_model_msgpack(config_file, inp_file);
 
-    let gadget = &GADGET_CONFIG;
-    let cloned_gadget = gadget.lock().unwrap().clone();
-    *gadget.lock().unwrap() = GadgetConfig {
-      scale_factor: config.global_sf as u64,
-      shift_min_val: -(config.global_sf * config.global_sf * 1024),
-      div_outp_min_val: -(1 << (config.k - 1)),
-      min_val: -(1 << (config.k - 1)),
-      max_val: (1 << (config.k - 1)) - 10,
-      num_rows: (1 << config.k) - 10,
-      num_cols: config.num_cols as usize,
-      ..cloned_gadget
-    };
-
     let to_value = |x: i64| {
       let bias = 1 << 31;
       let x_pos = x + bias;
@@ -203,16 +205,52 @@ impl<F: FieldExt> ModelCircuit<F> {
 
     let i64_to_usize = |x: &Vec<i64>| x.iter().map(|x| *x as usize).collect::<Vec<_>>();
 
+    let mut used_gadgets = HashSet::new();
+
     let dag_config = {
       let ops = config
         .layers
         .iter()
-        .map(|layer| LayerConfig {
-          layer_type: match_layer(&layer.layer_type),
-          layer_params: layer.params.clone(),
-          inp_shapes: layer.inp_shapes.iter().map(|x| i64_to_usize(x)).collect(),
-          out_shapes: layer.out_shapes.iter().map(|x| i64_to_usize(x)).collect(),
-          mask: layer.mask.clone(),
+        .map(|layer| {
+          let layer_type = match_layer(&layer.layer_type);
+          let layer_gadgets = match layer_type {
+            LayerType::Add => Box::new(AddChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::AvgPool2D => Box::new(AvgPool2DChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::BatchMatMul => Box::new(BatchMatMulChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::Conv2D => Box::new(Conv2DChip {
+              config: LayerConfig::default(),
+              _marker: PhantomData::<F>,
+            }) as Box<dyn GadgetConsumer>,
+            LayerType::FullyConnected => Box::new(FullyConnectedChip {
+              config: FullyConnectedConfig { normalize: true },
+              _marker: PhantomData::<F>,
+            }) as Box<dyn GadgetConsumer>,
+            LayerType::Logistic => Box::new(LogisticChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::MaskNegInf => Box::new(MaskNegInfChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::Mean => Box::new(MeanChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::Mul => Box::new(MulChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::Noop => Box::new(NoopChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::Pad => Box::new(PadChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::Reshape => Box::new(ReshapeChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::Rsqrt => Box::new(RsqrtChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::Softmax => Box::new(SoftmaxChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::Square => Box::new(SquareChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::SquaredDifference => Box::new(SquaredDiffChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::Sub => Box::new(SubChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::Transpose => Box::new(TransposeChip {}) as Box<dyn GadgetConsumer>,
+          }
+          .used_gadgets();
+          for gadget in layer_gadgets {
+            used_gadgets.insert(gadget);
+          }
+
+          LayerConfig {
+            layer_type,
+            layer_params: layer.params.clone(),
+            inp_shapes: layer.inp_shapes.iter().map(|x| i64_to_usize(x)).collect(),
+            out_shapes: layer.out_shapes.iter().map(|x| i64_to_usize(x)).collect(),
+            mask: layer.mask.clone(),
+          }
         })
         .collect::<Vec<_>>();
       let inp_idxes = config
@@ -238,16 +276,20 @@ impl<F: FieldExt> ModelCircuit<F> {
       }
     };
 
-    // FIXME: assign these based on config
-    // Should this be in the gadget config?
-    let mut used_gadgets = HashSet::new();
-    used_gadgets.insert(GadgetType::AddPairs);
-    used_gadgets.insert(GadgetType::Adder);
-    used_gadgets.insert(GadgetType::BiasDivRoundRelu6);
-    used_gadgets.insert(GadgetType::DotProduct);
-    used_gadgets.insert(GadgetType::Rsqrt);
-    used_gadgets.insert(GadgetType::Exp);
-    used_gadgets.insert(GadgetType::Logistic);
+    let used_gadgets = Arc::new(used_gadgets);
+    let gadget = &GADGET_CONFIG;
+    let cloned_gadget = gadget.lock().unwrap().clone();
+    *gadget.lock().unwrap() = GadgetConfig {
+      scale_factor: config.global_sf as u64,
+      shift_min_val: -(config.global_sf * config.global_sf * 1024),
+      div_outp_min_val: -(1 << (config.k - 1)),
+      min_val: -(1 << (config.k - 1)),
+      max_val: (1 << (config.k - 1)) - 10,
+      num_rows: (1 << config.k) - 10,
+      num_cols: config.num_cols as usize,
+      used_gadgets: used_gadgets.clone(),
+      ..cloned_gadget
+    };
 
     ModelCircuit {
       tensors,
@@ -283,20 +325,29 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
     gadget_config.fixed_columns = vec![meta.fixed_column()];
     meta.enable_equality(gadget_config.fixed_columns[0]);
 
-    // FIXME: fix this shit
-    gadget_config = AddPairsChip::<F>::configure(meta, gadget_config);
-    gadget_config = AdderChip::<F>::configure(meta, gadget_config);
+    // FIXME: The BDR chip must always go first
     gadget_config = BiasDivRoundRelu6Chip::<F>::configure(meta, gadget_config);
-    gadget_config = DotProductChip::<F>::configure(meta, gadget_config);
-    gadget_config = VarDivRoundChip::<F>::configure(meta, gadget_config);
-    gadget_config = RsqrtGadgetChip::<F>::configure(meta, gadget_config);
-    gadget_config = MulPairsChip::<F>::configure(meta, gadget_config);
-    gadget_config = SubPairsChip::<F>::configure(meta, gadget_config);
-    gadget_config = ExpChip::<F>::configure(meta, gadget_config);
-    gadget_config = LogisticGadgetChip::<F>::configure(meta, gadget_config);
-    gadget_config = SquaredDiffGadgetChip::<F>::configure(meta, gadget_config);
-    gadget_config = SqrtBigChip::<F>::configure(meta, gadget_config);
-    gadget_config = SquareGadgetChip::<F>::configure(meta, gadget_config);
+
+    let used_gadgets = gadget_config.used_gadgets.clone();
+    for gadget_type in used_gadgets.iter() {
+      gadget_config = match gadget_type {
+        GadgetType::AddPairs => AddPairsChip::<F>::configure(meta, gadget_config),
+        GadgetType::Adder => AdderChip::<F>::configure(meta, gadget_config),
+        GadgetType::BiasDivRoundRelu6 => gadget_config, // Already done
+        GadgetType::BiasDivFloorRelu6 => panic!(),
+        GadgetType::DotProduct => DotProductChip::<F>::configure(meta, gadget_config),
+        GadgetType::Exp => ExpGadgetChip::<F>::configure(meta, gadget_config),
+        GadgetType::Logistic => LogisticGadgetChip::<F>::configure(meta, gadget_config),
+        GadgetType::VarDivRound => VarDivRoundChip::<F>::configure(meta, gadget_config),
+        GadgetType::SqrtBig => SqrtBigChip::<F>::configure(meta, gadget_config),
+        GadgetType::Square => SquareGadgetChip::<F>::configure(meta, gadget_config),
+        GadgetType::SquaredDiff => SquaredDiffGadgetChip::<F>::configure(meta, gadget_config),
+        GadgetType::SubPairs => SubPairsChip::<F>::configure(meta, gadget_config),
+        GadgetType::Rsqrt => RsqrtGadgetChip::<F>::configure(meta, gadget_config),
+        GadgetType::MulPairs => MulPairsChip::<F>::configure(meta, gadget_config),
+        GadgetType::Packer => panic!(),
+      };
+    }
 
     ModelConfig {
       gadget_config: gadget_config.into(),
@@ -334,7 +385,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
           chip.load_lookups(layouter.namespace(|| "rsqrt lookup"))?;
         }
         GadgetType::Exp => {
-          let chip = ExpChip::<F>::construct(gadget_rc.clone());
+          let chip = ExpGadgetChip::<F>::construct(gadget_rc.clone());
           chip.load_lookups(layouter.namespace(|| "exp lookup"))?;
         }
         GadgetType::Logistic => {

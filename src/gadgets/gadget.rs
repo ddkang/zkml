@@ -1,4 +1,7 @@
-use std::collections::HashMap;
+use std::{
+  collections::{HashMap, HashSet},
+  sync::Arc,
+};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Region},
@@ -32,6 +35,7 @@ pub enum GadgetType {
 
 #[derive(Clone, Debug, Default)]
 pub struct GadgetConfig {
+  pub used_gadgets: Arc<HashSet<GadgetType>>,
   pub columns: Vec<Column<Advice>>,
   pub public_columns: Vec<Column<Instance>>,
   pub fixed_columns: Vec<Column<Fixed>>,

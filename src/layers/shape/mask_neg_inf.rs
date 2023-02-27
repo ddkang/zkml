@@ -5,7 +5,7 @@ use ndarray::{Array, IxDyn};
 
 use crate::{
   gadgets::gadget::GadgetConfig,
-  layers::layer::{AssignedTensor, CellRc},
+  layers::layer::{AssignedTensor, CellRc, GadgetConsumer},
 };
 
 use super::super::layer::{Layer, LayerConfig};
@@ -45,5 +45,11 @@ impl<F: FieldExt> Layer<F> for MaskNegInfChip {
 
     let outp = Array::from_shape_vec(inp.raw_dim(), out_vec).unwrap();
     Ok(vec![outp])
+  }
+}
+
+impl GadgetConsumer for MaskNegInfChip {
+  fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
+    vec![]
   }
 }

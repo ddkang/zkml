@@ -7,7 +7,10 @@ use halo2_proofs::{
 };
 use ndarray::{Array, Axis, IxDyn, Slice};
 
-use crate::{gadgets::gadget::GadgetConfig, layers::layer::AssignedTensor};
+use crate::{
+  gadgets::gadget::GadgetConfig,
+  layers::layer::{AssignedTensor, GadgetConsumer},
+};
 
 use super::super::layer::{Layer, LayerConfig};
 
@@ -84,5 +87,11 @@ impl<F: FieldExt> Layer<F> for PadChip {
     let padded = pad(input, padding.padding, &zero);
 
     Ok(vec![padded])
+  }
+}
+
+impl GadgetConsumer for PadChip {
+  fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
+    vec![]
   }
 }

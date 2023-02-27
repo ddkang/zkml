@@ -25,7 +25,7 @@ use crate::{
 use super::{
   avg_pool_2d::AvgPool2DChip,
   conv2d::Conv2DChip,
-  layer::{AssignedTensor, CellRc, Layer, LayerConfig, LayerType},
+  layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig, LayerType},
 };
 
 #[derive(Clone, Debug)]
@@ -293,5 +293,12 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
     println!("final out idxes: {:?}", self.dag_config.final_out_idxes);
 
     Ok(final_out)
+  }
+}
+
+impl<F: FieldExt> GadgetConsumer for DAGLayerChip<F> {
+  // Special case: DAG doesn't do anything
+  fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
+    vec![]
   }
 }

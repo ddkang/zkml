@@ -16,12 +16,12 @@ type ExpGadgetConfig = GadgetConfig;
 const NUM_COLS_PER_OP: usize = 2;
 
 // IMPORTANT: this return exp(x) * SF
-pub struct ExpChip<F: FieldExt> {
+pub struct ExpGadgetChip<F: FieldExt> {
   config: Rc<ExpGadgetConfig>,
   _marker: PhantomData<F>,
 }
 
-impl<F: FieldExt> ExpChip<F> {
+impl<F: FieldExt> ExpGadgetChip<F> {
   pub fn construct(config: Rc<ExpGadgetConfig>) -> Self {
     Self {
       config,
@@ -30,11 +30,11 @@ impl<F: FieldExt> ExpChip<F> {
   }
 
   pub fn configure(meta: &mut ConstraintSystem<F>, gadget_config: GadgetConfig) -> GadgetConfig {
-    <ExpChip<F> as NonLinearGadget<F>>::configure(meta, gadget_config, GadgetType::Exp)
+    <ExpGadgetChip<F> as NonLinearGadget<F>>::configure(meta, gadget_config, GadgetType::Exp)
   }
 }
 
-impl<F: FieldExt> NonLinearGadget<F> for ExpChip<F> {
+impl<F: FieldExt> NonLinearGadget<F> for ExpGadgetChip<F> {
   fn generate_map(scale_factor: u64, min_val: i64, max_val: i64) -> HashMap<i64, i64> {
     let range = max_val - min_val;
 
@@ -58,7 +58,7 @@ impl<F: FieldExt> NonLinearGadget<F> for ExpChip<F> {
   }
 }
 
-impl<F: FieldExt> Gadget<F> for ExpChip<F> {
+impl<F: FieldExt> Gadget<F> for ExpGadgetChip<F> {
   fn name(&self) -> String {
     "Exp".to_string()
   }
