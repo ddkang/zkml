@@ -13,7 +13,7 @@ use crate::{
   gadgets::{
     bias_div_round_relu6::BiasDivRoundRelu6Chip,
     dot_prod::DotProductChip,
-    gadget::{Gadget, GadgetConfig},
+    gadget::{Gadget, GadgetConfig, GadgetType},
   },
   layers::{
     fully_connected::{FullyConnectedChip, FullyConnectedConfig},
@@ -21,7 +21,7 @@ use crate::{
   },
 };
 
-use super::layer::{AssignedTensor, Layer, LayerConfig};
+use super::layer::{AssignedTensor, GadgetConsumer, Layer, LayerConfig};
 
 #[derive(Default, Clone, Copy, Eq, PartialEq)]
 pub enum PaddingEnum {
@@ -160,7 +160,6 @@ impl<F: FieldExt> Conv2DChip<F> {
     let mut inp_cells = vec![];
     let mut weights_cells = vec![];
     let mut biases_cells = vec![];
-    let mut row_idx = 0;
     let mut input_row_idx = 0;
     let mut weight_row_idx = 0;
 
@@ -194,8 +193,8 @@ impl<F: FieldExt> Conv2DChip<F> {
       }
     }
 
-    for i in 0..oh {
-      for j in 0..ow {
+    for _ in 0..oh {
+      for _ in 0..ow {
         for chan_out in 0..weights.shape()[0] {
           if tensors.len() == 3 {
             biases_cells.push(biases[chan_out].clone());
@@ -345,11 +344,7 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
         // Do the dot products
         let dot_prod_chip = DotProductChip::<F>::construct(gadget_config.clone());
         let mut outp_flat = vec![];
-        for ((inp_vec, weight_vec), bias) in splat_inp
-          .iter()
-          .zip(splat_weights.iter())
-          .zip(splat_biases.iter())
-        {
+        for (inp_vec, weight_vec) in splat_inp.iter().zip(splat_weights.iter()) {
           let inp_vec = inp_vec.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
           let weight_vec = weight_vec.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
           let vec_inputs = vec![inp_vec.clone(), weight_vec.clone()];
@@ -404,5 +399,15 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
     let outp = Array::from_shape_vec(IxDyn(&out_shape), outp).unwrap();
 
     Ok(vec![outp])
+  }
+}
+
+impl<F: FieldExt> GadgetConsumer for Conv2DChip<F> {
+  fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
+    vec![
+      GadgetType::Adder,
+      GadgetType::DotProduct,
+      GadgetType::BiasDivRoundRelu6,
+    ]
   }
 }

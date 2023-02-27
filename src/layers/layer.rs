@@ -7,7 +7,7 @@ use halo2_proofs::{
 };
 use ndarray::{Array, IxDyn};
 
-use crate::gadgets::gadget::GadgetConfig;
+use crate::gadgets::gadget::{GadgetConfig, GadgetType};
 
 #[derive(Clone, Copy, Debug, Default, Hash, Eq, PartialEq)]
 pub enum LayerType {
@@ -54,4 +54,8 @@ pub trait Layer<F: FieldExt> {
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error>;
+}
+
+pub trait GadgetConsumer {
+  fn used_gadgets(&self) -> Vec<GadgetType>;
 }

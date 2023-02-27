@@ -5,7 +5,7 @@ use ndarray::Array;
 
 use crate::{
   gadgets::gadget::GadgetConfig,
-  layers::layer::{AssignedTensor, CellRc},
+  layers::layer::{AssignedTensor, CellRc, GadgetConsumer},
 };
 
 use super::super::layer::{Layer, LayerConfig};
@@ -28,5 +28,11 @@ impl<F: FieldExt> Layer<F> for ReshapeChip {
     let flat = inp.iter().map(|x| x.clone()).collect();
     let out = Array::from_shape_vec(shape, flat).unwrap();
     Ok(vec![out])
+  }
+}
+
+impl GadgetConsumer for ReshapeChip {
+  fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
+    vec![]
   }
 }

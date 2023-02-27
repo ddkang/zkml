@@ -4,11 +4,11 @@ use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
 use ndarray::{Array, IxDyn};
 
 use crate::gadgets::{
-  gadget::{Gadget, GadgetConfig},
+  gadget::{Gadget, GadgetConfig, GadgetType},
   nonlinear::logistic::LogisticGadgetChip,
 };
 
-use super::layer::{AssignedTensor, CellRc, Layer, LayerConfig};
+use super::layer::{AssignedTensor, CellRc, Layer, LayerConfig, GadgetConsumer};
 
 #[derive(Clone, Debug)]
 pub struct LogisticChip {}
@@ -39,5 +39,11 @@ impl<F: FieldExt> Layer<F> for LogisticChip {
     let out = Array::from_shape_vec(IxDyn(inp.shape()), out).unwrap();
 
     Ok(vec![out])
+  }
+}
+
+impl GadgetConsumer for LogisticChip {
+  fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
+    vec![GadgetType::Logistic]
   }
 }

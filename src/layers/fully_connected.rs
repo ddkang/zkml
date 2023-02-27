@@ -9,11 +9,11 @@ use ndarray::{Array, Axis, IxDyn};
 
 use crate::gadgets::{
   dot_prod::DotProductChip,
-  gadget::{Gadget, GadgetConfig},
+  gadget::{Gadget, GadgetConfig, GadgetType},
   var_div::VarDivRoundChip,
 };
 
-use super::layer::{AssignedTensor, CellRc, Layer, LayerConfig};
+use super::layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig};
 
 pub struct FullyConnectedConfig {
   pub normalize: bool, // Should be true
@@ -255,5 +255,11 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
     let final_result = Array::from_shape_vec(IxDyn(mm_result.shape()), final_result_flat).unwrap();
 
     Ok(vec![final_result])
+  }
+}
+
+impl<F: FieldExt> GadgetConsumer for FullyConnectedChip<F> {
+  fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
+    vec![GadgetType::DotProduct, GadgetType::VarDivRound]
   }
 }

@@ -5,14 +5,14 @@ use ndarray::{Array, IxDyn};
 
 use crate::{
   gadgets::{
-    gadget::{Gadget, GadgetConfig},
+    gadget::{Gadget, GadgetConfig, GadgetType},
     squared_diff::SquaredDiffGadgetChip,
     var_div::VarDivRoundChip,
   },
   utils::helpers::broadcast,
 };
 
-use super::layer::{AssignedTensor, CellRc, Layer, LayerConfig};
+use super::layer::{AssignedTensor, CellRc, Layer, LayerConfig, GadgetConsumer};
 
 #[derive(Clone, Debug)]
 pub struct SquaredDiffChip {}
@@ -60,5 +60,11 @@ impl<F: FieldExt> Layer<F> for SquaredDiffChip {
     let out = Array::from_shape_vec(IxDyn(inp1.shape()), out).unwrap();
 
     Ok(vec![out])
+  }
+}
+
+impl GadgetConsumer for SquaredDiffChip {
+  fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
+    vec![GadgetType::SquaredDiff, GadgetType::VarDivRound]
   }
 }

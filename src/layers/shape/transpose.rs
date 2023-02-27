@@ -5,7 +5,7 @@ use ndarray::IxDyn;
 
 use crate::{
   gadgets::gadget::GadgetConfig,
-  layers::layer::{AssignedTensor, CellRc},
+  layers::layer::{AssignedTensor, CellRc, GadgetConsumer},
 };
 
 use super::super::layer::{Layer, LayerConfig};
@@ -40,5 +40,11 @@ impl<F: FieldExt> Layer<F> for TransposeChip {
     let inp = inp.permuted_axes(IxDyn(&permutation));
 
     Ok(vec![inp])
+  }
+}
+
+impl GadgetConsumer for TransposeChip {
+  fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
+    vec![]
   }
 }

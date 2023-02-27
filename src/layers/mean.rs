@@ -7,11 +7,11 @@ use halo2_proofs::{
 };
 use ndarray::{Array, Axis, IxDyn};
 
-use crate::gadgets::gadget::GadgetConfig;
+use crate::gadgets::gadget::{GadgetConfig, GadgetType};
 
 use super::{
   averager::Averager,
-  layer::{AssignedTensor, CellRc, Layer, LayerConfig},
+  layer::{AssignedTensor, CellRc, Layer, LayerConfig, GadgetConsumer},
 };
 
 pub struct MeanChip {}
@@ -116,5 +116,11 @@ impl<F: FieldExt> Layer<F> for MeanChip {
 
     let out = Array::from_shape_vec(IxDyn(&out_shape), dived).unwrap();
     Ok(vec![out])
+  }
+}
+
+impl GadgetConsumer for MeanChip {
+  fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
+    vec![GadgetType::Adder, GadgetType::VarDivRound]
   }
 }

@@ -5,13 +5,13 @@ use ndarray::{s, Array, IxDyn};
 
 use crate::gadgets::{
   adder::AdderChip,
-  gadget::{Gadget, GadgetConfig},
-  nonlinear::exp::ExpChip,
+  gadget::{Gadget, GadgetConfig, GadgetType},
+  nonlinear::exp::ExpGadgetChip,
   sqrt_big::SqrtBigChip,
   var_div::VarDivRoundChip,
 };
 
-use super::layer::{AssignedTensor, CellRc, Layer, LayerConfig};
+use super::layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig};
 
 #[derive(Clone, Debug)]
 pub struct SoftmaxChip {}
@@ -28,7 +28,7 @@ impl<F: FieldExt> Layer<F> for SoftmaxChip {
     let inp = &tensors[0];
     assert!(inp.ndim() == 2 || inp.ndim() == 3);
 
-    let exp_chip = ExpChip::<F>::construct(gadget_config.clone());
+    let exp_chip = ExpGadgetChip::<F>::construct(gadget_config.clone());
     let inp_vec = inp.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
     let zero = constants.get(&0).unwrap();
     println!("inp_vec: {:?}", inp_vec.len());
@@ -96,5 +96,16 @@ impl<F: FieldExt> Layer<F> for SoftmaxChip {
     let outp = outp.into_iter().map(|x| Rc::new(x)).collect::<Vec<_>>();
     let outp = Array::from_shape_vec(IxDyn(inp.shape()), outp).unwrap();
     Ok(vec![outp])
+  }
+}
+
+impl GadgetConsumer for SoftmaxChip {
+  fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
+    vec![
+      GadgetType::Exp,
+      GadgetType::Adder,
+      GadgetType::VarDivRound,
+      GadgetType::SqrtBig,
+    ]
   }
 }
