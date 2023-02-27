@@ -63,19 +63,23 @@ impl<F: FieldExt> FullyConnectedChip<F> {
   ) -> Result<Array<AssignedCell<F, F>, IxDyn>, Error> {
     assert_eq!(array.ndim(), 2);
 
-    let outp = layouter.assign_region(
-      || "assign array",
-      |mut region| {
-        let mut outp = vec![];
-        for (idx, val) in array.iter().enumerate() {
-          let row_idx = idx / columns.len();
-          let col_idx = idx % columns.len();
-          let cell = region.assign_advice(|| "assign array", columns[col_idx], row_idx, || *val)?;
-          outp.push(cell);
-        }
-        Ok(outp)
-      },
-    )?;
+    let outp = layouter
+      .assign_region(
+        || "assign array",
+        |mut region| {
+          let mut outp = vec![];
+          for (idx, val) in array.iter().enumerate() {
+            let row_idx = idx / columns.len();
+            let col_idx = idx % columns.len();
+            let cell = region
+              .assign_advice(|| "assign array", columns[col_idx], row_idx, || *val)
+              .unwrap();
+            outp.push(cell);
+          }
+          Ok(outp)
+        },
+      )
+      .unwrap();
 
     let out_shape = [array.shape()[0], array.shape()[1]];
     Ok(Array::from_shape_vec(IxDyn(out_shape.as_slice()), outp).unwrap())
@@ -86,25 +90,29 @@ impl<F: FieldExt> FullyConnectedChip<F> {
     mut layouter: impl Layouter<F>,
     size: usize,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
-    let outp = layouter.assign_region(
-      || "assign random",
-      |mut region| {
-        let mut outp = vec![];
-        for idx in 0..size {
-          let row_idx = idx / columns.len();
-          let col_idx = idx % columns.len();
-          let ru64 = rand::random::<u64>(); // FIXME
-          let cell = region.assign_advice(
-            || "assign array",
-            columns[col_idx],
-            row_idx,
-            || Value::known(F::from(ru64)),
-          )?;
-          outp.push(cell);
-        }
-        Ok(outp)
-      },
-    )?;
+    let outp = layouter
+      .assign_region(
+        || "assign random",
+        |mut region| {
+          let mut outp = vec![];
+          for idx in 0..size {
+            let row_idx = idx / columns.len();
+            let col_idx = idx % columns.len();
+            let ru64 = rand::random::<u64>(); // FIXME
+            let cell = region
+              .assign_advice(
+                || "assign array",
+                columns[col_idx],
+                row_idx,
+                || Value::known(F::from(ru64)),
+              )
+              .unwrap();
+            outp.push(cell);
+          }
+          Ok(outp)
+        },
+      )
+      .unwrap();
 
     Ok(outp)
   }
@@ -139,19 +147,22 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
       &gadget_config.columns,
       layouter.namespace(|| ""),
       &mm_result,
-    )?;
+    )
+    .unwrap();
 
     // Generate random vectors
     let r1 = Self::random_vector(
       &gadget_config.columns,
       layouter.namespace(|| ""),
       mm_result.shape()[0],
-    )?;
+    )
+    .unwrap();
     let r2 = Self::random_vector(
       &gadget_config.columns,
       layouter.namespace(|| ""),
       mm_result.shape()[1],
-    )?;
+    )
+    .unwrap();
 
     let dot_prod_chip = DotProductChip::<F>::construct(gadget_config.clone());
     let r1_ref = r1.iter().collect::<Vec<_>>();
@@ -165,21 +176,25 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
     for i in 0..mm_result.shape()[1] {
       let tmp = mm_result.index_axis(Axis(1), i).clone();
       let mm_ci = tmp.iter().collect::<Vec<_>>();
-      let r1_res_i = dot_prod_chip.forward(
-        layouter.namespace(|| format!("r1_res_{}", i)),
-        &vec![mm_ci, r1_ref.clone()],
-        &vec![(**zero).clone()],
-      )?;
+      let r1_res_i = dot_prod_chip
+        .forward(
+          layouter.namespace(|| format!("r1_res_{}", i)),
+          &vec![mm_ci, r1_ref.clone()],
+          &vec![(**zero).clone()],
+        )
+        .unwrap();
       r1_res.push(r1_res_i[0].clone());
     }
 
     // Compute r1 * result * r2
     let r1_res_ref = r1_res.iter().collect::<Vec<_>>();
-    let r1_res_r2 = dot_prod_chip.forward(
-      layouter.namespace(|| "r1_res_r2"),
-      &vec![r1_res_ref, r2_ref.clone()],
-      &vec![(**zero).clone()],
-    )?;
+    let r1_res_r2 = dot_prod_chip
+      .forward(
+        layouter.namespace(|| "r1_res_r2"),
+        &vec![r1_res_ref, r2_ref.clone()],
+        &vec![(**zero).clone()],
+      )
+      .unwrap();
     let r1_res_r2 = r1_res_r2[0].clone();
     println!("r1_res_r2: {:?}", r1_res_r2);
 
@@ -190,11 +205,13 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
     for i in 0..input.shape()[1] {
       let tmp = input.index_axis(Axis(1), i).clone();
       let input_ci = tmp.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
-      let r1_input_i = dot_prod_chip.forward(
-        layouter.namespace(|| format!("r1_input_{}", i)),
-        &vec![input_ci, r1_ref.clone()],
-        &vec![(**zero).clone()],
-      )?;
+      let r1_input_i = dot_prod_chip
+        .forward(
+          layouter.namespace(|| format!("r1_input_{}", i)),
+          &vec![input_ci, r1_ref.clone()],
+          &vec![(**zero).clone()],
+        )
+        .unwrap();
       r1_input.push(r1_input_i[0].clone());
     }
 
@@ -203,48 +220,60 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
     for i in 0..weight.shape()[0] {
       let tmp = weight.index_axis(Axis(0), i).clone();
       let weight_ci = tmp.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
-      let weight_r2_i = dot_prod_chip.forward(
-        layouter.namespace(|| format!("weight_r2_{}", i)),
-        &vec![weight_ci, r2_ref.clone()],
-        &vec![(**zero).clone()],
-      )?;
+      let weight_r2_i = dot_prod_chip
+        .forward(
+          layouter.namespace(|| format!("weight_r2_{}", i)),
+          &vec![weight_ci, r2_ref.clone()],
+          &vec![(**zero).clone()],
+        )
+        .unwrap();
       weight_r2.push(weight_r2_i[0].clone());
     }
 
     // Compute (r1 * input) * (weight * r2)
     let r1_input_ref = r1_input.iter().collect::<Vec<_>>();
     let weight_r2_ref = weight_r2.iter().collect::<Vec<_>>();
-    let r1_inp_weight_r2 = dot_prod_chip.forward(
-      layouter.namespace(|| "r1_inp_weight_r2"),
-      &vec![r1_input_ref, weight_r2_ref],
-      &vec![(**zero).clone()],
-    )?;
+    let r1_inp_weight_r2 = dot_prod_chip
+      .forward(
+        layouter.namespace(|| "r1_inp_weight_r2"),
+        &vec![r1_input_ref, weight_r2_ref],
+        &vec![(**zero).clone()],
+      )
+      .unwrap();
 
     let r1_inp_weight_r2 = r1_inp_weight_r2[0].clone();
     println!("r1_inp_weight_r2: {:?}", r1_inp_weight_r2);
 
-    layouter.assign_region(
-      || "fc equality check",
-      |mut region| {
-        let t1 = r1_res_r2.copy_advice(|| "", &mut region, gadget_config.columns[0], 0)?;
-        let t2 = r1_inp_weight_r2.copy_advice(|| "", &mut region, gadget_config.columns[0], 1)?;
+    layouter
+      .assign_region(
+        || "fc equality check",
+        |mut region| {
+          let t1 = r1_res_r2
+            .copy_advice(|| "", &mut region, gadget_config.columns[0], 0)
+            .unwrap();
+          let t2 = r1_inp_weight_r2
+            .copy_advice(|| "", &mut region, gadget_config.columns[0], 1)
+            .unwrap();
 
-        region.constrain_equal(t1.cell(), t2.cell())?;
+          region.constrain_equal(t1.cell(), t2.cell()).unwrap();
 
-        Ok(())
-      },
-    )?;
+          Ok(())
+        },
+      )
+      .unwrap();
 
     // TODO: bias, division, activation
     let final_result_flat = if self.config.normalize {
       let mm_flat = mm_result.iter().collect::<Vec<_>>();
       let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
       let sf = constants.get(&(gadget_config.scale_factor as i64)).unwrap();
-      let mm_div = var_div_chip.forward(
-        layouter.namespace(|| "mm_div"),
-        &vec![mm_flat],
-        &vec![(**zero).clone(), (**sf).clone()],
-      )?;
+      let mm_div = var_div_chip
+        .forward(
+          layouter.namespace(|| "mm_div"),
+          &vec![mm_flat],
+          &vec![(**zero).clone(), (**sf).clone()],
+        )
+        .unwrap();
       mm_div.into_iter().map(|x| Rc::new(x)).collect::<Vec<_>>()
     } else {
       mm_result
