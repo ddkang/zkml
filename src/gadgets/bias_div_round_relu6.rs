@@ -80,7 +80,7 @@ impl<F: FieldExt> BiasDivRoundRelu6Chip<F> {
 
         // Constrains that the modulus \in [0, DIV_VAL)
         // div_val - mod_res \in [0, max_val)
-        vec![(s.clone() * (sf.clone() - mod_res), div_lookup)]
+        vec![(s.clone() * (two.clone() * sf.clone() - mod_res), div_lookup)]
       });
       meta.lookup("bias_div_relu6 lookup", |meta| {
         let s = meta.query_selector(selector);
