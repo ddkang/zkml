@@ -1,7 +1,7 @@
 use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
-  circuit::{AssignedCell, Layouter, Value},
+  circuit::{AssignedCell, Layouter, Region, Value},
   halo2curves::FieldExt,
   plonk::{Advice, Column, Error},
 };
@@ -61,63 +61,23 @@ impl<F: FieldExt> FullyConnectedChip<F> {
 
   pub fn assign_array(
     columns: &Vec<Column<Advice>>,
-    mut layouter: impl Layouter<F>,
+    region: &mut Region<F>,
     array: &Array<Value<F>, IxDyn>,
   ) -> Result<Array<AssignedCell<F, F>, IxDyn>, Error> {
     assert_eq!(array.ndim(), 2);
 
-    let outp = layouter
-      .assign_region(
-        || "assign array",
-        |mut region| {
-          let mut outp = vec![];
-          for (idx, val) in array.iter().enumerate() {
-            let row_idx = idx / columns.len();
-            let col_idx = idx % columns.len();
-            let cell = region
-              .assign_advice(|| "assign array", columns[col_idx], row_idx, || *val)
-              .unwrap();
-            outp.push(cell);
-          }
-          Ok(outp)
-        },
-      )
-      .unwrap();
+    let mut outp = vec![];
+    for (idx, val) in array.iter().enumerate() {
+      let row_idx = idx / columns.len();
+      let col_idx = idx % columns.len();
+      let cell = region
+        .assign_advice(|| "assign array", columns[col_idx], row_idx, || *val)
+        .unwrap();
+      outp.push(cell);
+    }
 
     let out_shape = [array.shape()[0], array.shape()[1]];
     Ok(Array::from_shape_vec(IxDyn(out_shape.as_slice()), outp).unwrap())
-  }
-
-  pub fn _random_vector(
-    columns: &Vec<Column<Advice>>,
-    mut layouter: impl Layouter<F>,
-    size: usize,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
-    let outp = layouter
-      .assign_region(
-        || "assign random",
-        |mut region| {
-          let mut outp = vec![];
-          for idx in 0..size {
-            let row_idx = idx / columns.len();
-            let col_idx = idx % columns.len();
-            let ru64 = rand::random::<u64>(); // FIXME
-            let cell = region
-              .assign_advice(
-                || "assign array",
-                columns[col_idx],
-                row_idx,
-                || Value::known(F::from(ru64)),
-              )
-              .unwrap();
-            outp.push(cell);
-          }
-          Ok(outp)
-        },
-      )
-      .unwrap();
-
-    Ok(outp)
   }
 
   pub fn random_vector(
@@ -162,13 +122,19 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
     let zero = constants.get(&0).unwrap();
 
     // Compute and assign the result
-    let mm_result = Self::compute_mm(&input, weight);
-    let mm_result = Self::assign_array(
-      &gadget_config.columns,
-      layouter.namespace(|| ""),
-      &mm_result,
-    )
-    .unwrap();
+    // This is due to complete fuckery in halo2
+    let mm_result = layouter
+      .assign_region(
+        || "compute and assign mm",
+        |mut region| {
+          let mm_result = Self::compute_mm(&input, weight);
+          let mm_result =
+            Self::assign_array(&gadget_config.columns, &mut region, &mm_result).unwrap();
+
+          Ok(mm_result)
+        },
+      )
+      .unwrap();
 
     // Generate random vectors
     let r1 = Self::random_vector(constants, mm_result.shape()[0]).unwrap();
