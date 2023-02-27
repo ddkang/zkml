@@ -146,27 +146,33 @@ impl<F: FieldExt> Gadget<F> for BiasDivRoundRelu6Chip<F> {
 
     let range = self.config.max_val - self.config.min_val;
 
-    layouter.assign_table(
-      || "bdr round div/relu lookup",
-      |mut table| {
-        for i in 0..range {
-          let val = map.get(&i).unwrap();
-          table.assign_cell(
-            || "mod lookup",
-            div_lookup,
-            i as usize,
-            || Value::known(F::from(i as u64)),
-          )?;
-          table.assign_cell(
-            || "relu lookup",
-            relu_lookup,
-            i as usize,
-            || Value::known(F::from(*val as u64)),
-          )?;
-        }
-        Ok(())
-      },
-    )?;
+    layouter
+      .assign_table(
+        || "bdr round div/relu lookup",
+        |mut table| {
+          for i in 0..range {
+            let val = map.get(&i).unwrap();
+            table
+              .assign_cell(
+                || "mod lookup",
+                div_lookup,
+                i as usize,
+                || Value::known(F::from(i as u64)),
+              )
+              .unwrap();
+            table
+              .assign_cell(
+                || "relu lookup",
+                relu_lookup,
+                i as usize,
+                || Value::known(F::from(*val as u64)),
+              )
+              .unwrap();
+          }
+          Ok(())
+        },
+      )
+      .unwrap();
 
     Ok(())
   }
@@ -202,7 +208,7 @@ impl<F: FieldExt> Gadget<F> for BiasDivRoundRelu6Chip<F> {
       .unwrap()[0];
 
     if USE_SELECTORS {
-      selector.enable(region, row_offset)?;
+      selector.enable(region, row_offset).unwrap();
     }
 
     let mut outp_cells = vec![];
@@ -237,8 +243,12 @@ impl<F: FieldExt> Gadget<F> for BiasDivRoundRelu6Chip<F> {
       });
 
       // Assign inp, bias
-      inp.copy_advice(|| "", region, self.config.columns[offset + 0], row_offset)?;
-      bias.copy_advice(|| "", region, self.config.columns[offset + 1], row_offset)?;
+      inp
+        .copy_advice(|| "", region, self.config.columns[offset + 0], row_offset)
+        .unwrap();
+      bias
+        .copy_advice(|| "", region, self.config.columns[offset + 1], row_offset)
+        .unwrap();
 
       // Assign div_res, mod_res
       let div_res_cell = region
@@ -296,11 +306,13 @@ impl<F: FieldExt> Gadget<F> for BiasDivRoundRelu6Chip<F> {
       biases.push(&default);
     }
 
-    let res = self.op_aligned_rows(
-      layouter.namespace(|| "bias_div_relu6"),
-      &vec![inps, biases],
-      single_inputs,
-    )?;
+    let res = self
+      .op_aligned_rows(
+        layouter.namespace(|| "bias_div_relu6"),
+        &vec![inps, biases],
+        single_inputs,
+      )
+      .unwrap();
     Ok(res[0..initial_len * 2].to_vec())
   }
 }
