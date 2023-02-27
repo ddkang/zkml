@@ -32,7 +32,7 @@ pub trait NonLinearGadget<F: FieldExt>: Gadget<F> {
 
     let mut tables = gadget_config.tables;
     let inp_lookup = if tables.contains_key(&GadgetType::BiasDivRoundRelu6) {
-      tables.get(&GadgetType::BiasDivRoundRelu6).unwrap()[1]
+      tables.get(&GadgetType::BiasDivRoundRelu6).unwrap()[0]
     } else {
       panic!("currently only supports with BiasDivRoundRelu6");
       #[allow(unreachable_code)]

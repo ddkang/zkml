@@ -47,7 +47,6 @@ impl<F: FieldExt> BiasDivRoundRelu6Chip<F> {
     let two = Expression::Constant(F::from(2));
     let columns = gadget_config.columns;
 
-    let mod_lookup = meta.lookup_table_column();
     let div_lookup = meta.lookup_table_column();
     let relu_lookup = meta.lookup_table_column();
 
@@ -80,7 +79,8 @@ impl<F: FieldExt> BiasDivRoundRelu6Chip<F> {
         let mod_res = meta.query_advice(columns[offset + 3], Rotation::cur());
 
         // Constrains that the modulus \in [0, DIV_VAL)
-        vec![(s.clone() * mod_res.clone(), mod_lookup)]
+        // div_val - mod_res \in [0, max_val)
+        vec![(s.clone() * (sf.clone() - mod_res), div_lookup)]
       });
       meta.lookup("bias_div_relu6 lookup", |meta| {
         let s = meta.query_selector(selector);
@@ -101,10 +101,7 @@ impl<F: FieldExt> BiasDivRoundRelu6Chip<F> {
     selectors.insert(GadgetType::BiasDivRoundRelu6, vec![selector]);
 
     let mut tables = gadget_config.tables;
-    tables.insert(
-      GadgetType::BiasDivRoundRelu6,
-      vec![mod_lookup, div_lookup, relu_lookup],
-    );
+    tables.insert(GadgetType::BiasDivRoundRelu6, vec![div_lookup, relu_lookup]);
 
     let mut maps = gadget_config.maps;
     let relu_map = Self::get_map(
@@ -143,11 +140,9 @@ impl<F: FieldExt> Gadget<F> for BiasDivRoundRelu6Chip<F> {
 
   fn load_lookups(&self, mut layouter: impl Layouter<F>) -> Result<(), Error> {
     let map = &self.config.maps[&GadgetType::BiasDivRoundRelu6][0];
-    let div_val = self.config.scale_factor;
 
-    let mod_lookup = self.config.tables[&GadgetType::BiasDivRoundRelu6][0];
-    let div_lookup = self.config.tables[&GadgetType::BiasDivRoundRelu6][1];
-    let relu_lookup = self.config.tables[&GadgetType::BiasDivRoundRelu6][2];
+    let div_lookup = self.config.tables[&GadgetType::BiasDivRoundRelu6][0];
+    let relu_lookup = self.config.tables[&GadgetType::BiasDivRoundRelu6][1];
 
     let range = self.config.max_val - self.config.min_val;
 
@@ -167,21 +162,6 @@ impl<F: FieldExt> Gadget<F> for BiasDivRoundRelu6Chip<F> {
             relu_lookup,
             i as usize,
             || Value::known(F::from(*val as u64)),
-          )?;
-        }
-        Ok(())
-      },
-    )?;
-
-    layouter.assign_table(
-      || "bdr round mod lookup",
-      |mut table| {
-        for i in 0..div_val * 2 {
-          table.assign_cell(
-            || "mod lookup",
-            mod_lookup,
-            i as usize,
-            || Value::known(F::from(i as u64)),
           )?;
         }
         Ok(())
