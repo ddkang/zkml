@@ -13,8 +13,6 @@ use super::gadget::{Gadget, GadgetConfig, GadgetType};
 
 type SqrtBigConfig = GadgetConfig;
 
-const NUM_COLS_PER_OP: usize = 3;
-
 pub struct SqrtBigChip<F: FieldExt> {
   config: Rc<SqrtBigConfig>,
   _marker: PhantomData<F>,
@@ -26,6 +24,10 @@ impl<F: FieldExt> SqrtBigChip<F> {
       config,
       _marker: PhantomData,
     }
+  }
+
+  pub fn num_cols_per_op() -> usize {
+    3
   }
 
   pub fn configure(meta: &mut ConstraintSystem<F>, gadget_config: GadgetConfig) -> GadgetConfig {
@@ -48,8 +50,8 @@ impl<F: FieldExt> SqrtBigChip<F> {
       let s = meta.query_selector(selector);
 
       let mut constraints = vec![];
-      for op_idx in 0..columns.len() / NUM_COLS_PER_OP {
-        let offset = op_idx * NUM_COLS_PER_OP;
+      for op_idx in 0..columns.len() / Self::num_cols_per_op() {
+        let offset = op_idx * Self::num_cols_per_op();
         let inp = meta.query_advice(columns[offset + 0], Rotation::cur());
         let sqrt = meta.query_advice(columns[offset + 1], Rotation::cur());
         let rem = meta.query_advice(columns[offset + 2], Rotation::cur());
@@ -61,8 +63,8 @@ impl<F: FieldExt> SqrtBigChip<F> {
       constraints
     });
 
-    for op_idx in 0..columns.len() / NUM_COLS_PER_OP {
-      let offset = op_idx * NUM_COLS_PER_OP;
+    for op_idx in 0..columns.len() / Self::num_cols_per_op() {
+      let offset = op_idx * Self::num_cols_per_op();
       meta.lookup("sqrt_big sqrt lookup", |meta| {
         let s = meta.query_selector(selector);
         let sqrt = meta.query_advice(columns[offset + 1], Rotation::cur());
@@ -105,11 +107,11 @@ impl<F: FieldExt> Gadget<F> for SqrtBigChip<F> {
   }
 
   fn num_cols_per_op(&self) -> usize {
-    NUM_COLS_PER_OP
+    Self::num_cols_per_op()
   }
 
   fn num_inputs_per_row(&self) -> usize {
-    self.config.columns.len() / NUM_COLS_PER_OP
+    self.config.columns.len() / self.num_cols_per_op()
   }
 
   fn num_outputs_per_row(&self) -> usize {
@@ -133,7 +135,7 @@ impl<F: FieldExt> Gadget<F> for SqrtBigChip<F> {
 
     let mut outp_cells = vec![];
     for (i, inp) in inps.iter().enumerate() {
-      let offset = i * NUM_COLS_PER_OP;
+      let offset = i * self.num_cols_per_op();
       inp.copy_advice(
         || "sqrt_big",
         region,

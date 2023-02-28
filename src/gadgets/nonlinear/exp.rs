@@ -13,8 +13,6 @@ use super::{
 
 type ExpGadgetConfig = GadgetConfig;
 
-const NUM_COLS_PER_OP: usize = 2;
-
 // IMPORTANT: this return exp(x) * SF
 pub struct ExpGadgetChip<F: FieldExt> {
   config: Rc<ExpGadgetConfig>,
@@ -64,15 +62,15 @@ impl<F: FieldExt> Gadget<F> for ExpGadgetChip<F> {
   }
 
   fn num_cols_per_op(&self) -> usize {
-    NUM_COLS_PER_OP
+    <ExpGadgetChip<F> as NonLinearGadget<F>>::num_cols_per_op()
   }
 
   fn num_inputs_per_row(&self) -> usize {
-    self.config.columns.len() / NUM_COLS_PER_OP
+    self.config.columns.len() / self.num_cols_per_op()
   }
 
   fn num_outputs_per_row(&self) -> usize {
-    self.config.columns.len() / NUM_COLS_PER_OP
+    self.config.columns.len() / self.num_cols_per_op()
   }
 
   fn load_lookups(&self, layouter: impl Layouter<F>) -> Result<(), Error> {

@@ -13,8 +13,6 @@ use super::gadget::{Gadget, GadgetConfig, GadgetType};
 
 type SquaredDiffConfig = GadgetConfig;
 
-const NUM_COLS_PER_OP: usize = 3;
-
 pub struct SquaredDiffGadgetChip<F: FieldExt> {
   config: Rc<SquaredDiffConfig>,
   _marker: PhantomData<F>,
@@ -28,6 +26,10 @@ impl<F: FieldExt> SquaredDiffGadgetChip<F> {
     }
   }
 
+  pub fn num_cols_per_op() -> usize {
+    3
+  }
+
   pub fn configure(meta: &mut ConstraintSystem<F>, gadget_config: GadgetConfig) -> GadgetConfig {
     let selector = meta.selector();
     let columns = gadget_config.columns;
@@ -35,8 +37,8 @@ impl<F: FieldExt> SquaredDiffGadgetChip<F> {
     meta.create_gate("squared diff", |meta| {
       let s = meta.query_selector(selector);
       let mut constraints = vec![];
-      for i in 0..columns.len() / NUM_COLS_PER_OP {
-        let offset = i * NUM_COLS_PER_OP;
+      for i in 0..columns.len() / Self::num_cols_per_op() {
+        let offset = i * Self::num_cols_per_op();
         let inp1 = meta.query_advice(columns[offset + 0], Rotation::cur());
         let inp2 = meta.query_advice(columns[offset + 1], Rotation::cur());
         let outp = meta.query_advice(columns[offset + 2], Rotation::cur());
@@ -65,15 +67,15 @@ impl<F: FieldExt> Gadget<F> for SquaredDiffGadgetChip<F> {
   }
 
   fn num_cols_per_op(&self) -> usize {
-    NUM_COLS_PER_OP
+    Self::num_cols_per_op()
   }
 
   fn num_inputs_per_row(&self) -> usize {
-    self.config.columns.len() / NUM_COLS_PER_OP
+    self.config.columns.len() / self.num_cols_per_op()
   }
 
   fn num_outputs_per_row(&self) -> usize {
-    self.config.columns.len() / NUM_COLS_PER_OP
+    self.config.columns.len() / self.num_cols_per_op()
   }
 
   fn op_row_region(
@@ -96,7 +98,7 @@ impl<F: FieldExt> Gadget<F> for SquaredDiffGadgetChip<F> {
 
     let mut outps = vec![];
     for i in 0..inp1.len() {
-      let offset = i * NUM_COLS_PER_OP;
+      let offset = i * self.num_cols_per_op();
       let inp1 = inp1[i].copy_advice(|| "", region, columns[offset + 0], row_offset)?;
       let inp2 = inp2[i].copy_advice(|| "", region, columns[offset + 1], row_offset)?;
       let outp = inp1.value().map(|x: &F| x.to_owned()) - inp2.value().map(|x: &F| x.to_owned());

@@ -12,8 +12,6 @@ use super::gadget::{convert_to_u128, Gadget, GadgetConfig, GadgetType, USE_SELEC
 
 type VarDivRoundConfig = GadgetConfig;
 
-const NUM_COLS_PER_OP: usize = 3;
-
 pub struct VarDivRoundChip<F: FieldExt> {
   config: Rc<VarDivRoundConfig>,
   _marker: PhantomData<F>,
@@ -25,6 +23,10 @@ impl<F: FieldExt> VarDivRoundChip<F> {
       config,
       _marker: PhantomData,
     }
+  }
+
+  pub fn num_cols_per_op() -> usize {
+    3
   }
 
   pub fn configure(meta: &mut ConstraintSystem<F>, gadget_config: GadgetConfig) -> GadgetConfig {
@@ -47,8 +49,8 @@ impl<F: FieldExt> VarDivRoundChip<F> {
       let mut constraints = vec![];
 
       let b = meta.query_advice(columns[columns.len() - 1], Rotation::cur());
-      for i in 0..(columns.len() - 1) / NUM_COLS_PER_OP {
-        let offset = i * NUM_COLS_PER_OP;
+      for i in 0..(columns.len() - 1) / Self::num_cols_per_op() {
+        let offset = i * Self::num_cols_per_op();
         let a = meta.query_advice(columns[offset], Rotation::cur());
         let c = meta.query_advice(columns[offset + 1], Rotation::cur());
         let r = meta.query_advice(columns[offset + 2], Rotation::cur());
@@ -61,8 +63,8 @@ impl<F: FieldExt> VarDivRoundChip<F> {
       constraints
     });
 
-    for i in 0..(columns.len() - 1) / NUM_COLS_PER_OP {
-      let offset = i * NUM_COLS_PER_OP;
+    for i in 0..(columns.len() - 1) / Self::num_cols_per_op() {
+      let offset = i * Self::num_cols_per_op();
       // r \in [0, 2^N)
       meta.lookup("var div range checks r", |meta| {
         let s = meta.query_selector(selector);
@@ -109,11 +111,11 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundChip<F> {
   }
 
   fn num_cols_per_op(&self) -> usize {
-    NUM_COLS_PER_OP
+    Self::num_cols_per_op()
   }
 
   fn num_inputs_per_row(&self) -> usize {
-    (self.config.columns.len() - 1) / NUM_COLS_PER_OP
+    (self.config.columns.len() - 1) / self.num_cols_per_op()
   }
 
   fn num_outputs_per_row(&self) -> usize {
@@ -149,7 +151,7 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundChip<F> {
 
     let mut div_out = vec![];
     for (i, a) in a_vec.iter().enumerate() {
-      let offset = i * NUM_COLS_PER_OP;
+      let offset = i * self.num_cols_per_op();
       a.copy_advice(|| "", region, self.config.columns[offset], row_offset)?;
 
       let div_mod = a.value().zip(b.value()).map(|(a, b)| {

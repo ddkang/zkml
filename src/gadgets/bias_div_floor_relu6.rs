@@ -13,7 +13,6 @@ use super::gadget::{Gadget, GadgetConfig, GadgetType};
 
 type BiasDivFloorRelu6Config = GadgetConfig;
 
-const NUM_COLS_PER_OP: usize = 5;
 const SHIFT_MIN_VAL: i64 = -(1 << 30);
 
 pub struct BiasDivFloorRelu6Chip<F: FieldExt> {
@@ -50,6 +49,10 @@ impl<F: FieldExt> BiasDivFloorRelu6Chip<F> {
     map
   }
 
+  pub fn num_cols_per_op() -> usize {
+    5
+  }
+
   pub fn configure(meta: &mut ConstraintSystem<F>, gadget_config: GadgetConfig) -> GadgetConfig {
     let selector = meta.complex_selector();
     let sf = Expression::Constant(F::from(gadget_config.scale_factor));
@@ -63,8 +66,8 @@ impl<F: FieldExt> BiasDivFloorRelu6Chip<F> {
       let s = meta.query_selector(selector);
 
       let mut constraints = vec![];
-      for op_idx in 0..columns.len() / NUM_COLS_PER_OP {
-        let offset = op_idx * NUM_COLS_PER_OP;
+      for op_idx in 0..columns.len() / Self::num_cols_per_op() {
+        let offset = op_idx * Self::num_cols_per_op();
         let inp = meta.query_advice(columns[offset + 0], Rotation::cur());
         let bias = meta.query_advice(columns[offset + 1], Rotation::cur());
         let div_res = meta.query_advice(columns[offset + 2], Rotation::cur());
@@ -76,8 +79,8 @@ impl<F: FieldExt> BiasDivFloorRelu6Chip<F> {
       constraints
     });
 
-    for op_idx in 0..columns.len() / NUM_COLS_PER_OP {
-      let offset = op_idx * NUM_COLS_PER_OP;
+    for op_idx in 0..columns.len() / Self::num_cols_per_op() {
+      let offset = op_idx * Self::num_cols_per_op();
       meta.lookup("bias_div_relu6 lookup", |meta| {
         let s = meta.query_selector(selector);
         let mod_res = meta.query_advice(columns[offset + 3], Rotation::cur());
@@ -133,11 +136,11 @@ impl<F: FieldExt> Gadget<F> for BiasDivFloorRelu6Chip<F> {
   }
 
   fn num_cols_per_op(&self) -> usize {
-    NUM_COLS_PER_OP
+    Self::num_cols_per_op()
   }
 
   fn num_inputs_per_row(&self) -> usize {
-    self.config.columns.len() / NUM_COLS_PER_OP
+    self.config.columns.len() / self.num_cols_per_op()
   }
 
   fn num_outputs_per_row(&self) -> usize {
@@ -180,7 +183,7 @@ impl<F: FieldExt> Gadget<F> for BiasDivFloorRelu6Chip<F> {
 
     let mut outp_cells = vec![];
     for (i, (inp, bias)) in inp.iter().zip(bias.iter()).enumerate() {
-      let offset = i * NUM_COLS_PER_OP;
+      let offset = i * self.num_cols_per_op();
 
       let inp_f = inp.value().map(|x: &F| x.to_owned());
       let bias_f = bias.value().map(|x: &F| {
