@@ -45,12 +45,9 @@ impl<F: FieldExt> FullyConnectedChip<F> {
     let mut outp = vec![];
     for i in 0..input.shape()[0] {
       for j in 0..weight.shape()[1] {
-        let mut sum = input[[i, 0]].value().map(|x: &F| x.to_owned())
-          * weight[[0, j]].value().map(|x: &F| x.to_owned());
+        let mut sum = input[[i, 0]].value().map(|x: &F| *x) * weight[[0, j]].value();
         for k in 1..input.shape()[1] {
-          sum = sum
-            + input[[i, k]].value().map(|x: &F| x.to_owned())
-              * weight[[k, j]].value().map(|x: &F| x.to_owned());
+          sum = sum + input[[i, k]].value().map(|x: &F| *x) * weight[[k, j]].value();
         }
         outp.push(sum);
       }
@@ -123,7 +120,6 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
     let zero = constants.get(&0).unwrap();
 
     // Compute and assign the result
-    // This is due to complete fuckery in halo2
     let mm_result = layouter
       .assign_region(
         || "compute and assign mm",
@@ -266,6 +262,10 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
 
 impl<F: FieldExt> GadgetConsumer for FullyConnectedChip<F> {
   fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
-    vec![GadgetType::DotProduct, GadgetType::VarDivRound]
+    vec![
+      GadgetType::Adder,
+      GadgetType::DotProduct,
+      GadgetType::VarDivRound,
+    ]
   }
 }

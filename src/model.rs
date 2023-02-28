@@ -85,13 +85,15 @@ impl<F: FieldExt> ModelCircuit<F> {
         let mut cell_idx = 0;
         let mut assigned_tensors = vec![];
 
-        for (tensor_idx, tensor) in tensors {
+        for (tensor_idx, tensor) in tensors.iter() {
           let tensor_idx = *tensor_idx as usize;
           let mut flat = vec![];
           for val in tensor.iter() {
             let row_idx = cell_idx / columns.len();
             let col_idx = cell_idx % columns.len();
-            let cell = region.assign_advice(|| "assignment", columns[col_idx], row_idx, || *val)?;
+            let cell = region
+              .assign_advice(|| "assignment", columns[col_idx], row_idx, || val.clone())
+              .unwrap();
             flat.push(Rc::new(cell));
             cell_idx += 1;
           }
@@ -110,15 +112,14 @@ impl<F: FieldExt> ModelCircuit<F> {
     Ok(tensors)
   }
 
-  // FIXME: assign to public
   pub fn assign_constants(
     &self,
     mut layouter: impl Layouter<F>,
-    model_config: &ModelConfig<F>,
+    gadget_config: Rc<GadgetConfig>,
   ) -> Result<HashMap<i64, CellRc<F>>, Error> {
-    let sf = model_config.gadget_config.scale_factor;
-    let min_val = model_config.gadget_config.min_val;
-    let max_val = model_config.gadget_config.max_val;
+    let sf = gadget_config.scale_factor;
+    let min_val = gadget_config.min_val;
+    let max_val = gadget_config.max_val;
 
     let constants = layouter.assign_region(
       || "constants",
@@ -126,47 +127,48 @@ impl<F: FieldExt> ModelCircuit<F> {
         let mut constants: HashMap<i64, CellRc<F>> = HashMap::new();
         let zero = region.assign_fixed(
           || "zero",
-          model_config.gadget_config.fixed_columns[0],
+          gadget_config.fixed_columns[0],
           0,
           || Value::known(F::zero()),
         )?;
         let one = region.assign_fixed(
           || "one",
-          model_config.gadget_config.fixed_columns[0],
+          gadget_config.fixed_columns[0],
           1,
           || Value::known(F::one()),
         )?;
         let sf_cell = region.assign_fixed(
           || "sf",
-          model_config.gadget_config.fixed_columns[0],
+          gadget_config.fixed_columns[0],
           2,
           || Value::known(F::from(sf)),
         )?;
         let min_val_cell = region.assign_fixed(
           || "min_val",
-          model_config.gadget_config.fixed_columns[0],
+          gadget_config.fixed_columns[0],
           3,
           || Value::known(F::zero() - F::from((-min_val) as u64)),
         )?;
         // TODO: the table goes from min_val to max_val - 1... fix this
         let max_val_cell = region.assign_fixed(
           || "max_val",
-          model_config.gadget_config.fixed_columns[0],
+          gadget_config.fixed_columns[0],
           4,
           || Value::known(F::from((max_val - 1) as u64)),
         )?;
 
         // TODO: I've made some very bad life decisions
         // TOOD: read this from the config
-        let mut r = F::from(0x123456789abcdef);
+        let r_base = F::from(0x123456789abcdef);
+        let mut r = r_base.clone();
         for i in 0..NUM_RANDOMS {
           let rand = region.assign_fixed(
             || format!("rand_{}", i),
-            model_config.gadget_config.fixed_columns[0],
+            gadget_config.fixed_columns[0],
             (5 + i).try_into().unwrap(),
             || Value::known(r),
           )?;
-          r = r.square();
+          r = r * r_base;
           constants.insert(RAND_START_IDX + (i as i64), Rc::new(rand));
         }
 
@@ -419,7 +421,12 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
       &config.gadget_config.columns,
       &self.tensors,
     )?;
-    let constants = self.assign_constants(layouter.namespace(|| "constants"), &config)?;
+    let constants = self
+      .assign_constants(
+        layouter.namespace(|| "constants"),
+        config.gadget_config.clone(),
+      )
+      .unwrap();
 
     // Perform the dag
     let dag_chip = DAGLayerChip::<F>::construct(self.dag_config.clone());
