@@ -1,4 +1,4 @@
-# zkml-public
+# zkml
 
 `zkml` requires the nightly build of Rust:
 ```

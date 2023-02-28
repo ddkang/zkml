@@ -1,7 +1,17 @@
 [package]
 name = "zkml"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
+description = "Zero-knowledge machine learning"
+license = "LICENSE"
+homepage = "https://github.com/ddkang/zkml"
+repository = "https://github.com/ddkang/zkml-public.git"
+readme = "README.md"
+exclude = [
+  "params",
+  "params_kzg",
+  "python",
+]
 
 [profile.dev]
 opt-level = 3
