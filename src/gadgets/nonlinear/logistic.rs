@@ -11,8 +11,6 @@ use super::{
   non_linearity::NonLinearGadget,
 };
 
-const NUM_COLS_PER_OP: usize = 2;
-
 pub struct LogisticGadgetChip<F: FieldExt> {
   config: Rc<GadgetConfig>,
   _marker: PhantomData<F>,
@@ -66,15 +64,15 @@ impl<F: FieldExt> Gadget<F> for LogisticGadgetChip<F> {
   }
 
   fn num_cols_per_op(&self) -> usize {
-    NUM_COLS_PER_OP
+    <LogisticGadgetChip<F> as NonLinearGadget<F>>::num_cols_per_op()
   }
 
   fn num_inputs_per_row(&self) -> usize {
-    self.config.columns.len() / NUM_COLS_PER_OP
+    self.config.columns.len() / self.num_cols_per_op()
   }
 
   fn num_outputs_per_row(&self) -> usize {
-    self.config.columns.len() / NUM_COLS_PER_OP
+    self.config.columns.len() / self.num_cols_per_op()
   }
 
   fn load_lookups(&self, layouter: impl Layouter<F>) -> Result<(), Error> {

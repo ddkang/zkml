@@ -22,6 +22,10 @@ pub trait NonLinearGadget<F: FieldExt>: Gadget<F> {
 
   fn get_selector(&self) -> Selector;
 
+  fn num_cols_per_op() -> usize {
+    NUM_COLS_PER_OP
+  }
+
   fn configure(
     meta: &mut ConstraintSystem<F>,
     gadget_config: GadgetConfig,
