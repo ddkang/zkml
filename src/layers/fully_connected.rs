@@ -45,8 +45,9 @@ impl<F: FieldExt> FullyConnectedChip<F> {
     let mut outp = vec![];
     for i in 0..input.shape()[0] {
       for j in 0..weight.shape()[1] {
-        let mut sum = Value::known(F::zero());
-        for k in 0..input.shape()[1] {
+        let mut sum = input[[i, 0]].value().map(|x: &F| x.to_owned())
+          * weight[[0, j]].value().map(|x: &F| x.to_owned());
+        for k in 1..input.shape()[1] {
           sum = sum
             + input[[i, k]].value().map(|x: &F| x.to_owned())
               * weight[[k, j]].value().map(|x: &F| x.to_owned());
