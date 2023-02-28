@@ -8,7 +8,7 @@ use crate::gadgets::gadget::convert_to_u128;
 
 // TODO: this is very bad
 pub const RAND_START_IDX: i64 = i64::MIN;
-pub const NUM_RANDOMS: i64 = 10000;
+pub const NUM_RANDOMS: i64 = 20000;
 
 pub fn print_pos_int<F: FieldExt>(prefix: &str, x: Value<F>) {
   let bias = 1 << 60;
