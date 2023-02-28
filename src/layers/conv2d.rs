@@ -316,7 +316,7 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
           .iter()
           .flat_map(|x| x.iter())
           .cloned()
-          .collect();
+          .collect::<Vec<_>>();
 
         let conv_size = splat_inp[0].len();
         let out_channels = weights.shape()[0];

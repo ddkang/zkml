@@ -108,7 +108,7 @@ impl<F: FieldExt> Gadget<F> for DotProductChip<F> {
     let zero = &single_inputs[0];
 
     if USE_SELECTORS {
-      selector.enable(region, row_offset)?;
+      selector.enable(region, row_offset).unwrap();
     }
 
     let inp_cols = DotProductChip::<F>::get_input_columns(&self.config);
@@ -116,38 +116,44 @@ impl<F: FieldExt> Gadget<F> for DotProductChip<F> {
       .iter()
       .enumerate()
       .map(|(i, cell)| cell.copy_advice(|| "", region, inp_cols[i], row_offset))
-      .collect::<Result<Vec<_>, _>>()?;
+      .collect::<Result<Vec<_>, _>>()
+      .unwrap();
 
     let weight_cols = DotProductChip::<F>::get_weight_columns(&self.config);
     weights
       .iter()
       .enumerate()
       .map(|(i, cell)| cell.copy_advice(|| "", region, weight_cols[i], row_offset))
-      .collect::<Result<Vec<_>, _>>()?;
+      .collect::<Result<Vec<_>, _>>()
+      .unwrap();
 
     // All columns need to be assigned
     if self.config.columns.len() % 2 == 0 {
-      zero.copy_advice(
-        || "",
-        region,
-        self.config.columns[self.config.columns.len() - 2],
-        row_offset,
-      )?;
+      zero
+        .copy_advice(
+          || "",
+          region,
+          self.config.columns[self.config.columns.len() - 2],
+          row_offset,
+        )
+        .unwrap();
     }
 
     let e = inp
       .iter()
       .zip(weights.iter())
-      .map(|(a, b)| a.value().map(|x: &F| x.to_owned()) * b.value().map(|x: &F| x.to_owned()))
+      .map(|(a, b)| a.value().map(|x: &F| *x) * b.value())
       .reduce(|a, b| a + b)
       .unwrap();
 
-    let res = region.assign_advice(
-      || "",
-      self.config.columns[self.config.columns.len() - 1],
-      row_offset,
-      || e,
-    )?;
+    let res = region
+      .assign_advice(
+        || "",
+        self.config.columns[self.config.columns.len() - 1],
+        row_offset,
+        || e,
+      )
+      .unwrap();
 
     Ok(vec![res])
   }
@@ -169,28 +175,36 @@ impl<F: FieldExt> Gadget<F> for DotProductChip<F> {
       weights.push(&zero);
     }
 
-    let outputs = layouter.assign_region(
-      || "dot prod rows",
-      |mut region| {
-        let mut outputs = vec![];
-        for i in 0..inputs.len() / self.num_inputs_per_row() {
-          let inp =
-            inputs[i * self.num_inputs_per_row()..(i + 1) * self.num_inputs_per_row()].to_vec();
-          let weights =
-            weights[i * self.num_inputs_per_row()..(i + 1) * self.num_inputs_per_row()].to_vec();
-          let res = self.op_row_region(&mut region, i, &vec![inp, weights], &vec![zero.clone()])?;
-          outputs.push(res[0].clone());
-        }
-        Ok(outputs)
-      },
-    )?;
+    let outputs = layouter
+      .assign_region(
+        || "dot prod rows",
+        |mut region| {
+          let mut outputs = vec![];
+          for i in 0..inputs.len() / self.num_inputs_per_row() {
+            let inp =
+              inputs[i * self.num_inputs_per_row()..(i + 1) * self.num_inputs_per_row()].to_vec();
+            let weights =
+              weights[i * self.num_inputs_per_row()..(i + 1) * self.num_inputs_per_row()].to_vec();
+            let res = self
+              .op_row_region(&mut region, i, &vec![inp, weights], &vec![zero.clone()])
+              .unwrap();
+            outputs.push(res[0].clone());
+          }
+          Ok(outputs)
+        },
+      )
+      .unwrap();
 
     let adder_chip = AdderChip::<F>::construct(self.config.clone());
     let tmp = outputs.iter().map(|x| x).collect::<Vec<_>>();
-    Ok(adder_chip.forward(
-      layouter.namespace(|| "dot prod adder"),
-      &vec![tmp],
-      single_inputs,
-    )?)
+    Ok(
+      adder_chip
+        .forward(
+          layouter.namespace(|| "dot prod adder"),
+          &vec![tmp],
+          single_inputs,
+        )
+        .unwrap(),
+    )
   }
 }
