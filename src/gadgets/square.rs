@@ -7,8 +7,6 @@ use halo2_proofs::{
   poly::Rotation,
 };
 
-use crate::gadgets::gadget::USE_SELECTORS;
-
 use super::gadget::{Gadget, GadgetConfig, GadgetType};
 
 pub struct SquareGadgetChip<F: FieldExt> {
@@ -76,7 +74,7 @@ impl<F: FieldExt> Gadget<F> for SquareGadgetChip<F> {
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     assert_eq!(vec_inputs.len(), 1);
 
-    if USE_SELECTORS {
+    if self.config.use_selectors {
       let selector = self.config.selectors.get(&GadgetType::Square).unwrap()[0];
       selector.enable(region, row_offset)?;
     }

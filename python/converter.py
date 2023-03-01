@@ -24,11 +24,12 @@ def get_inputs(op: tflite.Operator):
   return idxes
 
 class Converter:
-  def __init__(self, model_path, scale_factor, k, num_cols):
+  def __init__(self, model_path, scale_factor, k, num_cols, use_selectors):
     self.model_path = model_path
     self.scale_factor = scale_factor
     self.k = k
     self.num_cols = num_cols
+    self.use_selectors = use_selectors
 
     self.interpreter = tf.lite.Interpreter(
       model_path=self.model_path,
@@ -289,6 +290,7 @@ class Converter:
         'out_shapes': [get_shape(interpreter, op.Outputs(i)) for i in range(op.OutputsLength())],
         'params': params,
         'mask': mask,
+        'use_selectors': self.use_selectors,
       })
     print(layers)
     print()
@@ -351,7 +353,7 @@ class Converter:
     print(d['out_idxes'])
     return d
 
-  def to_msgpack(self, inps, start_layer, end_layer):
+  def to_msgpack(self, inps, start_layer, end_layer, use_selectors=True):
     d = self.to_dict(inps, start_layer, end_layer)
     return msgpack.packb(d, use_bin_type=True)
 
@@ -361,6 +363,7 @@ def main():
   parser.add_argument('--model', type=str, required=True)
   parser.add_argument('--input_shapes', type=str, required=True)
   parser.add_argument('--output', type=str, required=True)
+  parser.add_argument('--use_selectors', action=argparse.BooleanOptionalAction, required=False, default=True)
   parser.add_argument('--scale_factor', type=int, default=2**16)
   parser.add_argument('--k', type=int, default=19)
   parser.add_argument('--num_cols', type=int, default=6)
@@ -368,14 +371,23 @@ def main():
   parser.add_argument('--end_layer', type=int, default=10000)
   args = parser.parse_args()
 
-  converter = Converter(args.model, args.scale_factor, args.k, args.num_cols)
-  # inp_shape = [int(x) for x in args.input_shape.split(',')]
-  # inps = [np.zeros(inp_shape, dtype=np.float32)]
+  converter = Converter(
+    args.model,
+    args.scale_factor,
+    args.k,
+    args.num_cols,
+    args.use_selectors,
+  )
 
+  # TODO: remove this
   inp_shapes = ast.literal_eval(args.input_shapes)
   inps = [np.zeros(inp_shape, dtype=np.float32) for inp_shape in inp_shapes]
   print(inp_shapes)
-  packed = converter.to_msgpack(inps, start_layer=args.start_layer, end_layer=args.end_layer)
+  packed = converter.to_msgpack(
+    inps,
+    start_layer=args.start_layer,
+    end_layer=args.end_layer,
+  )
   if packed is None:
     raise Exception('Failed to convert model')
 

@@ -29,6 +29,7 @@ pub struct ModelMsgpack {
   pub out_idxes: Vec<i64>,
   pub tensors: Vec<TensorMsgpack>,
   pub layers: Vec<LayerMsgpack>,
+  pub use_selectors: Option<bool>,
 }
 
 pub fn load_model_msgpack(config_path: &str, inp_path: &str) -> ModelMsgpack {
@@ -45,5 +46,11 @@ pub fn load_model_msgpack(config_path: &str, inp_path: &str) -> ModelMsgpack {
   for tensor in inp {
     model.tensors.push(tensor);
   }
+
+  // Default to using selectors if use_selectors is not specified
+  if model.use_selectors.is_none() {
+    model.use_selectors = Some(true)
+  };
+
   model
 }

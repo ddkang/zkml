@@ -11,9 +11,6 @@ use halo2_proofs::{
 use num_bigint::{BigUint, ToBigUint};
 use num_traits::cast::ToPrimitive;
 
-// FIXME: how to enable this?
-pub const USE_SELECTORS: bool = false;
-
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
 pub enum GadgetType {
   AddPairs,
@@ -49,6 +46,7 @@ pub struct GadgetConfig {
   pub min_val: i64,
   pub max_val: i64,
   pub div_outp_min_val: i64,
+  pub use_selectors: bool,
 }
 
 // TODO: refactor
