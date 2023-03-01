@@ -73,7 +73,7 @@ class Converter:
     else:
       return ('Add', [])
 
-  def to_dict(self, inps, start_layer, end_layer):
+  def to_dict(self, start_layer, end_layer):
     interpreter = self.interpreter
     model = self.model
     graph = self.graph
@@ -83,8 +83,11 @@ class Converter:
     input_details = interpreter.get_input_details()
     # output_details = interpreter.get_output_details()
 
-    for i, inp in enumerate(inps):
-      interpreter.set_tensor(input_details[i]['index'], inp)
+    for inp_detail in input_details:
+      inp = np.zeros(inp_detail['shape'], dtype=inp_detail['dtype'])
+      interpreter.set_tensor(inp_detail['index'], inp)
+    # for i, inp in enumerate(inps):
+    #   interpreter.set_tensor(input_details[i]['index'], inp)
     interpreter.invoke()
 
     # Get layers
@@ -353,15 +356,14 @@ class Converter:
     print(d['out_idxes'])
     return d
 
-  def to_msgpack(self, inps, start_layer, end_layer, use_selectors=True):
-    d = self.to_dict(inps, start_layer, end_layer)
+  def to_msgpack(self, start_layer, end_layer, use_selectors=True):
+    d = self.to_dict(start_layer, end_layer)
     return msgpack.packb(d, use_bin_type=True)
 
 
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--model', type=str, required=True)
-  parser.add_argument('--input_shapes', type=str, required=True)
   parser.add_argument('--output', type=str, required=True)
   parser.add_argument('--use_selectors', action=argparse.BooleanOptionalAction, required=False, default=True)
   parser.add_argument('--scale_factor', type=int, default=2**16)
@@ -379,12 +381,7 @@ def main():
     args.use_selectors,
   )
 
-  # TODO: remove this
-  inp_shapes = ast.literal_eval(args.input_shapes)
-  inps = [np.zeros(inp_shape, dtype=np.float32) for inp_shape in inp_shapes]
-  print(inp_shapes)
   packed = converter.to_msgpack(
-    inps,
     start_layer=args.start_layer,
     end_layer=args.end_layer,
   )
