@@ -77,7 +77,7 @@ impl<F: FieldExt> Gadget<F> for AdderChip<F> {
     region: &mut Region<F>,
     row_offset: usize,
     vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    _single_inputs: &Vec<AssignedCell<F, F>>,
+    _single_inputs: &Vec<&AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     assert_eq!(vec_inputs.len(), 1);
     let inp = &vec_inputs[0];
@@ -110,7 +110,7 @@ impl<F: FieldExt> Gadget<F> for AdderChip<F> {
     &self,
     mut layouter: impl Layouter<F>,
     vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    single_inputs: &Vec<AssignedCell<F, F>>,
+    single_inputs: &Vec<&AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     assert_eq!(single_inputs.len(), 1);
 

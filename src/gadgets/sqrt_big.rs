@@ -123,7 +123,7 @@ impl<F: FieldExt> Gadget<F> for SqrtBigChip<F> {
     region: &mut Region<F>,
     row_offset: usize,
     vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    _single_inputs: &Vec<AssignedCell<F, F>>,
+    _single_inputs: &Vec<&AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     let inps = &vec_inputs[0];
 
@@ -179,7 +179,7 @@ impl<F: FieldExt> Gadget<F> for SqrtBigChip<F> {
     &self,
     mut layouter: impl Layouter<F>,
     vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    single_inputs: &Vec<AssignedCell<F, F>>,
+    single_inputs: &Vec<&AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     let zero = &single_inputs[0];
 
@@ -193,7 +193,7 @@ impl<F: FieldExt> Gadget<F> for SqrtBigChip<F> {
     let outp = self.op_aligned_rows(
       layouter.namespace(|| format!("forward row {}", self.name())),
       &vec_inputs,
-      &single_inputs,
+      single_inputs,
     )?;
 
     Ok(outp[0..inp_len].to_vec())

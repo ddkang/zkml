@@ -116,7 +116,7 @@ pub trait NonLinearGadget<F: FieldExt>: Gadget<F> {
     region: &mut Region<F>,
     row_offset: usize,
     vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    _single_inputs: &Vec<AssignedCell<F, F>>,
+    _single_inputs: &Vec<&AssignedCell<F, F>>,
     gadget_config: Rc<GadgetConfig>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     let columns = &gadget_config.columns;
@@ -154,7 +154,7 @@ pub trait NonLinearGadget<F: FieldExt>: Gadget<F> {
     &self,
     mut layouter: impl Layouter<F>,
     vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    single_inputs: &Vec<AssignedCell<F, F>>,
+    single_inputs: &Vec<&AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     let zero = &single_inputs[0];
     let inp_len = vec_inputs[0].len();

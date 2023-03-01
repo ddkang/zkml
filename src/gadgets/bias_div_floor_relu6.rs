@@ -152,7 +152,7 @@ impl<F: FieldExt> Gadget<F> for BiasDivFloorRelu6Chip<F> {
     region: &mut Region<F>,
     row_offset: usize,
     vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    _single_inputs: &Vec<AssignedCell<F, F>>,
+    _single_inputs: &Vec<&AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     let div_val = self.config.scale_factor as i64;
 
@@ -261,7 +261,7 @@ impl<F: FieldExt> Gadget<F> for BiasDivFloorRelu6Chip<F> {
     &self,
     mut layouter: impl Layouter<F>,
     vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    single_inputs: &Vec<AssignedCell<F, F>>,
+    single_inputs: &Vec<&AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     let mut inps = vec_inputs[0].clone();
     let mut biases = vec_inputs[1].clone();

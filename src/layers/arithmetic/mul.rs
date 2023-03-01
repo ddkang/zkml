@@ -29,7 +29,7 @@ impl<F: FieldExt> Arithmetic<F> for MulChip {
     &self,
     mut layouter: impl Layouter<F>,
     vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    constants: &Vec<AssignedCell<F, F>>,
+    constants: &Vec<&AssignedCell<F, F>>,
     gadget_config: Rc<GadgetConfig>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     let mul_pairs_chip = MulPairsChip::<F>::construct(gadget_config.clone());
@@ -37,7 +37,7 @@ impl<F: FieldExt> Arithmetic<F> for MulChip {
     let out = mul_pairs_chip.forward(
       layouter.namespace(|| "mul pairs chip"),
       &vec_inputs,
-      &constants,
+      constants,
     )?;
     Ok(out)
   }
@@ -61,9 +61,12 @@ impl<F: FieldExt> Layer<F> for MulChip {
     )?;
 
     let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
-    let div = constants.get(&(gadget_config.scale_factor as i64)).unwrap();
-    let zero = constants.get(&0).unwrap();
-    let single_inputs = vec![(**zero).clone(), (**div).clone()];
+    let div = constants
+      .get(&(gadget_config.scale_factor as i64))
+      .unwrap()
+      .as_ref();
+    let zero = constants.get(&0).unwrap().as_ref();
+    let single_inputs = vec![zero, div];
     let out = out.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
     let out = var_div_chip.forward(
       layouter.namespace(|| "average div"),

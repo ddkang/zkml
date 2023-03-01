@@ -26,12 +26,12 @@ impl<F: FieldExt> Layer<F> for SquareChip {
     assert_eq!(tensors.len(), 1);
 
     let inp = &tensors[0];
-    let zero = constants.get(&0).unwrap();
+    let zero = constants.get(&0).unwrap().as_ref();
 
     let square_chip = SquareGadgetChip::<F>::construct(gadget_config.clone());
     let inp_vec = inp.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
     let vec_inputs = vec![inp_vec];
-    let single_inps = vec![(**zero).clone()];
+    let single_inps = vec![zero];
     let out = square_chip.forward(
       layouter.namespace(|| "square chip"),
       &vec_inputs,
@@ -39,8 +39,11 @@ impl<F: FieldExt> Layer<F> for SquareChip {
     )?;
 
     let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
-    let div = constants.get(&(gadget_config.scale_factor as i64)).unwrap();
-    let single_inps = vec![(**zero).clone(), (**div).clone()];
+    let div = constants
+      .get(&(gadget_config.scale_factor as i64))
+      .unwrap()
+      .as_ref();
+    let single_inps = vec![zero, div];
     let out = out.iter().collect::<Vec<_>>();
     let vec_inputs = vec![out];
     let out = var_div_chip.forward(

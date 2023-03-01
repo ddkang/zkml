@@ -28,11 +28,11 @@ impl<F: FieldExt> Arithmetic<F> for AddChip {
     &self,
     mut layouter: impl Layouter<F>,
     vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    constants: &Vec<AssignedCell<F, F>>,
+    constants: &Vec<&AssignedCell<F, F>>,
     gadget_config: Rc<GadgetConfig>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     let add_pairs_chip = AddPairsChip::<F>::construct(gadget_config);
-    let out = add_pairs_chip.forward(layouter.namespace(|| "add chip"), &vec_inputs, &constants)?;
+    let out = add_pairs_chip.forward(layouter.namespace(|| "add chip"), &vec_inputs, constants)?;
     Ok(out)
   }
 }
