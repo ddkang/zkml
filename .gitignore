@@ -13,3 +13,5 @@ Cargo.lock
 .vscode
 
 **/.DS_Store
+*.swp
+proof_size_check

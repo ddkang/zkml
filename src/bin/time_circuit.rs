@@ -1,4 +1,4 @@
-use halo2_proofs::{dev::MockProver, halo2curves::bn256::Fr};
+use halo2_proofs::halo2curves::bn256::Fr;
 use zkml::{
   model::ModelCircuit,
   utils::{
@@ -15,9 +15,5 @@ fn main() {
 
   let circuit = ModelCircuit::<Fr>::generate_from_file(&config_fname, &inp_fname);
 
-  let outp = vec![];
-  let prover = MockProver::run(config.k.try_into().unwrap(), &circuit, vec![outp.clone()]).unwrap();
-  assert_eq!(prover.verify(), Ok(()));
-
-  // time_circuit_kzg(circuit, config);
+  time_circuit_kzg(circuit, config);
 }
