@@ -17,9 +17,10 @@ cd zkml
 rustup override set nightly
 cargo build --release
 mkdir params_kzg
+mkdir params_ipa
 
 # This should take ~16s to run the first time and ~8s to run the second time
-./target/release/time_circuit examples/mnist/model.msgpack examples/mnist/inp.msgpack
+./target/release/time_circuit examples/mnist/model.msgpack examples/mnist/inp.msgpack kzg
 ```
 
 This will prove an MNIST circuit! It will require around 5GB of memory and take around 16 seconds to

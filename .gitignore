@@ -15,3 +15,5 @@ Cargo.lock
 **/.DS_Store
 *.swp
 proof_size_check
+params_kzg
+params_ipa
