@@ -7,7 +7,7 @@ use halo2_proofs::{
   poly::Rotation,
 };
 
-use crate::gadgets::gadget::{convert_to_u64, USE_SELECTORS};
+use crate::gadgets::gadget::convert_to_u64;
 
 use super::gadget::{Gadget, GadgetConfig, GadgetType};
 
@@ -128,7 +128,7 @@ impl<F: FieldExt> Gadget<F> for SqrtBigChip<F> {
     let inps = &vec_inputs[0];
 
     // TODO: selector
-    if USE_SELECTORS {
+    if self.config.use_selectors {
       let selector = self.config.selectors.get(&GadgetType::SqrtBig).unwrap()[0];
       selector.enable(region, row_offset)?;
     }

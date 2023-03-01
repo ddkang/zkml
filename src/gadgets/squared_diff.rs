@@ -7,8 +7,6 @@ use halo2_proofs::{
   poly::Rotation,
 };
 
-use crate::gadgets::gadget::USE_SELECTORS;
-
 use super::gadget::{Gadget, GadgetConfig, GadgetType};
 
 type SquaredDiffConfig = GadgetConfig;
@@ -89,10 +87,10 @@ impl<F: FieldExt> Gadget<F> for SquaredDiffGadgetChip<F> {
     let inp2 = &vec_inputs[1];
     assert_eq!(inp1.len(), inp2.len());
 
-    let selector = self.config.selectors.get(&GadgetType::SquaredDiff).unwrap()[0];
     let columns = &self.config.columns;
 
-    if USE_SELECTORS {
+    if self.config.use_selectors {
+      let selector = self.config.selectors.get(&GadgetType::SquaredDiff).unwrap()[0];
       selector.enable(region, row_offset)?;
     }
 

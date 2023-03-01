@@ -7,7 +7,7 @@ use halo2_proofs::{
   poly::Rotation,
 };
 
-use crate::gadgets::{adder::AdderChip, gadget::USE_SELECTORS};
+use crate::gadgets::adder::AdderChip;
 
 use super::gadget::{Gadget, GadgetConfig, GadgetType};
 
@@ -104,10 +104,10 @@ impl<F: FieldExt> Gadget<F> for DotProductChip<F> {
     assert_eq!(inp.len(), weights.len());
     assert_eq!(inp.len(), self.num_inputs_per_row());
 
-    let selector = self.config.selectors.get(&GadgetType::DotProduct).unwrap()[0];
     let zero = &single_inputs[0];
 
-    if USE_SELECTORS {
+    if self.config.use_selectors {
+      let selector = self.config.selectors.get(&GadgetType::DotProduct).unwrap()[0];
       selector.enable(region, row_offset).unwrap();
     }
 

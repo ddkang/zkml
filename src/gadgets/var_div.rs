@@ -8,7 +8,7 @@ use halo2_proofs::{
 };
 use rounded_div::RoundedDiv;
 
-use super::gadget::{convert_to_u128, Gadget, GadgetConfig, GadgetType, USE_SELECTORS};
+use super::gadget::{convert_to_u128, Gadget, GadgetConfig, GadgetType};
 
 type VarDivRoundConfig = GadgetConfig;
 
@@ -136,9 +136,8 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundChip<F> {
     let div_outp_min_val_i64 = self.config.div_outp_min_val;
     let div_inp_min_val_pos_i64 = -self.config.shift_min_val;
 
-    let selector = self.config.selectors.get(&GadgetType::VarDivRound).unwrap()[0];
-
-    if USE_SELECTORS {
+    if self.config.use_selectors {
+      let selector = self.config.selectors.get(&GadgetType::VarDivRound).unwrap()[0];
       selector.enable(region, row_offset)?;
     }
 

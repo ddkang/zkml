@@ -7,7 +7,7 @@ use halo2_proofs::{
   poly::Rotation,
 };
 
-use crate::gadgets::gadget::{convert_to_u64, USE_SELECTORS};
+use crate::gadgets::gadget::convert_to_u64;
 
 use super::gadget::{Gadget, GadgetConfig, GadgetType};
 
@@ -196,18 +196,18 @@ impl<F: FieldExt> Gadget<F> for BiasDivRoundRelu6Chip<F> {
     assert_eq!(inp.len(), bias.len());
     assert_eq!(inp.len() % self.num_inputs_per_row(), 0);
 
-    let selector = self
-      .config
-      .selectors
-      .get(&GadgetType::BiasDivRoundRelu6)
-      .unwrap()[0];
     let relu_map = &self
       .config
       .maps
       .get(&GadgetType::BiasDivRoundRelu6)
       .unwrap()[0];
 
-    if USE_SELECTORS {
+    if self.config.use_selectors {
+      let selector = self
+        .config
+        .selectors
+        .get(&GadgetType::BiasDivRoundRelu6)
+        .unwrap()[0];
       selector.enable(region, row_offset).unwrap();
     }
 

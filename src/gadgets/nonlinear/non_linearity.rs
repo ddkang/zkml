@@ -9,7 +9,7 @@ use halo2_proofs::{
 
 use crate::gadgets::gadget::convert_to_u128;
 
-use super::super::gadget::{Gadget, USE_SELECTORS};
+use super::super::gadget::Gadget;
 use super::super::gadget::{GadgetConfig, GadgetType};
 
 const NUM_COLS_PER_OP: usize = 2;
@@ -126,7 +126,7 @@ pub trait NonLinearGadget<F: FieldExt>: Gadget<F> {
     let shift_val_pos = F::from(shift_val_pos_i64 as u64);
     let min_val = gadget_config.min_val;
 
-    if USE_SELECTORS {
+    if gadget_config.use_selectors {
       let selector = self.get_selector();
       selector.enable(region, row_offset)?;
     }
