@@ -8,7 +8,7 @@ use crate::gadgets::{
   nonlinear::rsqrt::RsqrtGadgetChip,
 };
 
-use super::layer::{AssignedTensor, CellRc, Layer, LayerConfig, GadgetConsumer};
+use super::layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig};
 
 #[derive(Clone, Debug)]
 pub struct RsqrtChip {}
@@ -32,30 +32,29 @@ impl<F: FieldExt> Layer<F> for RsqrtChip {
     }
 
     let min_val = gadget_config.min_val;
-    let min_val = constants.get(&min_val).unwrap();
+    let min_val = constants.get(&min_val).unwrap().as_ref();
     let max_val = gadget_config.max_val;
-    let max_val = constants.get(&max_val).unwrap();
+    let max_val = constants.get(&max_val).unwrap().as_ref();
     for (i, val) in inp.iter().enumerate() {
       let i = i as i64;
       if mask_map.contains_key(&i) {
         let mask_val = *mask_map.get(&i).unwrap();
         if mask_val == 1 {
-          inp_vec.push(max_val.clone());
+          inp_vec.push(max_val);
         } else if mask_val == -1 {
-          inp_vec.push(min_val.clone());
+          inp_vec.push(min_val);
         } else {
           panic!();
         }
       } else {
-        inp_vec.push(val.clone());
+        inp_vec.push(val.as_ref());
       }
     }
-    let inp_vec = inp_vec.iter().map(|x| x.as_ref()).collect();
 
-    let zero = constants.get(&0).unwrap();
+    let zero = constants.get(&0).unwrap().as_ref();
     let rsqrt_chip = RsqrtGadgetChip::<F>::construct(gadget_config.clone());
     let vec_inps = vec![inp_vec];
-    let constants = vec![(**zero).clone(), (**min_val).clone(), (**max_val).clone()];
+    let constants = vec![zero, min_val, max_val];
     let out = rsqrt_chip.forward(layouter.namespace(|| "rsqrt chip"), &vec_inps, &constants)?;
 
     let out = out.into_iter().map(|x| Rc::new(x)).collect::<Vec<_>>();

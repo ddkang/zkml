@@ -95,7 +95,7 @@ impl<F: FieldExt> Gadget<F> for DotProductChip<F> {
     region: &mut Region<F>,
     row_offset: usize,
     vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    single_inputs: &Vec<AssignedCell<F, F>>,
+    single_inputs: &Vec<&AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     assert_eq!(vec_inputs.len(), 2);
 
@@ -162,7 +162,7 @@ impl<F: FieldExt> Gadget<F> for DotProductChip<F> {
     &self,
     mut layouter: impl Layouter<F>,
     vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    single_inputs: &Vec<AssignedCell<F, F>>,
+    single_inputs: &Vec<&AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     assert_eq!(vec_inputs.len(), 2);
     assert_eq!(single_inputs.len(), 1);

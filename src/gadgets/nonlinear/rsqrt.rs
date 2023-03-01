@@ -84,7 +84,7 @@ impl<F: FieldExt> Gadget<F> for RsqrtGadgetChip<F> {
     region: &mut Region<F>,
     row_offset: usize,
     vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    single_inputs: &Vec<AssignedCell<F, F>>,
+    single_inputs: &Vec<&AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     NonLinearGadget::op_row_region(
       self,
@@ -100,7 +100,7 @@ impl<F: FieldExt> Gadget<F> for RsqrtGadgetChip<F> {
     &self,
     layouter: impl halo2_proofs::circuit::Layouter<F>,
     vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    single_inputs: &Vec<AssignedCell<F, F>>,
+    single_inputs: &Vec<&AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     NonLinearGadget::forward(self, layouter, vec_inputs, single_inputs)
   }

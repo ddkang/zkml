@@ -350,7 +350,7 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
           let inp_vec = inp_vec.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
           let weight_vec = weight_vec.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
           let vec_inputs = vec![inp_vec.clone(), weight_vec.clone()];
-          let constants = vec![(**zero).clone()];
+          let constants = vec![zero.as_ref()];
           let outp = dot_prod_chip
             .forward(layouter.namespace(|| "dot_prod"), &vec_inputs, &constants)
             .unwrap();
@@ -369,7 +369,7 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
 
     // Compute the bias + div + relu
     let bdr_chip = BiasDivRoundRelu6Chip::<F>::construct(gadget_config.clone());
-    let tmp = vec![(**zero).clone()];
+    let tmp = vec![zero.as_ref()];
     let outp_flat = outp_flat.iter().map(|x| x).collect::<Vec<_>>();
     let outp = bdr_chip
       .forward(

@@ -8,7 +8,7 @@ use crate::gadgets::{
   nonlinear::logistic::LogisticGadgetChip,
 };
 
-use super::layer::{AssignedTensor, CellRc, Layer, LayerConfig, GadgetConsumer};
+use super::layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig};
 
 #[derive(Clone, Debug)]
 pub struct LogisticChip {}
@@ -24,11 +24,11 @@ impl<F: FieldExt> Layer<F> for LogisticChip {
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let inp = &tensors[0];
     let inp_vec = inp.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
-    let zero = constants.get(&0).unwrap();
+    let zero = constants.get(&0).unwrap().as_ref();
 
     let logistic_chip = LogisticGadgetChip::<F>::construct(gadget_config.clone());
     let vec_inps = vec![inp_vec];
-    let constants = vec![(**zero).clone()];
+    let constants = vec![zero];
     let out = logistic_chip.forward(
       layouter.namespace(|| "logistic chip"),
       &vec_inps,

@@ -82,7 +82,7 @@ impl<F: FieldExt> Gadget<F> for MulPairsChip<F> {
     region: &mut Region<F>,
     row_offset: usize,
     vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    _single_inputs: &Vec<AssignedCell<F, F>>,
+    _single_inputs: &Vec<&AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     let inp1 = &vec_inputs[0];
     let inp2 = &vec_inputs[1];
@@ -112,7 +112,7 @@ impl<F: FieldExt> Gadget<F> for MulPairsChip<F> {
     &self,
     mut layouter: impl Layouter<F>,
     vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    single_inputs: &Vec<AssignedCell<F, F>>,
+    single_inputs: &Vec<&AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     let zero = &single_inputs[0];
 
@@ -129,7 +129,7 @@ impl<F: FieldExt> Gadget<F> for MulPairsChip<F> {
     let res = self.op_aligned_rows(
       layouter.namespace(|| format!("forward row {}", self.name())),
       &vec_inputs,
-      &single_inputs,
+      single_inputs,
     )?;
     Ok(res[0..initial_len].to_vec())
   }

@@ -33,13 +33,13 @@ pub trait Averager<F: FieldExt> {
   ) -> Result<Vec<CellRc<F>>, Error> {
     // Due to Mean BS
     // assert_eq!(tensors.len(), 1);
-    let zero = constants.get(&0).unwrap();
+    let zero = constants.get(&0).unwrap().as_ref();
 
     let inp = &tensors[0];
     let splat_inp = self.splat(inp, layer_config);
 
     let adder_chip = AdderChip::<F>::construct(gadget_config.clone());
-    let single_inputs = vec![(**zero).clone()];
+    let single_inputs = vec![zero];
     let mut added = vec![];
     for i in 0..splat_inp.len() {
       let tmp = splat_inp[i].iter().map(|x| x.as_ref()).collect::<Vec<_>>();
@@ -59,7 +59,7 @@ pub trait Averager<F: FieldExt> {
     )?;
     let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
 
-    let single_inputs = vec![(**zero).clone(), div];
+    let single_inputs = vec![zero, &div];
     let added = added.iter().map(|x| x).collect::<Vec<_>>();
     let dived = var_div_chip.forward(
       layouter.namespace(|| "average div"),

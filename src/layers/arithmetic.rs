@@ -19,7 +19,7 @@ pub trait Arithmetic<F: FieldExt> {
     &self,
     layouter: impl Layouter<F>,
     vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    constants: &Vec<AssignedCell<F, F>>,
+    constants: &Vec<&AssignedCell<F, F>>,
     gadget_config: Rc<GadgetConfig>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error>;
 
@@ -36,12 +36,12 @@ pub trait Arithmetic<F: FieldExt> {
     let out_shape = inp1.shape().clone();
     assert_eq!(inp1.shape(), inp2.shape());
 
-    let zero = constants.get(&0).unwrap();
+    let zero = constants.get(&0).unwrap().as_ref();
 
     let inp1_vec = inp1.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
     let inp2_vec = inp2.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
     let vec_inputs = vec![inp1_vec, inp2_vec];
-    let constants = vec![(**zero).clone()];
+    let constants = vec![zero];
     let out = self.gadget_forward(
       layouter.namespace(|| ""),
       &vec_inputs,
