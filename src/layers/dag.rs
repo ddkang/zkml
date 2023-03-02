@@ -1,10 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 
-use halo2_proofs::{
-  circuit::{Layouter, Value},
-  halo2curves::FieldExt,
-  plonk::Error,
-};
+use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
 
 use crate::{
   gadgets::gadget::GadgetConfig,
@@ -23,7 +19,7 @@ use crate::{
     square::SquareChip,
     squared_diff::SquaredDiffChip,
   },
-  utils::helpers::{print_assigned_arr, NUM_RANDOMS, RAND_START_IDX},
+  utils::helpers::print_assigned_arr,
 };
 
 use super::{
@@ -52,93 +48,6 @@ impl<F: FieldExt> DAGLayerChip<F> {
       _marker: PhantomData,
     }
   }
-
-  // TODO: for some horrifying reason, assigning to fixed columns causes everything to blow up
-  // Currently get around this by assigning to advice columns
-  // This is secure because of the equality checks but EXTREMELY STUPID
-  pub fn assign_constants(
-    &self,
-    mut layouter: impl Layouter<F>,
-    gadget_config: Rc<GadgetConfig>,
-    fixed_constants: &HashMap<i64, CellRc<F>>,
-  ) -> Result<HashMap<i64, CellRc<F>>, Error> {
-    let sf = gadget_config.scale_factor;
-    let min_val = gadget_config.min_val;
-    let max_val = gadget_config.max_val;
-
-    let constants = layouter.assign_region(
-      || "constants",
-      |mut region| {
-        let mut constants: HashMap<i64, CellRc<F>> = HashMap::new();
-        let zero = region.assign_advice(
-          || "zero",
-          gadget_config.columns[0],
-          0,
-          || Value::known(F::zero()),
-        )?;
-        let one = region.assign_advice(
-          || "one",
-          gadget_config.columns[1],
-          0,
-          || Value::known(F::one()),
-        )?;
-        let sf_cell = region.assign_advice(
-          || "sf",
-          gadget_config.columns[2],
-          0,
-          || Value::known(F::from(sf)),
-        )?;
-        let min_val_cell = region.assign_advice(
-          || "min_val",
-          gadget_config.columns[3],
-          0,
-          || Value::known(F::zero() - F::from((-min_val) as u64)),
-        )?;
-        // TODO: the table goes from min_val to max_val - 1... fix this
-        let max_val_cell = region.assign_advice(
-          || "max_val",
-          gadget_config.columns[0],
-          4,
-          || Value::known(F::from((max_val - 1) as u64)),
-        )?;
-
-        // TODO: I've made some very bad life decisions
-        // TOOD: read this from the config
-        let r_base = F::from(0x123456789abcdef);
-        let mut r = r_base.clone();
-        for i in 0..NUM_RANDOMS {
-          let assignment_idx = (5 + i) as usize;
-          let row_idx = assignment_idx / gadget_config.columns.len();
-          let col_idx = assignment_idx % gadget_config.columns.len();
-          let rand = region.assign_advice(
-            || format!("rand_{}", i),
-            gadget_config.columns[col_idx],
-            row_idx,
-            || Value::known(r),
-          )?;
-          r = r * r_base;
-          constants.insert(RAND_START_IDX + (i as i64), Rc::new(rand));
-        }
-
-        constants.insert(0, Rc::new(zero));
-        constants.insert(1, Rc::new(one));
-        constants.insert(sf as i64, Rc::new(sf_cell));
-        constants.insert(min_val, Rc::new(min_val_cell));
-        constants.insert(max_val, Rc::new(max_val_cell));
-
-        for (k, v) in fixed_constants.iter() {
-          // This particular equality check fails... figure out why...
-          if (*k) == max_val {
-            continue;
-          }
-          let v2 = constants.get(k).unwrap();
-          region.constrain_equal(v.cell(), v2.cell()).unwrap();
-        }
-        Ok(constants)
-      },
-    )?;
-    Ok(constants)
-  }
 }
 
 // IMPORTANT: Assumes input tensors are in order. Output tensors can be in any order.
@@ -156,16 +65,6 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
 
     // Reveal/commit to inputs
     // TODO
-
-    // Some halo2 cancer
-    let constants_base = self
-      .assign_constants(
-        layouter.namespace(|| "constants"),
-        gadget_config.clone(),
-        constants,
-      )
-      .unwrap();
-    let constants = &constants_base;
 
     // Tensor map
     let mut tensor_map = HashMap::new();

@@ -119,7 +119,7 @@ impl<F: FieldExt> PackerChip<F> {
     &self,
     mut layouter: impl Layouter<F>,
     values: Vec<F>,
-    zero: AssignedCell<F, F>,
+    zero: &AssignedCell<F, F>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     let columns = &self.gadget_config.columns;
     let selector = self
@@ -179,7 +179,7 @@ impl<F: FieldExt> PackerChip<F> {
     &self,
     mut layouter: impl Layouter<F>,
     values: Vec<F>,
-    zero: AssignedCell<F, F>,
+    zero: &AssignedCell<F, F>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     let mut packed = vec![];
 
@@ -187,7 +187,7 @@ impl<F: FieldExt> PackerChip<F> {
     for i in 0..(values.len().div_ceil(num_elems_per_row)) {
       let row =
         values[i * num_elems_per_row..min((i + 1) * num_elems_per_row, values.len())].to_vec();
-      packed.append(&mut self.pack_row(layouter.namespace(|| "pack row"), row, zero.clone())?);
+      packed.append(&mut self.pack_row(layouter.namespace(|| "pack row"), row, zero)?);
     }
 
     Ok(packed)
