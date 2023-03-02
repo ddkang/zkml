@@ -5,7 +5,7 @@ use halo2_proofs::{
   halo2curves::FieldExt,
   plonk::{Advice, Column, Error},
 };
-use ndarray::{Array, Axis, IxDyn};
+use ndarray::{Array, ArrayView, Axis, IxDyn};
 
 use crate::{
   gadgets::{
@@ -35,7 +35,8 @@ pub struct FullyConnectedChip<F: FieldExt> {
 
 impl<F: FieldExt> FullyConnectedChip<F> {
   pub fn compute_mm(
-    input: &AssignedTensor<F>,
+    // input: &AssignedTensor<F>,
+    input: &ArrayView<CellRc<F>, IxDyn>,
     weight: &AssignedTensor<F>,
   ) -> Array<Value<F>, IxDyn> {
     assert_eq!(input.ndim(), 2);
@@ -107,14 +108,10 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let input = &tensors[0];
     let ndim = input.ndim();
-    let shape = input.shape().clone();
     let input = if ndim == 2 {
-      input.clone().into_owned()
+      ArrayView::from(input)
     } else {
-      input
-        .clone()
-        .into_shape(IxDyn(&[shape[1], shape[2]]))
-        .unwrap()
+      input.index_axis(Axis(0), 0)
     };
     let weight = &tensors[1].t().into_owned();
     let zero = constants.get(&0).unwrap().as_ref();
@@ -147,7 +144,7 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
     println!("r2_ref: {:?}", r2_ref.len());
     println!("mm_result: {:?}", mm_result.shape());
     for i in 0..mm_result.shape()[1] {
-      let tmp = mm_result.index_axis(Axis(1), i).clone();
+      let tmp = mm_result.index_axis(Axis(1), i);
       let mm_ci = tmp.iter().collect::<Vec<_>>();
       let r1_res_i = dot_prod_chip
         .forward(
@@ -176,7 +173,7 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
     println!("input: {:?}", input.shape());
     println!("r1_ref: {:?}", r1_ref.len());
     for i in 0..input.shape()[1] {
-      let tmp = input.index_axis(Axis(1), i).clone();
+      let tmp = input.index_axis(Axis(1), i);
       let input_ci = tmp.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
       let r1_input_i = dot_prod_chip
         .forward(
@@ -191,7 +188,7 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
     // Compute weight * r2
     let mut weight_r2 = vec![];
     for i in 0..weight.shape()[0] {
-      let tmp = weight.index_axis(Axis(0), i).clone();
+      let tmp = weight.index_axis(Axis(0), i);
       let weight_ci = tmp.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
       let weight_r2_i = dot_prod_chip
         .forward(
@@ -236,6 +233,7 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
       .unwrap();
 
     // TODO: bias, division, activation
+    let shape = mm_result.raw_dim();
     let final_result_flat = if self.config.normalize {
       let mm_flat = mm_result.iter().collect::<Vec<_>>();
       let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
@@ -253,11 +251,11 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
       mm_div.into_iter().map(|x| Rc::new(x)).collect::<Vec<_>>()
     } else {
       mm_result
-        .iter()
-        .map(|x| Rc::new(x.clone()))
+        .into_iter()
+        .map(|x| Rc::new(x))
         .collect::<Vec<_>>()
     };
-    let final_result = Array::from_shape_vec(IxDyn(mm_result.shape()), final_result_flat).unwrap();
+    let final_result = Array::from_shape_vec(shape, final_result_flat).unwrap();
 
     Ok(vec![final_result])
   }

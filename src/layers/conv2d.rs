@@ -311,14 +311,13 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
           config: FullyConnectedConfig::construct(false),
         };
 
-        let flattened_inp = splat_inp.iter().flat_map(|x| x.iter()).cloned().collect();
+        let conv_size = splat_inp[0].len();
+        let flattened_inp = splat_inp.into_iter().flat_map(|x| x.into_iter()).collect();
         let flattened_weights = splat_weights
-          .iter()
-          .flat_map(|x| x.iter())
-          .cloned()
+          .into_iter()
+          .flat_map(|x| x.into_iter())
           .collect::<Vec<_>>();
 
-        let conv_size = splat_inp[0].len();
         let out_channels = weights.shape()[0];
         let inp_array =
           Array::from_shape_vec(IxDyn(&vec![oh * ow, conv_size]), flattened_inp).unwrap();
@@ -328,7 +327,7 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
         let outp_slice = fc_chip
           .forward(
             layouter.namespace(|| ""),
-            &vec![weights_array.clone(), inp_array.clone()],
+            &vec![weights_array, inp_array],
             constants,
             gadget_config.clone(),
             layer_config,
@@ -337,7 +336,7 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
 
         let outp_flat = outp_slice[0]
           .t()
-          .iter()
+          .into_iter()
           .map(|x| (**x).clone())
           .collect::<Vec<_>>();
         outp_flat
@@ -349,7 +348,7 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
         for (inp_vec, weight_vec) in splat_inp.iter().zip(splat_weights.iter()) {
           let inp_vec = inp_vec.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
           let weight_vec = weight_vec.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
-          let vec_inputs = vec![inp_vec.clone(), weight_vec.clone()];
+          let vec_inputs = vec![inp_vec, weight_vec];
           let constants = vec![zero.as_ref()];
           let outp = dot_prod_chip
             .forward(layouter.namespace(|| "dot_prod"), &vec_inputs, &constants)
