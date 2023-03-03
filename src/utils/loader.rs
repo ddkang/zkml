@@ -30,6 +30,7 @@ pub struct ModelMsgpack {
   pub tensors: Vec<TensorMsgpack>,
   pub layers: Vec<LayerMsgpack>,
   pub use_selectors: Option<bool>,
+  pub commit: Option<bool>, // TODO: allow for different kinds of commitments
 }
 
 pub fn load_model_msgpack(config_path: &str, inp_path: &str) -> ModelMsgpack {
@@ -47,9 +48,12 @@ pub fn load_model_msgpack(config_path: &str, inp_path: &str) -> ModelMsgpack {
     model.tensors.push(tensor);
   }
 
-  // Default to using selectors if use_selectors is not specified
+  // Default to using selectors, commit if use_selectors is not specified
   if model.use_selectors.is_none() {
     model.use_selectors = Some(true)
+  };
+  if model.commit.is_none() {
+    model.commit = Some(true)
   };
 
   model

@@ -24,12 +24,13 @@ def get_inputs(op: tflite.Operator):
   return idxes
 
 class Converter:
-  def __init__(self, model_path, scale_factor, k, num_cols, use_selectors):
+  def __init__(self, model_path, scale_factor, k, num_cols, use_selectors, commit):
     self.model_path = model_path
     self.scale_factor = scale_factor
     self.k = k
     self.num_cols = num_cols
     self.use_selectors = use_selectors
+    self.commit = commit
 
     self.interpreter = tf.lite.Interpreter(
       model_path=self.model_path,
@@ -294,6 +295,7 @@ class Converter:
         'params': params,
         'mask': mask,
         'use_selectors': self.use_selectors,
+        'commit': self.commit,
       })
     print(layers)
     print()
@@ -365,10 +367,11 @@ def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--model', type=str, required=True)
   parser.add_argument('--output', type=str, required=True)
-  parser.add_argument('--use_selectors', action=argparse.BooleanOptionalAction, required=False, default=True)
   parser.add_argument('--scale_factor', type=int, default=2**16)
   parser.add_argument('--k', type=int, default=19)
   parser.add_argument('--num_cols', type=int, default=6)
+  parser.add_argument('--use_selectors', action=argparse.BooleanOptionalAction, required=False, default=True)
+  parser.add_argument('--commit', action=argparse.BooleanOptionalAction, required=False, default=False)
   parser.add_argument('--start_layer', type=int, default=0)
   parser.add_argument('--end_layer', type=int, default=10000)
   args = parser.parse_args()
@@ -379,6 +382,7 @@ def main():
     args.k,
     args.num_cols,
     args.use_selectors,
+    args.commit,
   )
 
   packed = converter.to_msgpack(
