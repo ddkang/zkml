@@ -14,6 +14,7 @@ pub enum LayerType {
   Add,
   AvgPool2D,
   BatchMatMul,
+  Concatenation,
   Conv2D,
   FullyConnected,
   Logistic,
@@ -22,6 +23,7 @@ pub enum LayerType {
   Mul,
   #[default]
   Noop,
+  Pack,
   Pad,
   Reshape,
   Rsqrt,
