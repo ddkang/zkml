@@ -14,6 +14,7 @@ use lazy_static::lazy_static;
 use ndarray::{Array, IxDyn};
 
 use crate::{
+  commitments::{commit::Commit, packer::PackerChip, pit_commit::PITCommitChip},
   gadgets::{
     add_pairs::AddPairsChip,
     adder::AdderChip,
@@ -62,7 +63,9 @@ lazy_static! {
 pub struct ModelCircuit<F: FieldExt> {
   pub used_gadgets: Arc<HashSet<GadgetType>>,
   pub dag_config: DAGLayerConfig,
-  pub tensors: HashMap<i64, Array<Value<F>, IxDyn>>,
+  pub tensors: HashMap<i64, Array<F, IxDyn>>,
+  pub commit: bool,
+  pub k: usize,
   pub _marker: PhantomData<F>,
 }
 
@@ -77,7 +80,7 @@ impl<F: FieldExt> ModelCircuit<F> {
     &self,
     mut layouter: impl Layouter<F>,
     columns: &Vec<Column<Advice>>,
-    tensors: &HashMap<i64, Array<Value<F>, IxDyn>>,
+    tensors: &HashMap<i64, Array<F, IxDyn>>,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let tensors = layouter.assign_region(
       || "asssignment",
@@ -92,7 +95,12 @@ impl<F: FieldExt> ModelCircuit<F> {
             let row_idx = cell_idx / columns.len();
             let col_idx = cell_idx % columns.len();
             let cell = region
-              .assign_advice(|| "assignment", columns[col_idx], row_idx, || val.clone())
+              .assign_advice(
+                || "assignment",
+                columns[col_idx],
+                row_idx,
+                || Value::known(*val),
+              )
               .unwrap();
             flat.push(Rc::new(cell));
             cell_idx += 1;
@@ -273,10 +281,10 @@ impl<F: FieldExt> ModelCircuit<F> {
   pub fn generate_from_file(config_file: &str, inp_file: &str) -> ModelCircuit<F> {
     let config: ModelMsgpack = load_model_msgpack(config_file, inp_file);
 
-    let to_value = |x: i64| {
+    let to_field = |x: i64| {
       let bias = 1 << 31;
       let x_pos = x + bias;
-      Value::known(F::from(x_pos as u64)) - Value::known(F::from(bias as u64))
+      F::from(x_pos as u64) - F::from(bias as u64)
     };
 
     let match_layer = |x: &str| match x {
@@ -303,7 +311,7 @@ impl<F: FieldExt> ModelCircuit<F> {
 
     let mut tensors = HashMap::new();
     for flat in config.tensors {
-      let value_flat = flat.data.iter().map(|x| to_value(*x)).collect::<Vec<_>>();
+      let value_flat = flat.data.iter().map(|x| to_field(*x)).collect::<Vec<_>>();
       let shape = flat.shape.iter().map(|x| *x as usize).collect::<Vec<_>>();
       let tensor = Array::from_shape_vec(IxDyn(&shape), value_flat).unwrap();
       tensors.insert(flat.idx, tensor);
@@ -391,9 +399,12 @@ impl<F: FieldExt> ModelCircuit<F> {
       div_outp_min_val: -(1 << (config.k - 1)),
       min_val: -(1 << (config.k - 1)),
       max_val: (1 << (config.k - 1)) - 10,
+      k: config.k as usize,
       num_rows: (1 << config.k) - 10,
       num_cols: config.num_cols as usize,
       used_gadgets: used_gadgets.clone(),
+      commit: config.commit.unwrap_or(true),
+      use_selectors: config.use_selectors.unwrap_or(true),
       ..cloned_gadget
     };
 
@@ -402,6 +413,8 @@ impl<F: FieldExt> ModelCircuit<F> {
       _marker: PhantomData,
       dag_config,
       used_gadgets,
+      k: config.k as usize,
+      commit: config.commit.unwrap_or(true),
     }
   }
 }
@@ -415,7 +428,6 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
   }
 
   fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
-    // FIXME: decide which gadgets to make
     let mut gadget_config = crate::model::GADGET_CONFIG.lock().unwrap().clone();
     let columns = (0..gadget_config.num_cols)
       .map(|_| meta.advice_column())
@@ -431,7 +443,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
     gadget_config.fixed_columns = vec![meta.fixed_column()];
     meta.enable_equality(gadget_config.fixed_columns[0]);
 
-    // FIXME: The BDR chip must always go first
+    // FIXME: The BDR chip must always go first. Move the input lookup elsewhere
     gadget_config = BiasDivRoundRelu6Chip::<F>::configure(meta, gadget_config);
 
     let used_gadgets = gadget_config.used_gadgets.clone();
@@ -453,6 +465,11 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
         GadgetType::MulPairs => MulPairsChip::<F>::configure(meta, gadget_config),
         GadgetType::Packer => panic!(),
       };
+    }
+
+    if gadget_config.commit {
+      let packer_config = PackerChip::<F>::construct(gadget_config.k, &gadget_config);
+      gadget_config = PackerChip::<F>::configure(meta, packer_config, gadget_config);
     }
 
     ModelConfig {
@@ -518,11 +535,60 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
       )
       .unwrap();
 
-    let tensors = self.assign_tensors(
-      layouter.namespace(|| "assignment"),
-      &config.gadget_config.columns,
-      &self.tensors,
-    )?;
+    let tensors = if self.commit {
+      // TODO: sometimes it can be less than k, but k is a good upper bound
+      let num_bits = self.k;
+      let packer_config = PackerChip::<F>::construct(num_bits, config.gadget_config.as_ref());
+      let packer_chip = PackerChip::<F> {
+        config: packer_config,
+      };
+      let (tensor_map, packed) = packer_chip.assign_and_pack(
+        layouter.namespace(|| "packer"),
+        config.gadget_config.clone(),
+        &constants,
+        &self.tensors,
+      )?;
+
+      let smallest_tensor = tensor_map
+        .iter()
+        .min_by_key(|(_, tensor)| tensor.len())
+        .unwrap()
+        .1;
+      let max_tensor_key = tensor_map
+        .iter()
+        .max_by_key(|(key, _)| *key)
+        .unwrap()
+        .0
+        .clone();
+      let mut tensors = vec![];
+      for i in 0..max_tensor_key + 1 {
+        let tensor = tensor_map.get(&i).unwrap_or(smallest_tensor);
+        tensors.push(tensor.clone());
+      }
+
+      let pit_commit_chip = PITCommitChip::<F> {
+        marker: PhantomData,
+      };
+
+      let zero = constants.get(&0).unwrap().clone();
+      // TODO: commitments must be made public
+      let _commitments = pit_commit_chip
+        .commit(
+          layouter.namespace(|| "commit"),
+          config.gadget_config.clone(),
+          &constants,
+          &packed,
+          zero,
+        )
+        .unwrap();
+      tensors
+    } else {
+      self.assign_tensors(
+        layouter.namespace(|| "assignment"),
+        &config.gadget_config.columns,
+        &self.tensors,
+      )?
+    };
 
     // Perform the dag
     let dag_chip = DAGLayerChip::<F>::construct(self.dag_config.clone());
