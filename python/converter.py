@@ -247,13 +247,6 @@ class Converter:
         # TODO: not sure if this is in general a no-op
         layer_type = 'Noop'
         params = [0]
-      elif op_code == tflite.BuiltinOperator.PACK:
-        layer_type = 'Noop'
-        params = [0]
-      elif op_code == tflite.BuiltinOperator.CONCATENATION:
-        # FIXME: This is not in general a no-op
-        layer_type = 'Noop'
-        params = [0]
       elif op_code == tflite.BuiltinOperator.STRIDED_SLICE:
         # FIXME: this is not in general a no-op
         layer_type = 'Noop'
@@ -272,13 +265,31 @@ class Converter:
       elif op_code == tflite.BuiltinOperator.TRANSPOSE:
         layer_type = 'Transpose'
         params = get_shape(interpreter, op.Inputs(0)) + interpreter.get_tensor(op.Inputs(1)).flatten().astype(np.int64).tolist()
+      elif op_code == tflite.BuiltinOperator.CONCATENATION:
+        # FIXME: This is not in general a no-op
+        layer_type = 'Concatenation'
+        op_opt = op.BuiltinOptions()
+        if op_opt is None:
+          raise RuntimeError('Concatenation options is None')
+        opt = tflite.ConcatenationOptions()
+        opt.Init(op_opt.Bytes, op_opt.Pos)
+        params = [opt.Axis()]
+      elif op_code == tflite.BuiltinOperator.PACK:
+        layer_type = 'Pack'
+        op_opt = op.BuiltinOptions()
+        if op_opt is None:
+          raise RuntimeError('Pack options is None')
+        opt = tflite.PackOptions()
+        opt.Init(op_opt.Bytes, op_opt.Pos)
+        params = [opt.Axis()]
+        if params[0] != 0: raise NotImplementedError('Only axis=0 supported')
       else:
         op_name = None
         for attr in dir(tflite.BuiltinOperator):
           if not attr.startswith('__'):
             if getattr(tflite.BuiltinOperator, attr) == op_code:
               op_name = attr
-        raise NotImplementedError('Unsupported operator: {}, {}'.format(op_code, op_name))
+        raise NotImplementedError('Unsupported operator at layer {}: {}, {}'.format(op_idx, op_code, op_name))
 
       inp_idxes = get_inputs(op)
       # FIXME: hack for testing

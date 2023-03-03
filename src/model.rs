@@ -43,7 +43,8 @@ use crate::{
     noop::NoopChip,
     rsqrt::RsqrtChip,
     shape::{
-      mask_neg_inf::MaskNegInfChip, pad::PadChip, reshape::ReshapeChip, transpose::TransposeChip,
+      concatenation::ConcatenationChip, mask_neg_inf::MaskNegInfChip, pack::PackChip, pad::PadChip,
+      reshape::ReshapeChip, transpose::TransposeChip,
     },
     softmax::SoftmaxChip,
     square::SquareChip,
@@ -291,6 +292,7 @@ impl<F: FieldExt> ModelCircuit<F> {
       "AveragePool2D" => LayerType::AvgPool2D,
       "Add" => LayerType::Add,
       "BatchMatMul" => LayerType::BatchMatMul,
+      "Concatenation" => LayerType::Concatenation,
       "Conv2D" => LayerType::Conv2D,
       "FullyConnected" => LayerType::FullyConnected,
       "Logistic" => LayerType::Logistic,
@@ -298,6 +300,7 @@ impl<F: FieldExt> ModelCircuit<F> {
       "Mean" => LayerType::Mean,
       "Mul" => LayerType::Mul,
       "Noop" => LayerType::Noop,
+      "Pack" => LayerType::Pack,
       "Pad" => LayerType::Pad,
       "Reshape" => LayerType::Reshape,
       "Rsqrt" => LayerType::Rsqrt,
@@ -331,6 +334,7 @@ impl<F: FieldExt> ModelCircuit<F> {
             LayerType::Add => Box::new(AddChip {}) as Box<dyn GadgetConsumer>,
             LayerType::AvgPool2D => Box::new(AvgPool2DChip {}) as Box<dyn GadgetConsumer>,
             LayerType::BatchMatMul => Box::new(BatchMatMulChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::Concatenation => Box::new(ConcatenationChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Conv2D => Box::new(Conv2DChip {
               config: LayerConfig::default(),
               _marker: PhantomData::<F>,
@@ -344,6 +348,7 @@ impl<F: FieldExt> ModelCircuit<F> {
             LayerType::Mean => Box::new(MeanChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Mul => Box::new(MulChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Noop => Box::new(NoopChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::Pack => Box::new(PackChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Pad => Box::new(PadChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Reshape => Box::new(ReshapeChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Rsqrt => Box::new(RsqrtChip {}) as Box<dyn GadgetConsumer>,
@@ -515,7 +520,8 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
           let chip = LogisticGadgetChip::<F>::construct(gadget_rc.clone());
           chip.load_lookups(layouter.namespace(|| "logistic lookup"))?;
         }
-        _ => panic!("unsupported gadget"),
+        GadgetType::MulPairs => {}
+        _ => panic!("unsupported gadget {:?}", gadget),
       }
     }
 
