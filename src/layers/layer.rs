@@ -35,6 +35,19 @@ pub enum LayerType {
   Transpose,
 }
 
+// NOTE: This is the same order as the TFLite schema
+// Must not be changed
+#[derive(Clone, Debug, Default, Hash, Eq, PartialEq)]
+pub enum ActivationType {
+  #[default]
+  None,
+  Relu,
+  ReluN1To1,
+  Relu6,
+  Tanh,
+  SignBit,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct LayerConfig {
   pub layer_type: LayerType,

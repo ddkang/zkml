@@ -44,6 +44,13 @@ class Converter:
     self.graph = self.model.Subgraphs(0)
 
 
+  def valid_activations(self):
+    return [
+      tflite.ActivationFunctionType.NONE,
+      tflite.ActivationFunctionType.RELU,
+      tflite.ActivationFunctionType.RELU6,
+    ]
+
   def _convert_add(self, op, generated_tensors: set):
     # Get inputs
     inputs = get_inputs(op)
@@ -73,6 +80,7 @@ class Converter:
       return ('MaskNegInf', params)
     else:
       return ('Add', [])
+
 
   def to_dict(self, start_layer, end_layer):
     interpreter = self.interpreter
@@ -144,14 +152,13 @@ class Converter:
         opt.Init(op_opt.Bytes, op_opt.Pos)
         if opt.DilationHFactor() != 1 or opt.DilationWFactor() != 1:
           raise NotImplementedError('Dilation is not supported')
-        if opt.FusedActivationFunction() != tflite.ActivationFunctionType.NONE and opt.FusedActivationFunction() != tflite.ActivationFunctionType.RELU6:
-          raise NotImplementedError('Only ReLU6 and None supported')
+        if opt.FusedActivationFunction() not in self.valid_activations():
+          raise NotImplementedError('Unsupported activation function at layer {op_idx}')
         # 0 is Conv2D
-        activation = 1 if opt.FusedActivationFunction() == 3 else 0
         params = \
           [0] + \
           [opt.Padding()] + \
-          [activation] + \
+          [opt.FusedActivationFunction()] + \
           [opt.StrideH(), opt.StrideW()]
       # DepthwiseConv2D
       elif op_code == tflite.BuiltinOperator.DEPTHWISE_CONV_2D:
@@ -163,14 +170,13 @@ class Converter:
         opt.Init(op_opt.Bytes, op_opt.Pos)
         if opt.DilationHFactor() != 1 or opt.DilationWFactor() != 1:
           raise NotImplementedError('Dilation is not supported')
-        if opt.FusedActivationFunction() != tflite.ActivationFunctionType.NONE and opt.FusedActivationFunction() != tflite.ActivationFunctionType.RELU6:
-          raise NotImplementedError('Only ReLU6 and None supported')
+        if opt.FusedActivationFunction() not in self.valid_activations():
+          raise NotImplementedError('Unsupported activation function at layer {op_idx}')
         # 1 is DepthwiseConv2D
-        activation = 1 if opt.FusedActivationFunction() == 3 else 0
         params = \
           [1] + \
           [opt.Padding()] + \
-          [activation] + \
+          [opt.FusedActivationFunction()] + \
           [opt.StrideH(), opt.StrideW()]
       # Fully connected
       elif op_code == tflite.BuiltinOperator.FULLY_CONNECTED:
@@ -180,10 +186,9 @@ class Converter:
           raise RuntimeError('Fully connected options is None')
         opt = tflite.FullyConnectedOptions()
         opt.Init(op_opt.Bytes, op_opt.Pos)
-        if opt.FusedActivationFunction() != tflite.ActivationFunctionType.NONE and opt.FusedActivationFunction() != tflite.ActivationFunctionType.RELU6:
-          raise NotImplementedError('Only ReLU6 and None supported')
-        activation = 1 if opt.FusedActivationFunction() == 3 else 0
-        params = [activation]
+        if opt.FusedActivationFunction() not in self.valid_activations():
+          raise NotImplementedError(f'Unsupported activation function at layer {op_idx}')
+        params = [opt.FusedActivationFunction()]
       elif op_code == tflite.BuiltinOperator.BATCH_MATMUL:
         layer_type = 'BatchMatMul'
         params = []
