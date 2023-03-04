@@ -9,6 +9,7 @@ use ndarray::{Array, ArrayView, Axis, IxDyn};
 
 use crate::{
   gadgets::{
+    adder::AdderChip,
     dot_prod::DotProductChip,
     gadget::{Gadget, GadgetConfig, GadgetType},
     var_div::VarDivRoundChip,
@@ -106,6 +107,8 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
     gadget_config: Rc<GadgetConfig>,
     _layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
+    assert!(tensors.len() <= 3);
+
     let input = &tensors[0];
     let ndim = input.ndim();
     let input = if ndim == 2 {
@@ -248,6 +251,25 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
           &vec![zero, sf],
         )
         .unwrap();
+
+      let mm_div = if tensors.len() == 3 {
+        // TODO: use relu?
+        let bias = tensors[2].broadcast(shape.clone()).unwrap();
+        let bias = bias.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
+        let mm_div = mm_div.iter().collect::<Vec<_>>();
+        let adder_chip = AdderChip::<F>::construct(gadget_config.clone());
+        let mm_bias = adder_chip
+          .forward(
+            layouter.namespace(|| "mm_bias"),
+            &vec![mm_div, bias],
+            &vec![zero],
+          )
+          .unwrap();
+        mm_bias
+      } else {
+        mm_div
+      };
+
       mm_div.into_iter().map(|x| Rc::new(x)).collect::<Vec<_>>()
     } else {
       mm_result
