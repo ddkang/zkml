@@ -523,6 +523,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
           chip.load_lookups(layouter.namespace(|| "logistic lookup"))?;
         }
         GadgetType::MulPairs => {}
+        GadgetType::SqrtBig => {}
         _ => panic!("unsupported gadget {:?}", gadget),
       }
     }
