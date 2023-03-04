@@ -9,7 +9,7 @@ use ndarray::{Array, ArrayView, Axis, IxDyn};
 
 use crate::{
   gadgets::{
-    adder::AdderChip,
+    add_pairs::AddPairsChip,
     dot_prod::DotProductChip,
     gadget::{Gadget, GadgetConfig, GadgetType},
     var_div::VarDivRoundChip,
@@ -257,7 +257,7 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
         let bias = tensors[2].broadcast(shape.clone()).unwrap();
         let bias = bias.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
         let mm_div = mm_div.iter().collect::<Vec<_>>();
-        let adder_chip = AdderChip::<F>::construct(gadget_config.clone());
+        let adder_chip = AddPairsChip::<F>::construct(gadget_config.clone());
         let mm_bias = adder_chip
           .forward(
             layouter.namespace(|| "mm_bias"),
