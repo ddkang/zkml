@@ -236,7 +236,7 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
       .unwrap();
 
     // TODO: bias, division, activation
-    let shape = mm_result.raw_dim();
+    let shape = [mm_result.shape()[0], mm_result.shape()[1]];
     let final_result_flat = if self.config.normalize {
       let mm_flat = mm_result.iter().collect::<Vec<_>>();
       let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
@@ -277,7 +277,7 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
         .map(|x| Rc::new(x))
         .collect::<Vec<_>>()
     };
-    let final_result = Array::from_shape_vec(shape, final_result_flat).unwrap();
+    let final_result = Array::from_shape_vec(IxDyn(&shape), final_result_flat).unwrap();
 
     Ok(vec![final_result])
   }
