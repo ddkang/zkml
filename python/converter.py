@@ -283,6 +283,19 @@ class Converter:
         opt.Init(op_opt.Bytes, op_opt.Pos)
         params = [opt.Axis()]
         if params[0] != 0: raise NotImplementedError('Only axis=0 supported')
+      elif op_code == tflite.BuiltinOperator.SPLIT:
+        layer_type = 'Split'
+        op_opt = op.BuiltinOptions()
+        if op_opt is None:
+          raise RuntimeError('Split options is None')
+        opt = tflite.SplitOptions()
+        opt.Init(op_opt.Bytes, op_opt.Pos)
+        axis = interpreter.get_tensor(op.Inputs(0)).flatten().astype(np.int64)[0]
+        num_splits = opt.NumSplits()
+        inp = interpreter.get_tensor(op.Inputs(1))
+        if inp.shape[axis] != num_splits:
+          raise NotImplementedError('Only equal splits supported')
+        params = [int(axis)]
       else:
         op_name = None
         for attr in dir(tflite.BuiltinOperator):

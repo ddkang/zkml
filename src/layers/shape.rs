@@ -3,4 +3,5 @@ pub mod mask_neg_inf;
 pub mod pack;
 pub mod pad;
 pub mod reshape;
+pub mod split;
 pub mod transpose;
