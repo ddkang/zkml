@@ -23,7 +23,7 @@ impl<F: FieldExt> Layer<F> for SplitChip {
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let axis = layer_config.layer_params[0] as usize;
     let mut out = vec![];
-    for slice in tensors[0].view().axis_iter(Axis(axis)) {
+    for slice in tensors[1].view().axis_iter(Axis(axis)) {
       out.push(slice.to_owned());
     }
     Ok(out)
