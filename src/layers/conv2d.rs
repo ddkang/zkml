@@ -398,6 +398,17 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
         .step_by(2)
         .map(|x| Rc::new(x))
         .collect::<Vec<_>>()
+    } else if conv_config.activation == ActivationType::Relu {
+      let dived = outp.iter().skip(1).step_by(2).collect::<Vec<_>>();
+      let relu_chip = ReluChip::<F>::construct(gadget_config.clone());
+      let relu_outp = relu_chip
+        .forward(layouter.namespace(|| "relu"), &vec![dived], &tmp)
+        .unwrap();
+      let relu_outp = relu_outp
+        .into_iter()
+        .map(|x| Rc::new(x))
+        .collect::<Vec<_>>();
+      relu_outp
     } else {
       panic!("Unsupported activation type");
     };
