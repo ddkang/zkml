@@ -85,6 +85,15 @@ impl<F: FieldExt> Layer<F> for SoftmaxChip {
             &vec![zero],
           )?;
           let sqrt = &sqrt[0];
+          // FIXME: hack to avoid division by zero
+          let adder_chip = AdderChip::<F>::construct(gadget_config.clone());
+          let one = constants.get(&1).unwrap().as_ref();
+          let sqrt = adder_chip.forward(
+            layouter.namespace(|| format!("sqrt {}", i)),
+            &vec![vec![sqrt, one]],
+            &vec![zero],
+          )?;
+          let sqrt = &sqrt[0];
 
           let dived = var_div_chip.forward(
             layouter.namespace(|| format!("div {}", i)),
