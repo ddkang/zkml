@@ -397,6 +397,8 @@ impl<F: FieldExt> ModelCircuit<F> {
       }
     };
 
+    // FIXME: hack
+    used_gadgets.insert(GadgetType::BiasDivRoundRelu6);
     let used_gadgets = Arc::new(used_gadgets);
     let gadget = &GADGET_CONFIG;
     let cloned_gadget = gadget.lock().unwrap().clone();
