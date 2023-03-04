@@ -21,7 +21,7 @@ use crate::{
   },
 };
 
-use super::layer::{AssignedTensor, GadgetConsumer, Layer, LayerConfig};
+use super::layer::{ActivationType, AssignedTensor, GadgetConsumer, Layer, LayerConfig};
 
 #[derive(Default, Clone, Copy, Eq, PartialEq)]
 pub enum PaddingEnum {
@@ -40,7 +40,7 @@ pub enum ConvLayerEnum {
 pub struct Conv2DConfig {
   pub conv_type: ConvLayerEnum,
   pub padding: PaddingEnum,
-  pub do_relu: bool,
+  pub activation: ActivationType,
   pub stride: (usize, usize),
 }
 
@@ -62,12 +62,17 @@ impl<F: FieldExt> Conv2DChip<F> {
       1 => PaddingEnum::Valid,
       _ => panic!("Invalid padding"),
     };
-    let do_relu = layer_params[2] == 1;
+    let activation = match layer_params[2] {
+      0 => ActivationType::None,
+      1 => ActivationType::Relu,
+      3 => ActivationType::Relu6,
+      _ => panic!("Invalid activation type"),
+    };
     let stride = (layer_params[3] as usize, layer_params[4] as usize);
     Conv2DConfig {
       conv_type,
       padding,
-      do_relu,
+      activation,
       stride,
     }
   }
@@ -380,19 +385,21 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
 
     // TODO: this is also horrible. The bdr chip outputs interleaved [(relu'd, div'd), (relu'd, div'd), ...]
     // Uninterleave depending on whether or not we're doing the relu
-    let outp = if conv_config.do_relu {
+    let outp = if conv_config.activation == ActivationType::Relu6 {
       outp
         .into_iter()
         .step_by(2)
         .map(|x| Rc::new(x))
         .collect::<Vec<_>>()
-    } else {
+    } else if conv_config.activation == ActivationType::None {
       outp
         .into_iter()
         .skip(1)
         .step_by(2)
         .map(|x| Rc::new(x))
         .collect::<Vec<_>>()
+    } else {
+      panic!("Unsupported activation type");
     };
 
     let oc = match conv_config.conv_type {

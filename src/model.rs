@@ -22,7 +22,7 @@ use crate::{
     dot_prod::DotProductChip,
     gadget::{Gadget, GadgetConfig, GadgetType},
     mul_pairs::MulPairsChip,
-    nonlinear::exp::ExpGadgetChip,
+    nonlinear::{exp::ExpGadgetChip, relu::ReluChip},
     nonlinear::{logistic::LogisticGadgetChip, rsqrt::RsqrtGadgetChip},
     sqrt_big::SqrtBigChip,
     square::SquareGadgetChip,
@@ -399,6 +399,8 @@ impl<F: FieldExt> ModelCircuit<F> {
 
     // FIXME: hack
     used_gadgets.insert(GadgetType::BiasDivRoundRelu6);
+    // FIXME: needs to be removed
+    used_gadgets.insert(GadgetType::Relu);
     let used_gadgets = Arc::new(used_gadgets);
     let gadget = &GADGET_CONFIG;
     let cloned_gadget = gadget.lock().unwrap().clone();
@@ -454,6 +456,8 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
 
     // FIXME: The BDR chip must always go first. Move the input lookup elsewhere
     gadget_config = BiasDivRoundRelu6Chip::<F>::configure(meta, gadget_config);
+    // FIXME: The relu needs to be conditionally loaded
+    gadget_config = ReluChip::<F>::configure(meta, gadget_config);
 
     let used_gadgets = gadget_config.used_gadgets.clone();
     for gadget_type in used_gadgets.iter() {
@@ -465,13 +469,14 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
         GadgetType::DotProduct => DotProductChip::<F>::configure(meta, gadget_config),
         GadgetType::Exp => ExpGadgetChip::<F>::configure(meta, gadget_config),
         GadgetType::Logistic => LogisticGadgetChip::<F>::configure(meta, gadget_config),
-        GadgetType::VarDivRound => VarDivRoundChip::<F>::configure(meta, gadget_config),
+        GadgetType::MulPairs => MulPairsChip::<F>::configure(meta, gadget_config),
+        GadgetType::Relu => ReluChip::<F>::configure(meta, gadget_config),
+        GadgetType::Rsqrt => RsqrtGadgetChip::<F>::configure(meta, gadget_config),
         GadgetType::SqrtBig => SqrtBigChip::<F>::configure(meta, gadget_config),
         GadgetType::Square => SquareGadgetChip::<F>::configure(meta, gadget_config),
         GadgetType::SquaredDiff => SquaredDiffGadgetChip::<F>::configure(meta, gadget_config),
         GadgetType::SubPairs => SubPairsChip::<F>::configure(meta, gadget_config),
-        GadgetType::Rsqrt => RsqrtGadgetChip::<F>::configure(meta, gadget_config),
-        GadgetType::MulPairs => MulPairsChip::<F>::configure(meta, gadget_config),
+        GadgetType::VarDivRound => VarDivRoundChip::<F>::configure(meta, gadget_config),
         GadgetType::Packer => panic!(),
       };
     }
@@ -511,6 +516,10 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
         GadgetType::VarDivRound => {
           let chip = VarDivRoundChip::<F>::construct(gadget_rc.clone());
           chip.load_lookups(layouter.namespace(|| "var div lookup"))?;
+        }
+        GadgetType::Relu => {
+          let chip = ReluChip::<F>::construct(gadget_rc.clone());
+          chip.load_lookups(layouter.namespace(|| "relu lookup"))?;
         }
         GadgetType::Rsqrt => {
           let chip = RsqrtGadgetChip::<F>::construct(gadget_rc.clone());

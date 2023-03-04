@@ -12,8 +12,10 @@ use crate::{
     add_pairs::AddPairsChip,
     dot_prod::DotProductChip,
     gadget::{Gadget, GadgetConfig, GadgetType},
+    nonlinear::relu::ReluChip,
     var_div::VarDivRoundChip,
   },
+  layers::layer::ActivationType,
   utils::helpers::{NUM_RANDOMS, RAND_START_IDX},
 };
 
@@ -105,9 +107,15 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
     tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, CellRc<F>>,
     gadget_config: Rc<GadgetConfig>,
-    _layer_config: &LayerConfig,
+    layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
     assert!(tensors.len() <= 3);
+    let activation = layer_config.layer_params[0];
+    let activation = match activation {
+      0 => ActivationType::None,
+      1 => ActivationType::Relu,
+      _ => panic!("invalid activation"),
+    };
 
     let input = &tensors[0];
     let ndim = input.ndim();
@@ -268,6 +276,19 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
         mm_bias
       } else {
         mm_div
+      };
+
+      let mm_div = if activation == ActivationType::Relu {
+        let relu_chip = ReluChip::<F>::construct(gadget_config.clone());
+        let mm_div = mm_div.iter().collect::<Vec<_>>();
+        let vec_inputs = vec![mm_div];
+        relu_chip
+          .forward(layouter.namespace(|| "relu"), &vec_inputs, &vec![zero])
+          .unwrap()
+      } else if activation == ActivationType::None {
+        mm_div
+      } else {
+        panic!("Unsupported activation type");
       };
 
       mm_div.into_iter().map(|x| Rc::new(x)).collect::<Vec<_>>()

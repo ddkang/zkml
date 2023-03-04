@@ -20,13 +20,14 @@ pub enum GadgetType {
   DotProduct,
   Exp,
   Logistic,
-  VarDivRound,
+  Relu,
+  Rsqrt,
   SqrtBig,
   Square,
   SquaredDiff,
   SubPairs,
-  Rsqrt,
   MulPairs,
+  VarDivRound,
   Packer, // This is a special case
 }
 
