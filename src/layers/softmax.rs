@@ -26,7 +26,10 @@ impl<F: FieldExt> Layer<F> for SoftmaxChip {
     _layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let inp = &tensors[0];
-    assert!(inp.ndim() == 2 || inp.ndim() == 3);
+    assert!(inp.ndim() == 2 || inp.ndim() == 3 || inp.ndim() == 4);
+    if inp.ndim() == 4 {
+      assert_eq!(inp.shape()[0], 1);
+    }
 
     let exp_chip = ExpGadgetChip::<F>::construct(gadget_config.clone());
     let inp_vec = inp.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
@@ -39,7 +42,12 @@ impl<F: FieldExt> Layer<F> for SoftmaxChip {
     )?;
     println!("exped: {:?}", exped.len());
 
-    let exped = Array::from_shape_vec(IxDyn(inp.shape()), exped).unwrap();
+    let shape = if inp.ndim() == 2 || inp.ndim() == 3 {
+      inp.shape().iter().map(|x| *x).collect::<Vec<_>>()
+    } else {
+      vec![inp.shape()[1], inp.shape()[2], inp.shape()[3]]
+    };
+    let exped = Array::from_shape_vec(IxDyn(&shape), exped).unwrap();
 
     let adder_chip = AdderChip::<F>::construct(gadget_config.clone());
     let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
@@ -49,9 +57,9 @@ impl<F: FieldExt> Layer<F> for SoftmaxChip {
       .get(&(gadget_config.scale_factor as i64))
       .unwrap()
       .as_ref();
-    if inp.ndim() == 3 {
-      for i in 0..inp.shape()[0] {
-        for j in 0..inp.shape()[1] {
+    if inp.ndim() == 3 || inp.ndim() == 4 {
+      for i in 0..shape[0] {
+        for j in 0..shape[1] {
           // Compute the sum
           let exp_slice = exped.slice(s![i, j, ..]);
           let sum = adder_chip.forward(
