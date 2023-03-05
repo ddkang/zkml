@@ -24,6 +24,10 @@ impl<F: FieldExt> MaxChip<F> {
     }
   }
 
+  pub fn num_cols_per_op() -> usize {
+    3
+  }
+
   pub fn configure(meta: &mut ConstraintSystem<F>, gadget_config: GadgetConfig) -> GadgetConfig {
     let selector = meta.complex_selector();
     let columns = gadget_config.columns;
@@ -37,13 +41,37 @@ impl<F: FieldExt> MaxChip<F> {
       meta.lookup_table_column()
     };
 
+    meta.create_gate("max arithmetic", |meta| {
+      let s = meta.query_selector(selector);
+      let mut constraints = vec![];
+      for i in 0..columns.len() / Self::num_cols_per_op() {
+        let offset = i * Self::num_cols_per_op();
+        let inp1 = meta.query_advice(columns[offset + 0], Rotation::cur());
+        let inp2 = meta.query_advice(columns[offset + 1], Rotation::cur());
+        let outp = meta.query_advice(columns[offset + 2], Rotation::cur());
+
+        constraints.push(s.clone() * (inp1 - outp.clone()) * (inp2 - outp))
+      }
+      constraints
+    });
+
     // TODO: need to check that the max is equal to one of the inputs
-    for idx in 0..columns.len() - 1 {
-      meta.lookup("max", |meta| {
+    for idx in 0..columns.len() / Self::num_cols_per_op() {
+      meta.lookup("max inp1", |meta| {
         let s = meta.query_selector(selector);
-        let inp = meta.query_advice(columns[idx], Rotation::cur());
-        let max = meta.query_advice(columns[columns.len() - 1], Rotation::cur());
-        vec![(s.clone() * (max - inp), inp_lookup)]
+        let offset = idx * Self::num_cols_per_op();
+        let inp1 = meta.query_advice(columns[offset + 0], Rotation::cur());
+        let outp = meta.query_advice(columns[offset + 2], Rotation::cur());
+
+        vec![(s * (outp - inp1), inp_lookup)]
+      });
+      meta.lookup("max inp2", |meta| {
+        let s = meta.query_selector(selector);
+        let offset = idx * Self::num_cols_per_op();
+        let inp2 = meta.query_advice(columns[offset + 1], Rotation::cur());
+        let outp = meta.query_advice(columns[offset + 2], Rotation::cur());
+
+        vec![(s * (outp - inp2), inp_lookup)]
       });
     }
 
@@ -65,15 +93,15 @@ impl<F: FieldExt> Gadget<F> for MaxChip<F> {
   }
 
   fn num_cols_per_op(&self) -> usize {
-    self.config.columns.len()
+    3
   }
 
   fn num_inputs_per_row(&self) -> usize {
-    self.config.columns.len() - 1
+    self.config.columns.len() / self.num_cols_per_op() * 2
   }
 
   fn num_outputs_per_row(&self) -> usize {
-    1
+    self.config.columns.len() / self.num_cols_per_op()
   }
 
   fn op_row_region(
@@ -91,36 +119,37 @@ impl<F: FieldExt> Gadget<F> for MaxChip<F> {
       selector.enable(region, row_offset)?;
     }
 
-    let _assigned_inp = inp
-      .iter()
-      .enumerate()
-      .map(|(i, cell)| {
-        cell
-          .copy_advice(|| "", region, self.config.columns[i], row_offset)
-          .unwrap()
-      })
-      .collect::<Vec<_>>();
-
     let min_val_pos = F::from((-self.config.div_outp_min_val) as u64);
 
-    let vals = inp
-      .iter()
-      .map(|cell| cell.value().map(|x| convert_to_u64(&(*x + min_val_pos))))
-      .collect::<Vec<_>>();
-    let max = vals
-      .iter()
-      .skip(1)
-      .fold(vals[0], |a, b| a.zip(*b).map(|(a, b)| a.max(b)));
-    let res = region
-      .assign_advice(
-        || "",
-        *self.config.columns.last().unwrap(),
-        row_offset,
-        || max.map(|x| F::from(x) - min_val_pos),
-      )
-      .unwrap();
+    let mut outp = vec![];
 
-    Ok(vec![res])
+    let chunks: Vec<&[&AssignedCell<F, F>]> = inp.chunks(2).collect();
+    let i1 = chunks[0];
+    let i2 = chunks[1];
+    for (idx, (inp1, inp2)) in i1.iter().zip(i2.iter()).enumerate() {
+      let offset = idx * self.num_cols_per_op();
+      inp1
+        .copy_advice(|| "", region, self.config.columns[offset + 0], row_offset)
+        .unwrap();
+      inp2
+        .copy_advice(|| "", region, self.config.columns[offset + 1], row_offset)
+        .unwrap();
+
+      let max = inp1.value().zip(inp2.value()).map(|(a, b)| {
+        let a = convert_to_u64(&(*a + min_val_pos));
+        let b = convert_to_u64(&(*b + min_val_pos));
+        let max = a.max(b);
+        let max = F::from(max) - min_val_pos;
+        max
+      });
+
+      let res = region
+        .assign_advice(|| "", self.config.columns[offset + 2], row_offset, || max)
+        .unwrap();
+      outp.push(res);
+    }
+
+    Ok(outp)
   }
 
   fn forward(
