@@ -37,7 +37,7 @@ impl<F: FieldExt> MaxChip<F> {
       meta.lookup_table_column()
     };
 
-    // TODO: make gate
+    // TODO: need to check that the max is equal to one of the inputs
     for idx in 0..columns.len() - 1 {
       meta.lookup("max", |meta| {
         let s = meta.query_selector(selector);
