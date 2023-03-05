@@ -14,6 +14,7 @@ use crate::{
     bias_div_round_relu6::BiasDivRoundRelu6Chip,
     dot_prod::DotProductChip,
     gadget::{Gadget, GadgetConfig, GadgetType},
+    nonlinear::relu::ReluChip,
   },
   layers::{
     fully_connected::{FullyConnectedChip, FullyConnectedConfig},
