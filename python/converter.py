@@ -145,6 +145,18 @@ class Converter:
         opt = tflite.Pool2DOptions()
         opt.Init(op_opt.Bytes, op_opt.Pos)
         params = [opt.FilterHeight(), opt.FilterWidth(), opt.StrideH(), opt.StrideW()]
+      if op_code == tflite.BuiltinOperator.MAX_POOL_2D:
+        layer_type = 'MaxPool2D'
+        op_opt = op.BuiltinOptions()
+        if op_opt is None:
+          raise RuntimeError('MaxPool2D options is None')
+        opt = tflite.Pool2DOptions()
+        opt.Init(op_opt.Bytes, op_opt.Pos)
+        if opt.Padding() == tflite.Padding.SAME:
+          raise NotImplementedError('SAME padding is not supported')
+        if opt.FusedActivationFunction() != tflite.ActivationFunctionType.NONE:
+          raise NotImplementedError('Fused activation is not supported')
+        params = [opt.FilterHeight(), opt.FilterWidth(), opt.StrideH(), opt.StrideW()]
       # FIXME: hack for Keras... not sure why this isn't being converted properly
       elif op_code == tflite.BuiltinOperator.CUSTOM:
         layer_type = 'Conv2D'

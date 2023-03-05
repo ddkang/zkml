@@ -9,6 +9,7 @@ use crate::{
     batch_mat_mul::BatchMatMulChip,
     fully_connected::{FullyConnectedChip, FullyConnectedConfig},
     logistic::LogisticChip,
+    max_pool_2d::MaxPool2DChip,
     mean::MeanChip,
     noop::NoopChip,
     rsqrt::RsqrtChip,
@@ -103,6 +104,18 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           let avg_pool_2d_chip = AvgPool2DChip {};
           avg_pool_2d_chip.forward(
             layouter.namespace(|| "dag avg pool 2d"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+            &layer_config,
+          )?
+        }
+        LayerType::MaxPool2D => {
+          let max_pool_2d_chip = MaxPool2DChip {
+            marker: PhantomData::<F>,
+          };
+          max_pool_2d_chip.forward(
+            layouter.namespace(|| "dag max pool 2d"),
             &vec_inps,
             constants,
             gadget_config.clone(),

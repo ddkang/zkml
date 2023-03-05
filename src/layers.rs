@@ -10,6 +10,7 @@ pub mod batch_mat_mul;
 pub mod conv2d;
 pub mod fully_connected;
 pub mod logistic;
+pub mod max_pool_2d;
 pub mod mean;
 pub mod noop;
 pub mod rsqrt;
