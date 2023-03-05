@@ -11,7 +11,7 @@ use crate::gadgets::gadget::{GadgetConfig, GadgetType};
 
 use super::{
   averager::Averager,
-  layer::{AssignedTensor, CellRc, Layer, LayerConfig, GadgetConsumer},
+  layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig},
 };
 
 pub struct MeanChip {}
@@ -23,6 +23,15 @@ impl MeanChip {
     assert_eq!(inp_shape[0], 1);
     assert_eq!(out_shape[0], 1);
 
+    // Skip the batch axis
+    let mut keep_axes = (1..inp_shape.len()).collect::<Vec<_>>();
+    for mean_axis in layer_config.layer_params.iter() {
+      keep_axes.retain(|&x| x != *mean_axis as usize);
+    }
+    assert_eq!(keep_axes.len(), 1);
+    keep_axes[0]
+
+    /*
     let mut num_same = 0;
     let mut keep_axis: i64 = -1;
     for i in 1..inp_shape.len() {
@@ -39,6 +48,7 @@ impl MeanChip {
       panic!("More than one axis is the same");
     }
     keep_axis as usize
+    */
   }
 }
 
