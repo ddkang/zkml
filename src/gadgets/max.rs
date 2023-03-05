@@ -123,7 +123,8 @@ impl<F: FieldExt> Gadget<F> for MaxChip<F> {
 
     let mut outp = vec![];
 
-    let chunks: Vec<&[&AssignedCell<F, F>]> = inp.chunks(2).collect();
+    // TODO: this is a bit of a hack
+    let chunks: Vec<&[&AssignedCell<F, F>]> = inp.chunks(self.num_outputs_per_row()).collect();
     let i1 = chunks[0];
     let i2 = chunks[1];
     for (idx, (inp1, inp2)) in i1.iter().zip(i2.iter()).enumerate() {
