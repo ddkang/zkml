@@ -51,7 +51,15 @@ class Converter:
       tflite.ActivationFunctionType.RELU6,
     ]
 
-  def _convert_add(self, op, generated_tensors: set):
+  def _convert_add(self, op: tflite.Operator, generated_tensors: set):
+    # Get params
+    op_opt = op.BuiltinOptions()
+    if op_opt is None:
+      raise RuntimeError('Add options is None')
+    opt = tflite.AddOptions()
+    opt.Init(op_opt.Bytes, op_opt.Pos)
+    params = [opt.FusedActivationFunction()]
+
     # Get inputs
     inputs = get_inputs(op)
     print(generated_tensors)
@@ -62,7 +70,7 @@ class Converter:
     # If both tensors are generated, do nothing
     print(inputs[0] in generated_tensors, inputs[1] in generated_tensors)
     if (inputs[0] in generated_tensors) and (inputs[1] in generated_tensors):
-      return ('Add', [])
+      return ('Add', params)
 
     nb_generated = (inputs[0] in generated_tensors) + (inputs[1] in generated_tensors)
     if nb_generated != 1:
@@ -79,7 +87,7 @@ class Converter:
       params += mask.flatten().tolist()
       return ('MaskNegInf', params)
     else:
-      return ('Add', [])
+      return ('Add', params)
 
 
   def to_dict(self, start_layer, end_layer):

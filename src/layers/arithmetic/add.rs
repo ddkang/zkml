@@ -11,8 +11,9 @@ use crate::{
   gadgets::{
     add_pairs::AddPairsChip,
     gadget::{Gadget, GadgetConfig, GadgetType},
+    nonlinear::relu::ReluChip,
   },
-  layers::layer::{AssignedTensor, CellRc, GadgetConsumer},
+  layers::layer::{ActivationType, AssignedTensor, CellRc, GadgetConsumer},
 };
 
 use super::{
@@ -44,14 +45,40 @@ impl<F: FieldExt> Layer<F> for AddChip {
     tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, CellRc<F>>,
     gadget_config: Rc<GadgetConfig>,
-    _layer_config: &LayerConfig,
+    layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
+    let activation = layer_config.layer_params[0];
+    let activation = match activation {
+      0 => ActivationType::None,
+      1 => ActivationType::Relu,
+      _ => panic!("Unsupported activation type for add"),
+    };
+
+    // Do the addition
     let (out, out_shape) = self.arithmetic_forward(
       layouter.namespace(|| ""),
       tensors,
       constants,
       gadget_config.clone(),
     )?;
+
+    // Do the fused activation
+    let out = if activation == ActivationType::Relu {
+      let zero = constants.get(&0).unwrap();
+      let single_inps = vec![zero.as_ref()];
+
+      let out = out.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
+
+      let relu_chip = ReluChip::<F>::construct(gadget_config);
+      let out = relu_chip.forward(layouter.namespace(|| "relu"), &vec![out], &single_inps)?;
+      let out = out.into_iter().map(|x| Rc::new(x)).collect::<Vec<_>>();
+      out
+    } else if activation == ActivationType::None {
+      out
+    } else {
+      panic!("Unsupported activation type for add");
+    };
+
     let out = Array::from_shape_vec(IxDyn(out_shape.as_slice()), out).unwrap();
 
     Ok(vec![out])
