@@ -18,11 +18,7 @@ pub struct MaxPool2DChip<F: FieldExt> {
 }
 
 impl<F: FieldExt> MaxPool2DChip<F> {
-  pub fn splat(
-    &self,
-    inp: &AssignedTensor<F>,
-    layer_config: &LayerConfig,
-  ) -> Result<Vec<Vec<CellRc<F>>>, Error> {
+  pub fn shape(&self, inp: &AssignedTensor<F>, layer_config: &LayerConfig) -> (usize, usize) {
     let params = &layer_config.layer_params;
     let (fx, fy) = (params[0], params[1]);
     let (fx, fy) = (fx as usize, fy as usize);
@@ -41,6 +37,25 @@ impl<F: FieldExt> MaxPool2DChip<F> {
       fy,
       PaddingEnum::Valid,
     );
+
+    out_shape
+  }
+
+  pub fn splat(
+    &self,
+    inp: &AssignedTensor<F>,
+    layer_config: &LayerConfig,
+  ) -> Result<Vec<Vec<CellRc<F>>>, Error> {
+    let params = &layer_config.layer_params;
+    let (fx, fy) = (params[0], params[1]);
+    let (fx, fy) = (fx as usize, fy as usize);
+    let (sx, sy) = (params[2], params[3]);
+    let (sx, sy) = (sx as usize, sy as usize);
+
+    // Only support batch size 1 for now
+    assert_eq!(inp.shape()[0], 1);
+
+    let out_shape = self.shape(inp, layer_config);
 
     let mut splat = vec![];
     for i in 0..out_shape.0 {
@@ -94,9 +109,8 @@ impl<F: FieldExt> Layer<F> for MaxPool2DChip<F> {
     let out = out.into_iter().map(|x| Rc::new(x)).collect();
 
     // TODO: refactor this
-    let (sx, sy) = (layer_config.layer_params[2], layer_config.layer_params[3]);
-    let (sx, sy) = (sx as usize, sy as usize);
-    let out_shape = vec![1, inp.shape()[1] / sx, inp.shape()[2] / sy, inp.shape()[3]];
+    let out_xy = self.shape(inp, layer_config);
+    let out_shape = vec![1, out_xy.0, out_xy.1, inp.shape()[3]];
 
     let out = Array::from_shape_vec(IxDyn(&out_shape), out).unwrap();
 
