@@ -129,8 +129,6 @@ impl<F: FieldExt> Gadget<F> for MaxChip<F> {
     vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
     single_inputs: &Vec<&AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
-    assert_eq!(single_inputs.len(), 1);
-
     let mut inputs = vec_inputs[0].clone();
     let first = inputs[0];
 
