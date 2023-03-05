@@ -3,9 +3,12 @@ use std::{collections::HashMap, rc::Rc};
 use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
 use ndarray::{Array, IxDyn};
 
-use crate::gadgets::{
-  gadget::{Gadget, GadgetConfig, GadgetType},
-  max::MaxChip,
+use crate::{
+  gadgets::{
+    gadget::{Gadget, GadgetConfig, GadgetType},
+    max::MaxChip,
+  },
+  layers::conv2d::{Conv2DChip, PaddingEnum},
 };
 
 use super::layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig};
@@ -29,9 +32,19 @@ impl<F: FieldExt> MaxPool2DChip<F> {
     // Only support batch size 1 for now
     assert_eq!(inp.shape()[0], 1);
 
+    let out_shape = Conv2DChip::<F>::out_hw(
+      inp.shape()[1],
+      inp.shape()[2],
+      sx,
+      sy,
+      fx,
+      fy,
+      PaddingEnum::Valid,
+    );
+
     let mut splat = vec![];
-    for i in 0..inp.shape()[1] / sx {
-      for j in 0..inp.shape()[2] / sy {
+    for i in 0..out_shape.0 {
+      for j in 0..out_shape.1 {
         for k in 0..inp.shape()[3] {
           let mut tmp = vec![];
           for x in 0..fx {
