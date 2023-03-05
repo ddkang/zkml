@@ -171,7 +171,7 @@ impl<F: FieldExt> Gadget<F> for MaxChip<F> {
       &vec![inputs],
       single_inputs,
     )?;
-    while outputs.len() != 1 {
+    while outputs.len() >= self.num_inputs_per_row() {
       while outputs.len() % self.num_inputs_per_row() != 0 {
         outputs.push(first.clone());
       }
@@ -182,6 +182,14 @@ impl<F: FieldExt> Gadget<F> for MaxChip<F> {
         single_inputs,
       )?;
     }
+    let tmp = outputs.iter().map(|x| x).collect::<Vec<_>>();
+    outputs = self.op_aligned_rows(
+      layouter.namespace(|| "max forward"),
+      &vec![tmp],
+      single_inputs,
+    )?;
+    // TODO: not sure if this is needed
+    outputs = vec![outputs.into_iter().next().unwrap()];
 
     Ok(outputs)
   }
