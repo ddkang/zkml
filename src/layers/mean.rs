@@ -118,11 +118,10 @@ impl<F: FieldExt> Layer<F> for MeanChip {
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let dived = self.avg_forward(layouter, tensors, constants, gadget_config, layer_config)?;
 
-    let inp = &tensors[0];
-    let keep_axis = self.get_keep_axis(layer_config);
-    // FIXME: only support batch size = 1
-    let mut out_shape = vec![1; inp.shape().len()];
-    out_shape[keep_axis] = inp.shape()[keep_axis];
+    let out_shape = layer_config.out_shapes[0]
+      .iter()
+      .map(|x| *x as usize)
+      .collect::<Vec<_>>();
 
     let out = Array::from_shape_vec(IxDyn(&out_shape), dived).unwrap();
     Ok(vec![out])
