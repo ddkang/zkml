@@ -19,6 +19,7 @@ pub enum LayerType {
   FullyConnected,
   Logistic,
   MaskNegInf,
+  MaxPool2D,
   Mean,
   Mul,
   #[default]

@@ -20,6 +20,7 @@ pub enum GadgetType {
   DotProduct,
   Exp,
   Logistic,
+  Max,
   Relu,
   Rsqrt,
   SqrtBig,

@@ -21,6 +21,7 @@ use crate::{
     bias_div_round_relu6::BiasDivRoundRelu6Chip,
     dot_prod::DotProductChip,
     gadget::{Gadget, GadgetConfig, GadgetType},
+    max::MaxChip,
     mul_pairs::MulPairsChip,
     nonlinear::{exp::ExpGadgetChip, relu::ReluChip},
     nonlinear::{logistic::LogisticGadgetChip, rsqrt::RsqrtGadgetChip},
@@ -39,6 +40,7 @@ use crate::{
     fully_connected::{FullyConnectedChip, FullyConnectedConfig},
     layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig, LayerType},
     logistic::LogisticChip,
+    max_pool_2d::MaxPool2DChip,
     mean::MeanChip,
     noop::NoopChip,
     rsqrt::RsqrtChip,
@@ -297,6 +299,7 @@ impl<F: FieldExt> ModelCircuit<F> {
       "FullyConnected" => LayerType::FullyConnected,
       "Logistic" => LayerType::Logistic,
       "MaskNegInf" => LayerType::MaskNegInf,
+      "MaxPool2D" => LayerType::MaxPool2D,
       "Mean" => LayerType::Mean,
       "Mul" => LayerType::Mul,
       "Noop" => LayerType::Noop,
@@ -346,6 +349,9 @@ impl<F: FieldExt> ModelCircuit<F> {
             }) as Box<dyn GadgetConsumer>,
             LayerType::Logistic => Box::new(LogisticChip {}) as Box<dyn GadgetConsumer>,
             LayerType::MaskNegInf => Box::new(MaskNegInfChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::MaxPool2D => Box::new(MaxPool2DChip {
+              marker: PhantomData::<F>,
+            }) as Box<dyn GadgetConsumer>,
             LayerType::Mean => Box::new(MeanChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Mul => Box::new(MulChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Noop => Box::new(NoopChip {}) as Box<dyn GadgetConsumer>,
@@ -469,6 +475,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
         GadgetType::DotProduct => DotProductChip::<F>::configure(meta, gadget_config),
         GadgetType::Exp => ExpGadgetChip::<F>::configure(meta, gadget_config),
         GadgetType::Logistic => LogisticGadgetChip::<F>::configure(meta, gadget_config),
+        GadgetType::Max => MaxChip::<F>::configure(meta, gadget_config),
         GadgetType::MulPairs => MulPairsChip::<F>::configure(meta, gadget_config),
         GadgetType::Relu => ReluChip::<F>::configure(meta, gadget_config),
         GadgetType::Rsqrt => RsqrtGadgetChip::<F>::configure(meta, gadget_config),
@@ -533,6 +540,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
           let chip = LogisticGadgetChip::<F>::construct(gadget_rc.clone());
           chip.load_lookups(layouter.namespace(|| "logistic lookup"))?;
         }
+        GadgetType::Max => {}
         GadgetType::MulPairs => {}
         GadgetType::SqrtBig => {}
         _ => panic!("unsupported gadget {:?}", gadget),
