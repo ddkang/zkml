@@ -542,6 +542,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
         }
         GadgetType::Max => {}
         GadgetType::MulPairs => {}
+        GadgetType::SubPairs => {}
         GadgetType::SqrtBig => {}
         _ => panic!("unsupported gadget {:?}", gadget),
       }

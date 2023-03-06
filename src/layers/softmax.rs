@@ -1,13 +1,18 @@
 use std::{collections::HashMap, rc::Rc, vec};
 
-use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
+use halo2_proofs::{
+  circuit::{AssignedCell, Layouter},
+  halo2curves::FieldExt,
+  plonk::Error,
+};
 use ndarray::{s, Array, IxDyn};
 
 use crate::gadgets::{
   adder::AdderChip,
   gadget::{Gadget, GadgetConfig, GadgetType},
+  max::MaxChip,
   nonlinear::exp::ExpGadgetChip,
-  sqrt_big::SqrtBigChip,
+  sub_pairs::SubPairsChip,
   var_div::VarDivRoundChip,
 };
 
@@ -15,6 +20,75 @@ use super::layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig};
 
 #[derive(Clone, Debug)]
 pub struct SoftmaxChip {}
+
+impl SoftmaxChip {
+  pub fn softmax_flat<F: FieldExt>(
+    mut layouter: impl Layouter<F>,
+    constants: &HashMap<i64, CellRc<F>>,
+    inp_flat: Vec<&AssignedCell<F, F>>,
+    gadget_config: Rc<GadgetConfig>,
+  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    let exp_chip = ExpGadgetChip::<F>::construct(gadget_config.clone());
+    let adder_chip = AdderChip::<F>::construct(gadget_config.clone());
+    let sub_pairs_chip = SubPairsChip::<F>::construct(gadget_config.clone());
+    let max_chip = MaxChip::<F>::construct(gadget_config.clone());
+    let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
+
+    let zero = constants.get(&0).unwrap().as_ref();
+    let sf = constants
+      .get(&(gadget_config.scale_factor as i64))
+      .unwrap()
+      .as_ref();
+
+    // Compute the max
+    let max = max_chip
+      .forward(
+        layouter.namespace(|| format!("max")),
+        &vec![inp_flat.clone()],
+        &vec![zero],
+      )
+      .unwrap();
+    let max = &max[0];
+
+    // Subtract the max
+    let max_flat = vec![max; inp_flat.len()];
+    let sub = sub_pairs_chip.forward(
+      layouter.namespace(|| format!("sub")),
+      &vec![inp_flat, max_flat],
+      &vec![zero],
+    )?;
+    let sub = sub.iter().collect::<Vec<_>>();
+
+    // Compute the exp
+    let exp_slice = exp_chip.forward(
+      layouter.namespace(|| format!("exp")),
+      &vec![sub],
+      &vec![zero],
+    )?;
+
+    // Compute the sum
+    let sum = adder_chip.forward(
+      layouter.namespace(|| format!("sum")),
+      &vec![exp_slice.iter().collect()],
+      &vec![zero],
+    )?;
+    let sum = sum[0].clone();
+    let sum_div_sf = var_div_chip.forward(
+      layouter.namespace(|| format!("sum div sf")),
+      &vec![vec![&sum]],
+      &vec![zero, sf],
+    )?;
+    let sum_div_sf = sum_div_sf[0].clone();
+
+    let dived = var_div_chip.forward(
+      layouter.namespace(|| format!("div")),
+      &vec![exp_slice.iter().collect()],
+      &vec![zero, &sum_div_sf],
+    )?;
+
+    Ok(dived)
+  }
+}
 
 impl<F: FieldExt> Layer<F> for SoftmaxChip {
   fn forward(
@@ -31,81 +105,26 @@ impl<F: FieldExt> Layer<F> for SoftmaxChip {
       assert_eq!(inp.shape()[0], 1);
     }
 
-    let exp_chip = ExpGadgetChip::<F>::construct(gadget_config.clone());
-    let inp_vec = inp.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
-    let zero = constants.get(&0).unwrap().as_ref();
-    println!("inp_vec: {:?}", inp_vec.len());
-    let exped = exp_chip.forward(
-      layouter.namespace(|| "exp chip"),
-      &vec![inp_vec],
-      &vec![zero],
-    )?;
-    println!("exped: {:?}", exped.len());
-
     let shape = if inp.ndim() == 2 || inp.ndim() == 3 {
       inp.shape().iter().map(|x| *x).collect::<Vec<_>>()
     } else {
       vec![inp.shape()[1], inp.shape()[2], inp.shape()[3]]
     };
-    let exped = Array::from_shape_vec(IxDyn(&shape), exped).unwrap();
-
-    let adder_chip = AdderChip::<F>::construct(gadget_config.clone());
-    let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
+    let inp = inp.to_owned().into_shape(shape.clone()).unwrap();
 
     let mut outp = vec![];
-    let sf = constants
-      .get(&(gadget_config.scale_factor as i64))
-      .unwrap()
-      .as_ref();
-    if inp.ndim() == 3 || inp.ndim() == 4 {
+    if inp.ndim() == 3 {
       for i in 0..shape[0] {
         for j in 0..shape[1] {
-          // Compute the sum
-          let exp_slice = exped.slice(s![i, j, ..]);
-          let sum = adder_chip.forward(
-            layouter.namespace(|| format!("sum {}", i)),
-            &vec![exp_slice.iter().collect()],
-            &vec![zero],
-          )?;
-          let sum = sum[0].clone();
-
-          // Divide by the scale factor
-          let sum_div_sf = var_div_chip.forward(
-            layouter.namespace(|| format!("div {}", i)),
-            &vec![vec![&sum]],
-            &vec![zero, sf],
-          )?;
-          let sum_div_sf = sum_div_sf[0].clone();
-
-          // Compute the sqrt of the sum div SF
-          let sqrt_big_chip = SqrtBigChip::<F>::construct(gadget_config.clone());
-          let sqrt = sqrt_big_chip.forward(
-            layouter.namespace(|| format!("sqrt {}", i)),
-            &vec![vec![&sum_div_sf]],
-            &vec![zero],
-          )?;
-          let sqrt = &sqrt[0];
-          // FIXME: hack to avoid division by zero
-          let adder_chip = AdderChip::<F>::construct(gadget_config.clone());
-          let one = constants.get(&1).unwrap().as_ref();
-          let sqrt = adder_chip.forward(
-            layouter.namespace(|| format!("sqrt {}", i)),
-            &vec![vec![sqrt, one]],
-            &vec![zero],
-          )?;
-          let sqrt = &sqrt[0];
-
-          let dived = var_div_chip.forward(
-            layouter.namespace(|| format!("div {}", i)),
-            &vec![exp_slice.iter().collect()],
-            &vec![zero, sqrt],
-          )?;
-          let dived = dived.iter().collect::<Vec<_>>();
-          let dived = var_div_chip.forward(
-            layouter.namespace(|| format!("div {}", i)),
-            &vec![dived],
-            &vec![zero, sqrt],
-          )?;
+          let inp_slice = inp.slice(s![i, j, ..]);
+          let inp_flat = inp_slice.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
+          let dived = Self::softmax_flat(
+            layouter.namespace(|| format!("softmax {} {}", i, j)),
+            constants,
+            inp_flat,
+            gadget_config.clone(),
+          )
+          .unwrap();
           outp.extend(dived);
         }
       }
@@ -125,7 +144,8 @@ impl GadgetConsumer for SoftmaxChip {
       GadgetType::Exp,
       GadgetType::Adder,
       GadgetType::VarDivRound,
-      GadgetType::SqrtBig,
+      GadgetType::Max,
+      GadgetType::SubPairs,
     ]
   }
 }
