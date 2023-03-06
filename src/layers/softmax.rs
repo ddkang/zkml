@@ -16,7 +16,7 @@ use crate::gadgets::{
   var_div::VarDivRoundChip,
 };
 
-use super::layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig};
+use super::layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig, BackwardLayer};
 
 #[derive(Clone, Debug)]
 pub struct SoftmaxChip {}
@@ -87,6 +87,60 @@ impl SoftmaxChip {
     )?;
 
     Ok(dived)
+  }
+}
+
+// Run the backward propagation
+// Note that we currently assume that the last layer is a softmax,
+// we then use cross entropy loss to 
+impl <F: FieldExt> BackwardLayer<F> for SoftmaxChip {
+  fn backward(
+    &self,
+    mut layouter: impl Layouter<F>,
+    input_tensors: &Vec<AssignedTensor<F>>,
+    output_tensors: &Vec<AssignedTensor<F>>,
+    constants: &HashMap<i64, CellRc<F>>,
+    gadget_config: Rc<GadgetConfig>,
+    _layer_config: &LayerConfig,
+  ) -> Result<Vec<AssignedTensor<F>>, Error> {
+    // This is terrible, but we currently assume that we pass in the labels to the softmax.
+    // If input_tensors.len() == 1, then we perform normal back propagation
+    // If input_tensors.len() == 2, then we perform cross entropy back propagation
+    assert!(input_tensors.len() == 2);
+
+    let mut pred = output_tensors[0].clone();
+    let mut label = output_tensors[1].clone();
+
+    assert!(pred.shape() == label.shape());
+    assert!(pred.ndim() == 2 || pred.ndim() == 3 || pred.ndim() == 4);
+    if pred.ndim() == 4 {
+      assert_eq!(pred.shape()[0], 1);
+    }
+
+    // select chips
+    let sub_pairs_chip = SubPairsChip::<F>::construct(gadget_config.clone());
+
+    let zero = constants.get(&0).unwrap().as_ref();
+
+    // Back propagation layer:
+    // * dL / dx_i = y_hat_i - y_i
+    // * Where y_hat = Softmax(y)
+
+    // flatten
+    let pred_flat = pred.iter().map(|x| &**x).collect::<Vec<_>>();
+    let label_flat = label.iter().map(|x| &**x).collect::<Vec<_>>();
+    // subtract
+    let sub = sub_pairs_chip.forward(
+      layouter.namespace(|| format!("sub")),
+      &vec![pred_flat, label_flat],
+      &vec![zero],
+    )?;
+    // reform
+    let sub_outp = sub.iter().map(|x| Rc::new(x.clone())).collect::<Vec<_>>();
+
+    let outp = Array::from_shape_vec(IxDyn(pred.shape()), sub_outp).unwrap();
+    
+    Ok(vec![outp])
   }
 }
 

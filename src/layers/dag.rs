@@ -1,6 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 
-use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
+use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error, arithmetic::Field};
 
 use crate::{
   gadgets::gadget::GadgetConfig,
@@ -52,15 +52,58 @@ impl<F: FieldExt> DAGLayerChip<F> {
   }
 }
 
+impl<F: FieldExt> DAGLayerChip<F> {
+  fn backward(
+    &self,
+    mut layouter: impl Layouter<F>,
+    tensors: &Vec<AssignedTensor<F>>,
+    constants: &HashMap<i64, CellRc<F>>,
+    gadget_config: Rc<GadgetConfig>,
+    _layer_config: &LayerConfig
+  ) -> Result<(), Error> {
+    // We generate each of the intermediary activations. For each layer, we compute and multiply, compute and multiply.
+    // forward(layouter, tensors, constants, gadget_config, num_epochs, )?;
+
+    // This is the number of convolutions that we will update before we exit
+    let NUM_CONVS: usize = 2;
+
+    // Loop from forward to backwards we keep accumulating backwards operations
+    // When we get to a Conv2D layer, we must also update
+    for (layer_idx, layer_config) in self.dag_config.ops.iter().enumerate() {
+      let layer_type = &layer_config.layer_type;
+      let inp_idxes = &self.dag_config.inp_idxes[layer_idx];
+      let out_idxes = &self.dag_config.out_idxes[layer_idx];
+      println!(
+        "Processing layer {}, type: {:?}, inp_idxes: {:?}, out_idxes: {:?}",
+        layer_idx, layer_type, inp_idxes, out_idxes
+      );
+    }
+
+    Ok(())
+  }
+}
+
 // IMPORTANT: Assumes input tensors are in order. Output tensors can be in any order.
 impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
+  // // Forward
+  // fn _forward(
+  //   &self,
+  //   mut layouter: impl Layouter<F>,
+  //   tensors: &Vec<AssignedTensor<F>>,
+  //   constants: &HashMap<i64, CellRc<F>>,
+  //   gadget_config: Rc<GadgetConfig>,
+  //   _layer_config: &LayerConfig,
+  // ) -> Result<Vec<AssignedTensor<F>>, Error> {
+
+  // }
+
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, CellRc<F>>,
     gadget_config: Rc<GadgetConfig>,
-    _layer_config: &LayerConfig,
+    _layer_config: &LayerConfig
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
     // Reveal/commit to weights
     // TODO
@@ -75,7 +118,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
     }
 
     // Compute the dag
-    for (layer_idx, layer_config) in self.dag_config.ops.iter().enumerate() {
+    for (layer_idx, layer_config) in self.dag_config.ops.iter().rev().enumerate() {
       let layer_type = &layer_config.layer_type;
       let inp_idxes = &self.dag_config.inp_idxes[layer_idx];
       let out_idxes = &self.dag_config.out_idxes[layer_idx];

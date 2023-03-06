@@ -73,6 +73,24 @@ pub trait Layer<F: FieldExt> {
   ) -> Result<Vec<AssignedTensor<F>>, Error>;
 }
 
+pub trait BackwardLayer<F: FieldExt> {
+  // For a particular layer, take the output of the next layer
+  // and compute the differential of the layer on the output
+  // We must take in the input of the previous layer too, 
+  // because in the case of Conv2D, we must also update
+  // the weights of the layer, before passing on the integral
+  // of the inputs back
+  fn backward(
+    &self,
+    layouter: impl Layouter<F>,
+    input_tensors: &Vec<AssignedTensor<F>>,
+    output_tensors: &Vec<AssignedTensor<F>>,
+    constants: &HashMap<i64, CellRc<F>>,
+    gadget_config: Rc<GadgetConfig>,
+    layer_config: &LayerConfig,
+  ) -> Result<Vec<AssignedTensor<F>>, Error>;
+}
+
 pub trait GadgetConsumer {
   fn used_gadgets(&self) -> Vec<GadgetType>;
 }

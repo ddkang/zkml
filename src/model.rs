@@ -619,6 +619,8 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
       )?
     };
 
+    // The dag is constructed for the purpose of a feed forwar dinference
+
     // Perform the dag
     let dag_chip = DAGLayerChip::<F>::construct(self.dag_config.clone());
     let _result = dag_chip.forward(

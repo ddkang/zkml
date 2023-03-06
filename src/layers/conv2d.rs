@@ -22,7 +22,7 @@ use crate::{
   },
 };
 
-use super::layer::{ActivationType, AssignedTensor, GadgetConsumer, Layer, LayerConfig};
+use super::layer::{ActivationType, AssignedTensor, GadgetConsumer, Layer, LayerConfig, BackwardLayer, self};
 
 #[derive(Default, Clone, Copy, Eq, PartialEq)]
 pub enum PaddingEnum {
@@ -52,6 +52,32 @@ pub struct Conv2DChip<F: FieldExt> {
 
 impl<F: FieldExt> Conv2DChip<F> {
   // TODO: this is horrible. What's the best way to fix this?
+  pub fn config_to_param_vec(config: Conv2DConfig) -> Vec<i64> {
+    let conv_type = match config.conv_type {
+      ConvLayerEnum::Conv2D => 0,
+      ConvLayerEnum::DepthwiseConv2D => 1,
+      _ => panic!("Invalid conv type"),
+    };
+    let padding = match config.padding {
+      PaddingEnum::Same => 0,
+      PaddingEnum::Valid => 1,
+      _ => panic!("Invalid padding"),
+    };
+    let activation = match config.activation {
+      ActivationType::None => 0,
+      ActivationType::Relu => 1,
+      ActivationType::Relu6 => 2,
+      _ => panic!("Invalid activation type"),
+    };
+    return vec![
+      conv_type,
+      padding,
+      activation,
+      config.stride.0 as i64,
+      config.stride.1 as i64
+    ];
+  }
+
   pub fn param_vec_to_config(layer_params: Vec<i64>) -> Conv2DConfig {
     let conv_type = match layer_params[0] {
       0 => ConvLayerEnum::Conv2D,
@@ -276,6 +302,93 @@ impl<F: FieldExt> Conv2DChip<F> {
     }
 
     (inp_cells, weight_cells, biases_cells)
+  }
+}
+
+impl<F: FieldExt> BackwardLayer<F> for Conv2DChip<F> {
+  fn backward(
+    &self,
+    mut layouter: impl Layouter<F>,
+    input_tensors: &Vec<AssignedTensor<F>>,
+    output_tensors: &Vec<AssignedTensor<F>>,
+    constants: &HashMap<i64, Rc<AssignedCell<F, F>>>,
+    gadget_config: Rc<GadgetConfig>,
+    layer_config: &LayerConfig,
+  ) -> Result<Vec<AssignedTensor<F>>, Error> {
+    // Check that the convolution is not depthwise
+    assert!(
+      Self::param_vec_to_config(self.config.layer_params.clone()).conv_type != ConvLayerEnum::DepthwiseConv2D,
+      "Depthwise convolution is not supported"
+    );
+
+    // Compute dx and dy
+    // Then update the thing
+    let input = &input_tensors[0];
+    let weights = &input_tensors[1];
+    let dloss = &output_tensors[0];
+
+    // Check the weights and output dimensions
+    assert!(weights.ndim() == 4);
+    assert!(dloss.ndim() == 4);
+    assert!(input.ndim() == 4);
+
+    // This is the gradient back propagation of the previous layer
+
+    // 0: chanout -> 0: chanin
+    // 1: ci      -> 1: ci
+    // 2: cj      -> 2: cj
+    // 3: chanin  -> 3: chanout
+    let perm_inputs = input.to_owned().into_dyn().permuted_axes(IxDyn(&[3, 1, 2, 0]));
+
+    // Compute dL/dX = Conv(input, dloss)
+    let dx_output = self.forward(
+      layouter.namespace(|| ""),
+      &vec![input.clone(), dloss.clone()],
+      constants,
+      gadget_config.clone(),
+      layer_config,
+    );
+
+    // Transform weights
+    // 0: chanout -> 0: chanin
+    // 1: ci      -> 1: ci
+    // 2: cj      -> 2: cj
+    // 3: chanin  -> 3: chanout
+    let perm_weights = weights.to_owned().permuted_axes(IxDyn(&[3, 1, 2, 0]));
+
+    // Rotate the weight vector
+    let mut rotated_weights = perm_weights.clone();
+
+    // Rotate the weights
+    for i in 0..perm_weights.shape()[0] {
+      for j in 0..perm_weights.shape()[1] {
+        for k in 0..perm_weights.shape()[2] {
+          for l in 0..perm_weights.shape()[3] {
+            rotated_weights[[i, j, k, l]] = perm_weights[[
+              i, 
+              perm_weights.shape()[1] - 1 - j,
+              perm_weights.shape()[2] - 1 - k,
+              l
+            ]].clone();
+          }
+        }
+      }
+    }
+
+    // Compute DL/dW = FullConv(input)
+    let dw_output = self.forward(
+      layouter.namespace(|| ""),
+      &vec![dloss.clone(), rotated_weights],
+      constants,
+      gadget_config.clone(),
+      layer_config,
+    );
+
+
+
+    // Get the output of the convolutoin
+
+    Ok(vec![])
   }
 }
 
