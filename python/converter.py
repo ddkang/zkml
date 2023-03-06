@@ -343,8 +343,6 @@ class Converter:
         'out_shapes': [get_shape(interpreter, op.Outputs(i)) for i in range(op.OutputsLength())],
         'params': params,
         'mask': mask,
-        'use_selectors': self.use_selectors,
-        'commit': self.commit,
       })
     print(layers)
     print()
@@ -398,6 +396,8 @@ class Converter:
       'out_idxes': layers[-1]['out_idxes'],
       'layers': layers,
       'tensors': tensors,
+      'use_selectors': self.use_selectors,
+      'commit': self.commit,
     }
     print()
     print(d['layers'][-1])
