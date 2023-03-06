@@ -166,6 +166,7 @@ impl<F: FieldExt> Gadget<F> for MaxChip<F> {
       inputs.push(first);
     }
 
+    // TODO: I'm not sure if this is correct
     let num_iters = inputs.len().div_ceil(self.num_inputs_per_row()) + self.num_inputs_per_row();
 
     let mut outputs = self.op_aligned_rows(
