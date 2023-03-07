@@ -26,7 +26,6 @@ halo2_gadgets = { git="https://github.com/privacy-scaling-explorations/halo2", p
 halo2_proofs = { git="https://github.com/privacy-scaling-explorations/halo2", package="halo2_proofs", rev="c7e42e41f8141745ba0b90213438f240d55cb347" }
 lazy_static = "1.4.0"
 ndarray = "0.15.6"
-npy = "0.4.0"
 num-bigint = "0.4.3"
 num-traits = "0.2.15"
 once_cell = "1.15.0"
