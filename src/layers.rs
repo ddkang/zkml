@@ -17,7 +17,7 @@ pub mod rsqrt;
 pub mod softmax;
 pub mod square;
 pub mod squared_diff;
-// pub mod updater;
+pub mod updater;
 
 // Special: dag
 pub mod dag;

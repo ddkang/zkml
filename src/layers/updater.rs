@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
   arithmetic::FieldExt,
@@ -7,10 +7,10 @@ use halo2_proofs::{
   poly::Rotation,
 };
 
-use crate::chips::{DIV_INP_MIN_VAL_POS, ETA_TOP};
-use crate::gadgets::{bias_div_round_relu6::SHIFT_MIN_VAL};
+use crate::gadgets::gadget::{GadgetConfig, convert_to_u64, self};
 
-use super::{convert_to_u64, DIV_OUTP_MIN_VAL, DIV_VAL};
+// use crate::{chips::{DIV_INP_MIN_VAL_POS, ETA_TOP}, gadgets::gadget::GadgetConfig};
+// use super::{convert_to_u64, DIV_OUTP_MIN_VAL, DIV_VAL};
 
 pub const NUM_COLS_PER_OP: usize = 4;
 
@@ -27,7 +27,6 @@ pub struct UpdaterChip<F: FieldExt> {
   _marker: PhantomData<F>,
 }
 
-// Contains code that updates the weights of a feedforward convolution layer
 impl<F: FieldExt> UpdaterChip<F> {
   pub fn construct(config: UpdaterConfig) -> Self {
     Self {
@@ -39,15 +38,17 @@ impl<F: FieldExt> UpdaterChip<F> {
   pub fn configure(
     meta: &mut ConstraintSystem<F>,
     shared_columns: Vec<Column<Advice>>,
+    gadget_config: Rc<GadgetConfig>,
     mod_lookup: TableColumn,
   ) -> UpdaterConfig {
     let selector = meta.complex_selector();
 
-    let div_val = DIV_VAL.load(std::sync::atomic::Ordering::Relaxed);
-    let eta = ETA_TOP.load(std::sync::atomic::Ordering::Relaxed);
+    let div_val = gadget_config.scale_factor;
+    let eta = div_val / 1000;
 
     meta.create_gate("updater_arith", |meta| {
       let s = meta.query_selector(selector);
+
       let sf = Expression::Constant(F::from(div_val as u64));
       let eta = Expression::Constant(F::from(eta as u64));
 
@@ -59,6 +60,7 @@ impl<F: FieldExt> UpdaterChip<F> {
         let div = meta.query_advice(shared_columns[offset + 2], Rotation::cur());
         let mod_res = meta.query_advice(shared_columns[offset + 3], Rotation::cur());
 
+        // Blow up, multiply, and
         let expr = (w * sf.clone() - dw * eta.clone()) - (div * sf.clone() + mod_res);
         constraints.push(s.clone() * expr);
       }
@@ -67,7 +69,9 @@ impl<F: FieldExt> UpdaterChip<F> {
 
     for op_idx in 0..shared_columns.len() / NUM_COLS_PER_OP {
       let offset = op_idx * NUM_COLS_PER_OP;
-      meta.lookup("updater", |meta| {
+
+      // Check that mod is smaller than SF
+      meta.lookup("max inp1", |meta| {
         let s = meta.query_selector(selector);
         let mod_res = meta.query_advice(shared_columns[offset + 3], Rotation::cur());
 
@@ -90,22 +94,20 @@ impl<F: FieldExt> UpdaterChip<F> {
   pub fn update_row(
     &self,
     mut layouter: impl Layouter<F>,
+    gadget_config: Rc<GadgetConfig>,
     w: &Vec<AssignedCell<F, F>>,
     dw: &Vec<AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     assert!(w.len() == dw.len());
     assert!(w.len() % self.ops_per_row() == 0);
 
-    let div_val = DIV_VAL.load(std::sync::atomic::Ordering::Relaxed) as i64;
+    let div_val = gadget_config.scale_factor as i64;
     let div_val_f = F::from(div_val as u64);
-    // Eta
-    let eta = ETA_TOP.load(std::sync::atomic::Ordering::Relaxed);
+    let eta = div_val / 1000;
     let eta = F::from(eta as u64);
-    // div_outp_min_val
-    let div_outp_min_val = DIV_OUTP_MIN_VAL.load(std::sync::atomic::Ordering::Relaxed) as i64;
-    let div_inp_min_val_pos = F::from(DIV_INP_MIN_VAL_POS as u64);
-    
-    let div_inp_min_val_pos_i64 = -SHIFT_MIN_VAL;
+
+    let div_outp_min_val = gadget_config.div_outp_min_val;
+    let div_inp_min_val_pos_i64 = - gadget_config.shift_min_val;
     let div_inp_min_val_pos = F::from(div_inp_min_val_pos_i64 as u64);
 
     let outp_cell = layouter.assign_region(
@@ -117,20 +119,24 @@ impl<F: FieldExt> UpdaterChip<F> {
 
           let w_val = w.value().map(|x: &F| x.to_owned());
           let dw_val = dw.value().map(|x: &F| x.to_owned());
+          // Make the update
           let out_scaled = w_val.zip(dw_val).map(|(w, dw)| w * div_val_f - dw * eta);
 
+          // Find the mod and residue
           let div_mod = out_scaled.map(|x| {
-            // add this in order to make sure we can divide
+            // We add the min_val_ppos to x
             let x_pos = x + div_inp_min_val_pos;
+            // If we are smaller than the 0, we subtract the min_val_pos
             let x_pos = if x_pos > F::zero() {
               x_pos
             } else {
               x_pos + div_val_f
             };
-            // convert to u64
             let inp = convert_to_u64(&x_pos);
-            // Divide
-            let div_res = inp as i64 / div_val - (DIV_INP_MIN_VAL_POS as i64 / div_val);
+
+            // inp / div_val
+            // inp % div_val
+            let div_res = inp as i64 / div_val - (div_inp_min_val_pos_i64 as i64 / div_val);
             let mod_res = inp as i64 % div_val;
             (div_res, mod_res)
           });
@@ -175,6 +181,7 @@ impl<F: FieldExt> UpdaterChip<F> {
   pub fn update(
     &self,
     mut layouter: impl Layouter<F>,
+    gadget_config: Rc<GadgetConfig>,
     w: &Vec<AssignedCell<F, F>>,
     dw: &Vec<AssignedCell<F, F>>,
     zero: &AssignedCell<F, F>,
@@ -193,7 +200,12 @@ impl<F: FieldExt> UpdaterChip<F> {
       let w_row = w[offset..offset + self.ops_per_row()].to_vec();
       let dw_row = dw[offset..offset + self.ops_per_row()].to_vec();
       let tmp = self
-        .update_row(layouter.namespace(|| ""), &w_row, &dw_row)
+        .update_row(
+          layouter.namespace(|| ""),
+          gadget_config.clone(),
+          &w_row,
+          &dw_row
+        )
         .unwrap();
       updated.extend(tmp);
     }
