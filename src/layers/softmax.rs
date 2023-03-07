@@ -13,7 +13,7 @@ use crate::gadgets::{
   max::MaxChip,
   nonlinear::exp::ExpGadgetChip,
   sub_pairs::SubPairsChip,
-  var_div::VarDivRoundChip,
+  var_div_big::VarDivRoundBigChip,
 };
 
 use super::layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig};
@@ -32,7 +32,7 @@ impl SoftmaxChip {
     let adder_chip = AdderChip::<F>::construct(gadget_config.clone());
     let sub_pairs_chip = SubPairsChip::<F>::construct(gadget_config.clone());
     let max_chip = MaxChip::<F>::construct(gadget_config.clone());
-    let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
+    let var_div_big_chip = VarDivRoundBigChip::<F>::construct(gadget_config.clone());
 
     let zero = constants.get(&0).unwrap().as_ref();
     let sf = constants
@@ -73,14 +73,14 @@ impl SoftmaxChip {
       &vec![zero],
     )?;
     let sum = sum[0].clone();
-    let sum_div_sf = var_div_chip.forward(
+    let sum_div_sf = var_div_big_chip.forward(
       layouter.namespace(|| format!("sum div sf")),
       &vec![vec![&sum]],
       &vec![zero, sf],
     )?;
     let sum_div_sf = sum_div_sf[0].clone();
 
-    let dived = var_div_chip.forward(
+    let dived = var_div_big_chip.forward(
       layouter.namespace(|| format!("div")),
       &vec![exp_slice.iter().collect()],
       &vec![zero, &sum_div_sf],
@@ -143,7 +143,7 @@ impl GadgetConsumer for SoftmaxChip {
     vec![
       GadgetType::Exp,
       GadgetType::Adder,
-      GadgetType::VarDivRound,
+      GadgetType::VarDivRoundBig,
       GadgetType::Max,
       GadgetType::SubPairs,
     ]
