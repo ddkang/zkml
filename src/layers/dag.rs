@@ -1,10 +1,10 @@
-use std::{collections::HashMap, marker::PhantomData, rc::Rc};
+use std::{collections::HashMap, marker::PhantomData, rc::Rc, sync::Arc};
 
 use halo2_proofs::{circuit::{Layouter, AssignedCell}, halo2curves::FieldExt, plonk::Error, arithmetic::Field};
 use ndarray::{IxDynImpl, Dim, ArrayBase, OwnedRepr};
 
 use crate::{
-  gadgets::gadget::GadgetConfig,
+  gadgets::gadget::{GadgetConfig, self},
   layers::{
     arithmetic::{add::AddChip, mul::MulChip, sub::SubChip},
     batch_mat_mul::BatchMatMulChip,
@@ -20,7 +20,7 @@ use crate::{
     },
     softmax::SoftmaxChip,
     square::SquareChip,
-    squared_diff::SquaredDiffChip,
+    squared_diff::SquaredDiffChip, layer::BackwardLayer,
   },
   utils::helpers::print_assigned_arr,
 };
@@ -70,14 +70,59 @@ impl<F: FieldExt> DAGLayerChip<F> {
 
     // Loop from forward to backwards we keep accumulating backwards operations
     // When we get to a Conv2D layer, we must also update
-    for (layer_idx, layer_config) in self.dag_config.ops.iter().enumerate() {
+    let tensors_map = self._forward(
+      layouter.namespace(|| "activations"),
+      tensors,
+      constants,
+      gadget_config.clone(),
+      _layer_config,
+    ).unwrap();
+
+    for (layer_idx, layer_config) in self.dag_config.ops.iter().rev().enumerate() {
       let layer_type = &layer_config.layer_type;
+      // Get the in
       let inp_idxes = &self.dag_config.inp_idxes[layer_idx];
       let out_idxes = &self.dag_config.out_idxes[layer_idx];
+
+      // Get the in and out activations
+      let in_activations = inp_idxes.iter().map(|x| tensors_map.get(x).unwrap().clone()).collect::<Vec<_>>();
+      let out_activations = out_idxes.iter().map(|x| tensors_map.get(x).unwrap().clone()).collect::<Vec<_>>();
+
       println!(
         "Processing layer {}, type: {:?}, inp_idxes: {:?}, out_idxes: {:?}",
         layer_idx, layer_type, inp_idxes, out_idxes
       );
+
+      let out = match layer_type {
+        LayerType::Conv2D => {
+          let conv_2d_chip = Conv2DChip {
+            config: layer_config.clone(),
+            _marker: PhantomData,
+          };
+          conv_2d_chip.backward(
+            layouter.namespace(|| "dag conv 2d back"),
+            &in_activations,
+            &out_activations,
+            constants,
+            gadget_config.clone(),
+            &layer_config,
+          )?
+        }
+        LayerType::Softmax => {
+          let softmax_chip = SoftmaxChip {};
+          softmax_chip.backward(
+            layouter.namespace(|| "dag softmax back"),
+            &in_activations,
+            &out_activations,
+            constants,
+            gadget_config.clone(),
+            &layer_config,
+          )?
+        }
+        _ => {
+          panic!("Unsupported layer type: {:?}", layer_type);
+        }
+      };
     }
 
     Ok(())
