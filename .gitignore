@@ -12,6 +12,8 @@ Cargo.lock
 # VSCode
 .vscode
 
+testing/data
+
 **/.DS_Store
 *.swp
 proof_size_check
