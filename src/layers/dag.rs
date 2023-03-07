@@ -1,6 +1,7 @@
 use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 
-use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error, arithmetic::Field};
+use halo2_proofs::{circuit::{Layouter, AssignedCell}, halo2curves::FieldExt, plonk::Error, arithmetic::Field};
+use ndarray::{IxDynImpl, Dim, ArrayBase, OwnedRepr};
 
 use crate::{
   gadgets::gadget::GadgetConfig,
@@ -83,28 +84,16 @@ impl<F: FieldExt> DAGLayerChip<F> {
   }
 }
 
-// IMPORTANT: Assumes input tensors are in order. Output tensors can be in any order.
-impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
-  // // Forward
-  // fn _forward(
-  //   &self,
-  //   mut layouter: impl Layouter<F>,
-  //   tensors: &Vec<AssignedTensor<F>>,
-  //   constants: &HashMap<i64, CellRc<F>>,
-  //   gadget_config: Rc<GadgetConfig>,
-  //   _layer_config: &LayerConfig,
-  // ) -> Result<Vec<AssignedTensor<F>>, Error> {
-
-  // }
-
-  fn forward(
+impl<F: FieldExt> DAGLayerChip<F> {
+  // Forward
+  fn _forward(
     &self,
     mut layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, CellRc<F>>,
     gadget_config: Rc<GadgetConfig>,
-    _layer_config: &LayerConfig
-  ) -> Result<Vec<AssignedTensor<F>>, Error> {
+    _layer_config: &LayerConfig,
+  ) -> Result<HashMap<usize, ArrayBase<OwnedRepr<Rc<AssignedCell<F, F>>>, Dim<IxDynImpl>>>, Error> {
     // Reveal/commit to weights
     // TODO
 
@@ -369,6 +358,27 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
       }
       println!();
     }
+    Ok(tensor_map)
+  }
+}
+
+// IMPORTANT: Assumes input tensors are in order. Output tensors can be in any order.
+impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
+  fn forward(
+    &self,
+    mut layouter: impl Layouter<F>,
+    tensors: &Vec<AssignedTensor<F>>,
+    constants: &HashMap<i64, CellRc<F>>,
+    gadget_config: Rc<GadgetConfig>,
+    _layer_config: &LayerConfig
+  ) -> Result<Vec<AssignedTensor<F>>, Error> {
+    let tensor_map = self._forward(
+      layouter,
+      tensors,
+      constants,
+      gadget_config,
+      _layer_config
+    ).unwrap();
 
     let mut final_out = vec![];
     for idx in self.dag_config.final_out_idxes.iter() {
@@ -380,6 +390,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
     println!("final out idxes: {:?}", self.dag_config.final_out_idxes);
 
     Ok(final_out)
+
   }
 }
 
