@@ -1,8 +1,5 @@
-<<<<<<< HEAD
 // TODO: The implementation is not ideal.
 
-=======
->>>>>>> e10397f (save backwards)
 use std::{collections::HashMap, rc::Rc};
 
 use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
@@ -15,15 +12,9 @@ use crate::{
 
 use super::super::layer::{Layer, LayerConfig};
 
-<<<<<<< HEAD
 pub struct RotateChip {}
 
 impl<F: FieldExt> Layer<F> for RotateChip {
-=======
-pub struct ReshapeChip {}
-
-impl<F: FieldExt> Layer<F> for ReshapeChip {
->>>>>>> e10397f (save backwards)
   fn forward(
     &self,
     _layouter: impl Layouter<F>,
@@ -33,11 +24,10 @@ impl<F: FieldExt> Layer<F> for ReshapeChip {
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let inp = &tensors[0];
-<<<<<<< HEAD
     let params = &layer_config.layer_params;
 
     assert!(inp.shape().len() == 4);
-    
+
     let mut flip = vec![false; 4];
     for p in params {
       flip[*p as usize] = true;
@@ -66,24 +56,12 @@ impl<F: FieldExt> Layer<F> for ReshapeChip {
       }
     }
 
-=======
-    let shape = layer_config.out_shapes[0].clone();
-
-    println!("Reshape: {:?} -> {:?}", inp.shape(), shape);
->>>>>>> e10397f (save backwards)
-    let flat = inp.iter().map(|x| x.clone()).collect();
-    let out = Array::from_shape_vec(shape, flat).unwrap();
     Ok(vec![out])
   }
 }
 
-<<<<<<< HEAD
 impl GadgetConsumer for RotateChip {
   fn used_gadgets(&self, _layer_params: Vec<i64>) -> Vec<crate::gadgets::gadget::GadgetType> {
-=======
-impl GadgetConsumer for ReshapeChip {
-  fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
->>>>>>> e10397f (save backwards)
     vec![]
   }
 }

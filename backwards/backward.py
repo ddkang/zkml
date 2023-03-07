@@ -98,6 +98,7 @@ class Conv2D():
         }
         transcript.append(inputs_permute_layer)
 
+
         # We must also do valid params
         dw_idx, dw_shape = config.new_tensor(), weights_shape
         dw_conv = {
@@ -283,7 +284,7 @@ def produce_graph():
 
     ### NOTE: Edit this to change the weights you print for debugging
     # model['out_idxes'] = [circuit_config.weights_update]
-    model['out_idxes'] = [16]
+    model['out_idxes'] = [26]
 
     packed = msgpack.packb(model, use_bin_type=True)
     with open("./examples/train_graph/train.msgpack", 'wb') as f:

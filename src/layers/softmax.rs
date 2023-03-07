@@ -158,15 +158,18 @@ impl<F: FieldExt> Layer<F> for SoftmaxChip {
       for i in 0..shape[0] {
         let inp_slice = inp.slice(s![i, ..]);
         let inp_flat = inp_slice.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
+        let mask_slice = mask.slice(s![i, ..]);
+        let mask_flat = mask_slice.iter().map(|x| *x as i64).collect::<Vec<_>>();
         let dived = Self::softmax_flat(
           layouter.namespace(|| format!("softmax {}", i)),
           constants,
           inp_flat,
           gadget_config.clone(),
+          &mask_flat,
         )
         .unwrap();
         outp.extend(dived);
-      }
+     }
     } else if inp.ndim() == 3 {
       for i in 0..shape[0] {
         for j in 0..shape[1] {

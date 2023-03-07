@@ -29,15 +29,14 @@ impl<F: FieldExt> Layer<F> for BroadcastChip {
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let inp = &tensors[0];
     let shape = inp.shape();
-    let params = layer_config.layer_params.clone();
+    let output_shape = layer_config.out_shapes[0].clone();
 
     // Check that we only broadcast dimensions with shape 1
-    assert!(params.len() == shape.len());
+    assert!(shape.len() == output_shape.len());
     assert!(shape.len() == 4);
 
-    let mut output_shape = shape.clone();
-    for (dim, param) in output_shape.iter().zip(params.iter()) {
-      if *dim != 1 && *param != 1 {
+    for (inp, outp) in shape.iter().zip(output_shape.iter()) {
+      if *inp != *outp && !(*inp == 1){
         panic!();
       }
     }

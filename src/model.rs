@@ -266,7 +266,6 @@ impl<F: FieldExt> ModelCircuit<F> {
       "Pad" => LayerType::Pad,
       "Pow" => LayerType::Pow,
       "Permute" => LayerType::Permute,
-      "Pow" => LayerType::Pow,
       "Reshape" => LayerType::Reshape,
       "Rotate" => LayerType::Rotate,
       "Rsqrt" => LayerType::Rsqrt,
@@ -623,9 +622,9 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
         GadgetType::VarDivRoundBig => {}
         GadgetType::Max => {}
         GadgetType::MulPairs => {}
-        GadgetType::SubPairs => {}
         GadgetType::SqrtBig => {}
         GadgetType::SquaredDiff => {}
+        GadgetType::SubPairs => {}
         _ => panic!("unsupported gadget {:?}", gadget),
       }
     }

@@ -34,7 +34,7 @@ def main():
     if loaded == NUM_LOADS:
       break
 
-    label = int(file_name[:-4])
+    label = int(first_file[:-4])
     data_array = np.load(TRAINING_DIRECTORY + '/' + first_file)
 
     input_shape = input_shapes
@@ -50,6 +50,8 @@ def main():
       # represent the label as a one hot encoding
       one_hot = np.zeros(102)
       one_hot[label] = SF
+      print("IMPORTANT LABEL", label)
+      print("IMPORTANT LABEL", data_array[idx].flatten()[:500])
       # print(one_hot.shape())
       tensors.append({
         'idx': 11,

@@ -185,10 +185,6 @@ impl<F: FieldExt> Conv2DChip<F> {
     // (O_H * O_W x inp_channels * C_H * C_W)
     println!("{:?}", weights.shape());
     println!("{:?}", inp_pad.shape());
-
-    // channel_out, w_x, w_y, channel_in
-    // 1 x 1 x 1 x 1001 
-
     for i in 0..oh {
       for j in 0..ow {
         inp_cells.push(vec![]);
