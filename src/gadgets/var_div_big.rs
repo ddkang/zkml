@@ -216,7 +216,7 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundBigChip<F> {
       div_out.push(div_cell);
     }
 
-    todo!()
+    Ok(div_out)
   }
 
   fn forward(
