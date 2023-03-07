@@ -58,6 +58,7 @@ impl<F: FieldExt> DAGLayerChip<F> {
     &self,
     mut layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,
+    labels: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, CellRc<F>>,
     gadget_config: Rc<GadgetConfig>,
     _layer_config: &LayerConfig
@@ -78,22 +79,32 @@ impl<F: FieldExt> DAGLayerChip<F> {
       _layer_config,
     ).unwrap();
 
+    // We store the intermediary gradients as we backpropagate through the network
+    let mut gradients_map: HashMap<_, ArrayBase<_, _>> = HashMap::new();
+
+    // I should aim to start testing this code soon
     for (layer_idx, layer_config) in self.dag_config.ops.iter().rev().enumerate() {
       let layer_type = &layer_config.layer_type;
-      // Get the in
+      // Get the in and out tensors
       let inp_idxes = &self.dag_config.inp_idxes[layer_idx];
       let out_idxes = &self.dag_config.out_idxes[layer_idx];
 
-      // Get the in and out activations
+      // Get the input activations and output gradients
       let in_activations = inp_idxes.iter().map(|x| tensors_map.get(x).unwrap().clone()).collect::<Vec<_>>();
-      let out_activations = out_idxes.iter().map(|x| tensors_map.get(x).unwrap().clone()).collect::<Vec<_>>();
+      // FIX: If it is Softmax/last layer, we will fetch the "gradients" to be labels
+
+      let output_gradients = if layer_type == &LayerType::Softmax {
+        labels.clone()
+      } else {
+        out_idxes.iter().map(|x| gradients_map.get(x).unwrap().clone()).collect::<Vec<_>>()
+      };
 
       println!(
         "Processing layer {}, type: {:?}, inp_idxes: {:?}, out_idxes: {:?}",
         layer_idx, layer_type, inp_idxes, out_idxes
       );
 
-      let out = match layer_type {
+      let gradients = match layer_type {
         LayerType::Conv2D => {
           let conv_2d_chip = Conv2DChip {
             config: layer_config.clone(),
@@ -102,7 +113,7 @@ impl<F: FieldExt> DAGLayerChip<F> {
           conv_2d_chip.backward(
             layouter.namespace(|| "dag conv 2d back"),
             &in_activations,
-            &out_activations,
+            &output_gradients,
             constants,
             gadget_config.clone(),
             &layer_config,
@@ -113,7 +124,7 @@ impl<F: FieldExt> DAGLayerChip<F> {
           softmax_chip.backward(
             layouter.namespace(|| "dag softmax back"),
             &in_activations,
-            &out_activations,
+            &output_gradients,
             constants,
             gadget_config.clone(),
             &layer_config,
@@ -123,6 +134,9 @@ impl<F: FieldExt> DAGLayerChip<F> {
           panic!("Unsupported layer type: {:?}", layer_type);
         }
       };
+      inp_idxes.iter().enumerate().for_each(|(idx, inp_idx)| {
+        gradients_map.insert(*inp_idx, gradients[idx].clone());
+      })
     }
 
     Ok(())

@@ -310,7 +310,7 @@ impl<F: FieldExt> BackwardLayer<F> for Conv2DChip<F> {
     &self,
     mut layouter: impl Layouter<F>,
     input_tensors: &Vec<AssignedTensor<F>>,
-    output_tensors: &Vec<AssignedTensor<F>>,
+    grad_tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, Rc<AssignedCell<F, F>>>,
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
@@ -325,7 +325,7 @@ impl<F: FieldExt> BackwardLayer<F> for Conv2DChip<F> {
     // Then update the thing
     let input = &input_tensors[0];
     let weights = &input_tensors[1];
-    let dloss = &output_tensors[0];
+    let dloss = &grad_tensors[0];
 
     // Check the weights and output dimensions
     assert!(weights.ndim() == 4);
