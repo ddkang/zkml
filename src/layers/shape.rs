@@ -1,8 +1,11 @@
+pub mod broadcast;
 pub mod concatenation;
 pub mod mask_neg_inf;
 pub mod pack;
 pub mod pad;
 pub mod reshape;
 pub mod slice;
+pub mod rotate;
+pub mod permute;
 pub mod split;
 pub mod transpose;

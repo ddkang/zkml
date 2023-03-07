@@ -183,6 +183,12 @@ impl<F: FieldExt> Conv2DChip<F> {
     }
 
     // (O_H * O_W x inp_channels * C_H * C_W)
+    println!("{:?}", weights.shape());
+    println!("{:?}", inp_pad.shape());
+
+    // channel_out, w_x, w_y, channel_in
+    // 1 x 1 x 1 x 1001 
+
     for i in 0..oh {
       for j in 0..ow {
         inp_cells.push(vec![]);
@@ -418,6 +424,7 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
       ConvLayerEnum::Conv2D => weights.shape()[0],
       ConvLayerEnum::DepthwiseConv2D => weights.shape()[3],
     };
+    
     let out_shape = vec![1, oh, ow, oc];
     let outp = Array::from_shape_vec(IxDyn(&out_shape), outp).unwrap();
 

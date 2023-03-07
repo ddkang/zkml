@@ -34,6 +34,7 @@ pub enum GadgetType {
   VarDivRoundBig,
   Packer,      // This is a special case
   InputLookup, // Dummy placeholder for the input lookup
+  Update,
 }
 
 #[derive(Clone, Debug, Default)]

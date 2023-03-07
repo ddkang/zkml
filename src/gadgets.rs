@@ -11,6 +11,7 @@ pub mod sqrt_big;
 pub mod square;
 pub mod squared_diff;
 pub mod sub_pairs;
+pub mod update;
 pub mod var_div;
 pub mod var_div_big;
 

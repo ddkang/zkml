@@ -1,9 +1,9 @@
-use std::{collections::HashMap, marker::PhantomData, rc::Rc};
+use std::{collections::HashMap, marker::PhantomData, rc::Rc, fs::File, io::Write};
 
 use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
 
 use crate::{
-  gadgets::gadget::GadgetConfig,
+  gadgets::{gadget::GadgetConfig},
   layers::{
     arithmetic::{add::AddChip, mul::MulChip, sub::SubChip},
     batch_mat_mul::BatchMatMulChip,
@@ -16,14 +16,14 @@ use crate::{
     rsqrt::RsqrtChip,
     shape::{
       concatenation::ConcatenationChip, mask_neg_inf::MaskNegInfChip, pack::PackChip, pad::PadChip,
-      reshape::ReshapeChip, slice::SliceChip, split::SplitChip, transpose::TransposeChip,
+      reshape::ReshapeChip, slice::SliceChip, split::SplitChip, transpose::TransposeChip, rotate::RotateChip, broadcast::BroadcastChip, permute::PermuteChip,
     },
     softmax::SoftmaxChip,
     square::SquareChip,
     squared_diff::SquaredDiffChip,
     tanh::TanhChip,
   },
-  utils::helpers::print_assigned_arr,
+  utils::helpers::{print_assigned_arr, convert_pos_int},
 };
 
 use super::{
@@ -134,6 +134,16 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
             &layer_config,
           )?
         }
+        LayerType::Broadcast => {
+          let broadcast_chip = BroadcastChip {};
+          broadcast_chip.forward(
+            layouter.namespace(|| "dag batch mat mul"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+            &layer_config,
+          )?
+        }
         LayerType::Conv2D => {
           let conv_2d_chip = Conv2DChip {
             config: layer_config.clone(),
@@ -204,6 +214,16 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           let rsqrt_chip = RsqrtChip {};
           rsqrt_chip.forward(
             layouter.namespace(|| "dag rsqrt"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+            &layer_config,
+          )?
+        }
+        LayerType::Permute => {
+          let permute_chip = PermuteChip {};
+          permute_chip.forward(
+            layouter.namespace(|| "dag permute"),
             &vec_inps,
             constants,
             gadget_config.clone(),
@@ -290,6 +310,16 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
             &layer_config,
           )?
         }
+        LayerType::Rotate => {
+          let rotate_chip = RotateChip {};
+          rotate_chip.forward(
+            layouter.namespace(|| "dag rotate"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+            &layer_config,
+          )?
+        }
         LayerType::Concatenation => {
           let concat_chip = ConcatenationChip {};
           concat_chip.forward(
@@ -365,8 +395,13 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
     }
 
     let tmp = final_out[0].iter().map(|x| x.as_ref()).collect::<Vec<_>>();
-    print_assigned_arr("final out", &tmp);
+    print_assigned_arr("final out", &tmp[..102].to_vec());
     println!("final out idxes: {:?}", self.dag_config.final_out_idxes);
+
+    let mut file = File::create("foo.txt")?;
+    for i in 0..102 {
+      file.write_all(&format!("{}\n", convert_pos_int(tmp[i].value().map(|x| x.to_owned())))[..].as_bytes()).unwrap();
+    }
 
     Ok(final_out)
   }

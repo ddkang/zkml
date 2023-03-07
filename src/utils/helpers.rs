@@ -10,14 +10,21 @@ use crate::gadgets::gadget::convert_to_u128;
 pub const RAND_START_IDX: i64 = i64::MIN;
 pub const NUM_RANDOMS: i64 = 20001;
 
-pub fn print_pos_int<F: FieldExt>(prefix: &str, x: Value<F>) {
+pub fn convert_pos_int<F: FieldExt>(x: Value<F>) -> i128 {
   let bias = 1 << 60;
   let x_pos = x + Value::known(F::from(bias as u64));
+  let mut outp: i128 = 0;
   x_pos.map(|x| {
     let x_pos = convert_to_u128(&x);
     let tmp = x_pos as i128 - bias;
-    println!("{} x: {}", prefix, tmp);
+    outp = tmp;
   });
+  return outp
+}
+
+pub fn print_pos_int<F: FieldExt>(prefix: &str, x: Value<F>) {
+  let tmp = convert_pos_int(x);
+  println!("{} x: {}", prefix, tmp);
 }
 
 pub fn print_assigned_arr<F: FieldExt>(prefix: &str, arr: &Vec<&AssignedCell<F, F>>) {
