@@ -42,6 +42,7 @@ impl<F: FieldExt> VarDivRoundBigChip<F> {
     };
 
     // a | c | r | (2 b - r)_1 | (2 b - r)_0 | ... | b
+    // a / b = c
     meta.create_gate("var_div_arithm", |meta| {
       let s = meta.query_selector(selector);
       let mut constraints = vec![];
@@ -173,7 +174,8 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundBigChip<F> {
         (c, r)
       });
 
-      let br_split = div_mod.map(|(b, r)| {
+      let br_split = div_mod.zip(b.value()).map(|((_, r), b)| {
+        let b = convert_to_u128(b) as i64;
         let val = 2 * b - r;
         let p1 = val / max_val;
         let p0 = val % max_val;
