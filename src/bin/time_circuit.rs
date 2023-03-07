@@ -17,13 +17,13 @@ fn main() {
     panic!("Must specify kzg or ipa");
   }
 
-  let config: ModelMsgpack = load_model_msgpack(&config_fname, &inp_fname);
+  let config: ModelMsgpack = load_model_msgpack(&config_fname, &inp_fname, None);
 
   if kzg_or_ipa == "kzg" {
-    let circuit = ModelCircuit::<Fr>::generate_from_file(&config_fname, &inp_fname);
+    let circuit = ModelCircuit::<Fr>::generate_from_file(&config_fname, &inp_fname, None, false);
     time_circuit_kzg(circuit, config);
   } else {
-    let circuit = ModelCircuit::<Fp>::generate_from_file(&config_fname, &inp_fname);
+    let circuit = ModelCircuit::<Fp>::generate_from_file(&config_fname, &inp_fname, None, false);
     time_circuit_ipa(circuit, config);
   }
 }

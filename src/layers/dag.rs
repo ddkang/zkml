@@ -54,7 +54,7 @@ impl<F: FieldExt> DAGLayerChip<F> {
 }
 
 impl<F: FieldExt> DAGLayerChip<F> {
-  fn backward(
+  pub fn backward(
     &self,
     mut layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,

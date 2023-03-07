@@ -54,7 +54,7 @@ use crate::{
   },
   utils::{
     helpers::{NUM_RANDOMS, RAND_START_IDX},
-    loader::{load_model_msgpack, ModelMsgpack},
+    loader::{load_model_msgpack, ModelMsgpack, TensorMsgpack, LabelMsgpack},
   },
 };
 
@@ -67,8 +67,11 @@ pub struct ModelCircuit<F: FieldExt> {
   pub used_gadgets: Arc<HashSet<GadgetType>>,
   pub dag_config: DAGLayerConfig,
   pub tensors: HashMap<i64, Array<F, IxDyn>>,
+  pub train_tensors: Vec<TensorMsgpack>,
+  pub labels: Vec<LabelMsgpack>,
   pub commit: bool,
   pub k: usize,
+  pub train: bool,
   pub _marker: PhantomData<F>,
 }
 
@@ -281,8 +284,8 @@ impl<F: FieldExt> ModelCircuit<F> {
     Ok(constants)
   }
 
-  pub fn generate_from_file(config_file: &str, inp_file: &str) -> ModelCircuit<F> {
-    let config: ModelMsgpack = load_model_msgpack(config_file, inp_file);
+  pub fn generate_from_file(config_file: &str, inp_file: &str, label_file: Option<&str>, train: bool) -> ModelCircuit<F> {
+    let config: ModelMsgpack = load_model_msgpack(config_file, inp_file, label_file);
 
     let to_field = |x: i64| {
       let bias = 1 << 31;
@@ -316,12 +319,21 @@ impl<F: FieldExt> ModelCircuit<F> {
       _ => panic!("unknown op: {}", x),
     };
 
+    // Populate tensors. If we are on 
     let mut tensors = HashMap::new();
-    for flat in config.tensors {
-      let value_flat = flat.data.iter().map(|x| to_field(*x)).collect::<Vec<_>>();
-      let shape = flat.shape.iter().map(|x| *x as usize).collect::<Vec<_>>();
-      let tensor = Array::from_shape_vec(IxDyn(&shape), value_flat).unwrap();
-      tensors.insert(flat.idx, tensor);
+    let mut train_tensors = vec![];
+    if !train {
+      for flat in config.tensors {
+        let value_flat = flat.data.iter().map(|x| to_field(*x)).collect::<Vec<_>>();
+        let shape = flat.shape.iter().map(|x| *x as usize).collect::<Vec<_>>();
+        let tensor = Array::from_shape_vec(IxDyn(&shape), value_flat).unwrap();
+        tensors.insert(flat.idx, tensor);
+      }
+    } else {
+      // If we are on training, we populate
+      for tensor in config.tensors.iter() {
+        train_tensors.push(tensor.clone())
+      }
     }
 
     let i64_to_usize = |x: &Vec<i64>| x.iter().map(|x| *x as usize).collect::<Vec<_>>();
@@ -428,6 +440,9 @@ impl<F: FieldExt> ModelCircuit<F> {
     ModelCircuit {
       tensors,
       _marker: PhantomData,
+      train,
+      train_tensors,
+      labels: config.labels,
       dag_config,
       used_gadgets,
       k: config.k as usize,
@@ -619,18 +634,35 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
       )?
     };
 
+    let labels = {
+      self.assign_tensors(
+        layouter.namespace(|| "assignment"),
+        &config.gadget_config.columns,
+        &self.tensors,
+      )?
+    };
+
     // The dag is constructed for the purpose of a feed forwar dinference
 
-    // Perform the dag
     let dag_chip = DAGLayerChip::<F>::construct(self.dag_config.clone());
-    let _result = dag_chip.forward(
-      layouter.namespace(|| "dag"),
-      &tensors,
-      &constants,
-      config.gadget_config,
-      &LayerConfig::default(),
-    )?;
-
+    if self.train {
+      let _result = dag_chip.backward(
+        layouter.namespace(|| "dag"),
+        &tensors,
+        &labels,
+        &constants,
+        config.gadget_config,
+        &LayerConfig::default(),
+      );
+    } else {
+      let _result = dag_chip.forward(
+        layouter.namespace(|| "dag"),
+        &tensors,
+        &constants,
+        config.gadget_config,
+        &LayerConfig::default(),
+      )?;
+    }
     Ok(())
   }
 }
