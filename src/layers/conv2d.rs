@@ -7,7 +7,7 @@ use halo2_proofs::{
   halo2curves::FieldExt,
   plonk::Error,
 };
-use ndarray::{Array, IxDyn};
+use ndarray::{Array, IxDyn, StrideShape};
 
 use crate::{
   gadgets::{
@@ -18,7 +18,7 @@ use crate::{
   },
   layers::{
     fully_connected::{FullyConnectedChip, FullyConnectedConfig},
-    shape::pad::pad,
+    shape::pad::pad, avg_pool_2d::{self, AvgPool2DChip},
   },
 };
 
@@ -339,9 +339,27 @@ impl<F: FieldExt> BackwardLayer<F> for Conv2DChip<F> {
     // 2: cj      -> 2: cj
     // 3: chanin  -> 3: chanout
     let perm_inputs = input.to_owned().into_dyn().permuted_axes(IxDyn(&[3, 1, 2, 0]));
+    let stride = Self::param_vec_to_config(self.config.layer_params.clone()).stride;
+    let dw_conv_chip = Conv2DChip {
+      config: LayerConfig { 
+        layer_type: layer::LayerType::Conv2D,
+        layer_params: Conv2DChip::<F>::config_to_param_vec(
+          Conv2DConfig {
+            conv_type: ConvLayerEnum::Conv2D,
+            padding: PaddingEnum::Valid,
+            activation: ActivationType::None,
+            stride: (stride.0, stride.1)
+          }
+        ),
+        inp_shapes: vec![], // TODO: These don't matter
+        out_shapes: vec![], // TODO: These don't matter
+        mask: vec![], // TODO: These don't matter
+      },
+      _marker: PhantomData,
+    };
 
-    // Compute dL/dX = Conv(input, dloss)
-    let dx_output = self.forward(
+    // Compute dL/dw = Conv(input, dloss)
+    let dw_output = dw_conv_chip.forward(
       layouter.namespace(|| ""),
       &vec![input.clone(), dloss.clone()],
       constants,
@@ -349,17 +367,10 @@ impl<F: FieldExt> BackwardLayer<F> for Conv2DChip<F> {
       layer_config,
     );
 
-    // Transform weights
-    // 0: chanout -> 0: chanin
-    // 1: ci      -> 1: ci
-    // 2: cj      -> 2: cj
-    // 3: chanin  -> 3: chanout
+    // Transform weights: [chanout, ci, cj, chanin] -> [chanin, ci, cj, chanout]
     let perm_weights = weights.to_owned().permuted_axes(IxDyn(&[3, 1, 2, 0]));
-
-    // Rotate the weight vector
+    // Rotate weights
     let mut rotated_weights = perm_weights.clone();
-
-    // Rotate the weights
     for i in 0..perm_weights.shape()[0] {
       for j in 0..perm_weights.shape()[1] {
         for k in 0..perm_weights.shape()[2] {
@@ -375,8 +386,33 @@ impl<F: FieldExt> BackwardLayer<F> for Conv2DChip<F> {
       }
     }
 
+    // Pad dloss
+    let ph = weights.shape()[1] - 1;
+    let pw = weights.shape()[2] - 1;
+    let padding = vec![[0, 0], [ph, ph], [pw, pw], [0, 0]];
+    let zero = constants.get(&0).unwrap().clone();
+    let dloss = pad(&dloss, padding, &zero);
+
     // Compute DL/dW = FullConv(input)
-    let dw_output = self.forward(
+    let dx_conv_chip = Conv2DChip {
+      config: LayerConfig { 
+        layer_type: layer::LayerType::Conv2D,
+        layer_params: Conv2DChip::<F>::config_to_param_vec(
+          Conv2DConfig {
+            conv_type: ConvLayerEnum::Conv2D,
+            padding: PaddingEnum::Valid,
+            activation: ActivationType::None,
+            stride: (stride.0, stride.1)
+          }
+        ),
+        inp_shapes: vec![], // TODO: These don't matter
+        out_shapes: vec![], // TODO: These don't matter
+        mask: vec![], // TODO: These don't matter
+      },
+      _marker: PhantomData,
+    };
+
+    let dx_output = dx_conv_chip.forward(
       layouter.namespace(|| ""),
       &vec![dloss.clone(), rotated_weights],
       constants,
@@ -384,10 +420,18 @@ impl<F: FieldExt> BackwardLayer<F> for Conv2DChip<F> {
       layer_config,
     );
 
-
-
-    // Get the output of the convolutoin
-
+    // If bias tensor exists, we also do backpropagation on it
+    if input_tensors.len() == 3 {
+      let bias = &input_tensors[2];
+      let avg_pool_2d = AvgPool2DChip {};
+      let db = avg_pool_2d.forward(
+        layouter.namespace(|| ""), 
+        &vec![dloss],
+        constants,
+        gadget_config,
+        layer_config
+      )?;
+    }
     Ok(vec![])
   }
 }
