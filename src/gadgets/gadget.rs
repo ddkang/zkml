@@ -29,6 +29,7 @@ pub enum GadgetType {
   SubPairs,
   MulPairs,
   VarDivRound,
+  VarDivRoundBig,
   Packer, // This is a special case
 }
 

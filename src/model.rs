@@ -30,6 +30,7 @@ use crate::{
     squared_diff::SquaredDiffGadgetChip,
     sub_pairs::SubPairsChip,
     var_div::VarDivRoundChip,
+    var_div_big::VarDivRoundBigChip,
   },
   layers::{
     arithmetic::{add::AddChip, mul::MulChip, sub::SubChip},
@@ -484,6 +485,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
         GadgetType::SquaredDiff => SquaredDiffGadgetChip::<F>::configure(meta, gadget_config),
         GadgetType::SubPairs => SubPairsChip::<F>::configure(meta, gadget_config),
         GadgetType::VarDivRound => VarDivRoundChip::<F>::configure(meta, gadget_config),
+        GadgetType::VarDivRoundBig => VarDivRoundBigChip::<F>::configure(meta, gadget_config),
         GadgetType::Packer => panic!(),
       };
     }
@@ -540,6 +542,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
           let chip = LogisticGadgetChip::<F>::construct(gadget_rc.clone());
           chip.load_lookups(layouter.namespace(|| "logistic lookup"))?;
         }
+        GadgetType::VarDivRoundBig => {}
         GadgetType::Max => {}
         GadgetType::MulPairs => {}
         GadgetType::SubPairs => {}
