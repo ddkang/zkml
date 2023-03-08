@@ -15,7 +15,7 @@ use crate::{
     rsqrt::RsqrtChip,
     shape::{
       concatenation::ConcatenationChip, mask_neg_inf::MaskNegInfChip, pack::PackChip, pad::PadChip,
-      reshape::ReshapeChip, split::SplitChip, transpose::TransposeChip,
+      reshape::ReshapeChip, slice::SliceChip, split::SplitChip, transpose::TransposeChip,
     },
     softmax::SoftmaxChip,
     square::SquareChip,
@@ -292,6 +292,16 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           let split_chip = SplitChip {};
           split_chip.forward(
             layouter.namespace(|| "dag split"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+            &layer_config,
+          )?
+        }
+        LayerType::Slice => {
+          let slice_chip = SliceChip {};
+          slice_chip.forward(
+            layouter.namespace(|| "dag slice"),
             &vec_inps,
             constants,
             gadget_config.clone(),

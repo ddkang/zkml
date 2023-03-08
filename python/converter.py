@@ -318,9 +318,14 @@ class Converter:
         axis = interpreter.get_tensor(op.Inputs(0)).flatten().astype(np.int64)[0]
         num_splits = opt.NumSplits()
         inp = interpreter.get_tensor(op.Inputs(1))
-        if inp.shape[axis] != num_splits:
-          raise NotImplementedError('Only equal splits supported')
-        params = [int(axis)]
+        if inp.shape[axis] % num_splits != 0:
+          raise NotImplementedError(f'Only equal splits supported at layer {op_idx}')
+        params = [int(axis), num_splits]
+      elif op_code == tflite.BuiltinOperator.SLICE:
+        layer_type = 'Slice'
+        begin = interpreter.get_tensor(op.Inputs(1)).flatten().astype(np.int64).tolist()
+        size = interpreter.get_tensor(op.Inputs(2)).flatten().astype(np.int64).tolist()
+        params = begin + size
       else:
         op_name = None
         for attr in dir(tflite.BuiltinOperator):

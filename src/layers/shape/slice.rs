@@ -1,7 +1,7 @@
 use std::{collections::HashMap, rc::Rc};
 
 use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
-use ndarray::{Axis, Slice};
+use ndarray::Slice;
 
 use crate::{
   gadgets::gadget::{GadgetConfig, GadgetType},
@@ -10,9 +10,9 @@ use crate::{
 
 use super::super::layer::{Layer, LayerConfig};
 
-pub struct SplitChip {}
+pub struct SliceChip {}
 
-impl<F: FieldExt> Layer<F> for SplitChip {
+impl<F: FieldExt> Layer<F> for SliceChip {
   fn forward(
     &self,
     _layouter: impl Layouter<F>,
@@ -21,26 +21,27 @@ impl<F: FieldExt> Layer<F> for SplitChip {
     _gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
-    let axis = layer_config.layer_params[0] as usize;
-    let num_splits = layer_config.layer_params[1] as usize;
-    let inp = &tensors[1];
+    let params = &layer_config.layer_params;
+    assert_eq!(params.len() % 2, 0);
+    let num_axes = params.len() / 2;
+    let starts = &params[0..num_axes];
+    let sizes = &params[num_axes..];
 
-    let mut out = vec![];
-    let split_len = inp.shape()[axis] / num_splits;
-    for i in 0..num_splits {
-      let slice = inp
-        .slice_axis(
-          Axis(axis),
-          Slice::from((i * split_len)..((i + 1) * split_len)),
-        )
-        .to_owned();
-      out.push(slice.to_owned());
-    }
-    Ok(out)
+    let inp = &tensors[0];
+    let outp = inp.slice_each_axis(|ax| {
+      let start = starts[ax.axis.0] as usize;
+      let size = sizes[ax.axis.0];
+      if size == -1 {
+        Slice::from(start..)
+      } else {
+        Slice::from(start..(start + size as usize))
+      }
+    });
+    Ok(vec![outp.to_owned()])
   }
 }
 
-impl GadgetConsumer for SplitChip {
+impl GadgetConsumer for SliceChip {
   fn used_gadgets(&self, _layer_params: Vec<i64>) -> Vec<GadgetType> {
     vec![]
   }
