@@ -48,7 +48,7 @@ use crate::{
     rsqrt::RsqrtChip,
     shape::{
       concatenation::ConcatenationChip, mask_neg_inf::MaskNegInfChip, pack::PackChip, pad::PadChip,
-      reshape::ReshapeChip, split::SplitChip, transpose::TransposeChip,
+      reshape::ReshapeChip, slice::SliceChip, split::SplitChip, transpose::TransposeChip,
     },
     softmax::SoftmaxChip,
     square::SquareChip,
@@ -310,6 +310,7 @@ impl<F: FieldExt> ModelCircuit<F> {
       "Pad" => LayerType::Pad,
       "Reshape" => LayerType::Reshape,
       "Rsqrt" => LayerType::Rsqrt,
+      "Slice" => LayerType::Slice,
       "Softmax" => LayerType::Softmax,
       "Split" => LayerType::Split,
       "Square" => LayerType::Square,
@@ -362,6 +363,7 @@ impl<F: FieldExt> ModelCircuit<F> {
             LayerType::Pad => Box::new(PadChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Reshape => Box::new(ReshapeChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Rsqrt => Box::new(RsqrtChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::Slice => Box::new(SliceChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Softmax => Box::new(SoftmaxChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Split => Box::new(SplitChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Square => Box::new(SquareChip {}) as Box<dyn GadgetConsumer>,
@@ -646,6 +648,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
         GadgetType::MulPairs => {}
         GadgetType::SubPairs => {}
         GadgetType::SqrtBig => {}
+        GadgetType::SquaredDiff => {}
         _ => panic!("unsupported gadget {:?}", gadget),
       }
     }

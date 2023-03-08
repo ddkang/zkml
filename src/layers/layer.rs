@@ -28,6 +28,7 @@ pub enum LayerType {
   Pad,
   Reshape,
   Rsqrt,
+  Slice,
   Softmax,
   Split,
   Square,

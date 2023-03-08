@@ -1,7 +1,7 @@
 use std::{collections::HashMap, rc::Rc};
 
 use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
-use ndarray::IxDyn;
+use ndarray::{Array, IxDyn};
 
 use crate::{
   gadgets::gadget::GadgetConfig,
@@ -34,8 +34,10 @@ impl<F: FieldExt> Layer<F> for TransposeChip {
       .map(|x| *x as usize)
       .collect::<Vec<_>>();
 
-    let inp = tensors[0].to_owned();
-    let inp = inp.into_shape(IxDyn(&inp_shape)).unwrap();
+    let inp = &tensors[0];
+    // Required because of memory layout issues
+    let inp_flat = inp.iter().cloned().collect::<Vec<_>>();
+    let inp = Array::from_shape_vec(IxDyn(&inp_shape), inp_flat).unwrap();
 
     let inp = inp.permuted_axes(IxDyn(&permutation));
 
