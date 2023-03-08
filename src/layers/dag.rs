@@ -1,9 +1,9 @@
-use std::{collections::HashMap, fs::File, io::Write, marker::PhantomData, rc::Rc};
+use std::{collections::HashMap, fs::File, io::Write, io::BufWriter, marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{circuit::Layouter, halo2curves::ff::PrimeField, plonk::Error};
 
 use crate::{
-  gadgets::gadget::GadgetConfig,
+  gadgets::gadget::{convert_to_u64, GadgetConfig},
   layers::{
     arithmetic::{add::AddChip, div_var::DivVarChip, mul::MulChip, sub::SubChip},
     batch_mat_mul::BatchMatMulChip,
@@ -452,17 +452,21 @@ impl<F: PrimeField + Ord> Layer<F> for DAGLayerChip<F> {
     print_assigned_arr("final out", &tmp.to_vec(), gadget_config.scale_factor);
     println!("final out idxes: {:?}", self.dag_config.final_out_idxes);
 
-    let mut file = File::create("foo.txt")?;
-    for i in 0..tmp.len() {
-      file
-        .write_all(
-          &format!(
-            "{}\n",
-            convert_pos_int(tmp[i].value().map(|x| x.to_owned()))
-          )[..]
-            .as_bytes(),
-        )
-        .unwrap();
+    let mut x = vec![];
+    for cell in final_out[0].iter() {
+      cell.value().map(|v| {
+        let bias = 1 << 60 as i64;
+        let v_pos = *v + F::from(bias as u64);
+        let v = convert_to_u64(&v_pos) as i64 - bias;
+        x.push(v);
+      });
+    }
+    if x.len() > 0 {
+      let out_fname = "out.msgpack";
+      let f = File::create(out_fname).unwrap();
+      let mut buf = BufWriter::new(f);
+      rmp_serde::encode::write_named(&mut buf, &x).unwrap();
+      panic!();
     }
 
     Ok(final_out)
