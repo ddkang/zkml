@@ -436,6 +436,101 @@ impl<F: FieldExt> ModelCircuit<F> {
       commit: config.commit.unwrap_or(true),
     }
   }
+
+  pub fn commit(
+    &self,
+    mut layouter: impl Layouter<F>,
+    constants: &HashMap<i64, CellRc<F>>,
+    config: &ModelConfig<F>,
+  ) -> Result<Vec<AssignedTensor<F>>, Error> {
+    // TODO: sometimes it can be less than k, but k is a good upper bound
+    let num_bits = self.k;
+    let packer_config = PackerChip::<F>::construct(num_bits, config.gadget_config.as_ref());
+    let packer_chip = PackerChip::<F> {
+      config: packer_config,
+    };
+    let (tensor_map, packed) = packer_chip
+      .assign_and_pack(
+        layouter.namespace(|| "packer"),
+        config.gadget_config.clone(),
+        constants,
+        &self.tensors,
+      )
+      .unwrap();
+    let mut inp_packed = vec![];
+    let mut weight_packed = vec![];
+    // This is sorted
+    for (key, _) in tensor_map.iter() {
+      if self.inp_idxes.contains(key) {
+        inp_packed.push(packed[*key as usize].clone());
+      } else {
+        weight_packed.push(packed[*key as usize].clone());
+      }
+    }
+
+    let smallest_tensor = tensor_map
+      .iter()
+      .min_by_key(|(_, tensor)| tensor.len())
+      .unwrap()
+      .1;
+    let max_tensor_key = tensor_map
+      .iter()
+      .max_by_key(|(key, _)| *key)
+      .unwrap()
+      .0
+      .clone();
+    let mut tensors = vec![];
+    for i in 0..max_tensor_key + 1 {
+      let tensor = tensor_map.get(&i).unwrap_or(smallest_tensor);
+      tensors.push(tensor.clone());
+    }
+
+    let pit_commit_chip = PITCommitChip::<F> {
+      marker: PhantomData,
+    };
+
+    let zero = constants.get(&0).unwrap().clone();
+    // TODO: commitments must be made public
+    // TODO: the commitment is done twice to verify the Reed Solomon Fingerprint. Need to do it with the random transcript the second time.
+    let _input_commitments1 = pit_commit_chip
+      .commit(
+        layouter.namespace(|| "commit"),
+        config.gadget_config.clone(),
+        constants,
+        &inp_packed,
+        zero.clone(),
+      )
+      .unwrap();
+    let _input_commitments2 = pit_commit_chip
+      .commit(
+        layouter.namespace(|| "commit"),
+        config.gadget_config.clone(),
+        constants,
+        &inp_packed,
+        zero.clone(),
+      )
+      .unwrap();
+    let _weight_commitments1 = pit_commit_chip
+      .commit(
+        layouter.namespace(|| "commit"),
+        config.gadget_config.clone(),
+        constants,
+        &weight_packed,
+        zero.clone(),
+      )
+      .unwrap();
+    let _weight_commitments2 = pit_commit_chip
+      .commit(
+        layouter.namespace(|| "commit"),
+        config.gadget_config.clone(),
+        constants,
+        &weight_packed,
+        zero,
+      )
+      .unwrap();
+
+    Ok(tensors)
+  }
 }
 
 impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
@@ -572,93 +667,9 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
       .unwrap();
 
     let tensors = if self.commit {
-      // TODO: sometimes it can be less than k, but k is a good upper bound
-      let num_bits = self.k;
-      let packer_config = PackerChip::<F>::construct(num_bits, config.gadget_config.as_ref());
-      let packer_chip = PackerChip::<F> {
-        config: packer_config,
-      };
-      let (tensor_map, packed) = packer_chip
-        .assign_and_pack(
-          layouter.namespace(|| "packer"),
-          config.gadget_config.clone(),
-          &constants,
-          &self.tensors,
-        )
-        .unwrap();
-      let mut inp_packed = vec![];
-      let mut weight_packed = vec![];
-      // This is sorted
-      for (key, _) in tensor_map.iter() {
-        if self.inp_idxes.contains(key) {
-          inp_packed.push(packed[*key as usize].clone());
-        } else {
-          weight_packed.push(packed[*key as usize].clone());
-        }
-      }
-
-      let smallest_tensor = tensor_map
-        .iter()
-        .min_by_key(|(_, tensor)| tensor.len())
+      self
+        .commit(layouter.namespace(|| "commit"), &constants, &config)
         .unwrap()
-        .1;
-      let max_tensor_key = tensor_map
-        .iter()
-        .max_by_key(|(key, _)| *key)
-        .unwrap()
-        .0
-        .clone();
-      let mut tensors = vec![];
-      for i in 0..max_tensor_key + 1 {
-        let tensor = tensor_map.get(&i).unwrap_or(smallest_tensor);
-        tensors.push(tensor.clone());
-      }
-
-      let pit_commit_chip = PITCommitChip::<F> {
-        marker: PhantomData,
-      };
-
-      let zero = constants.get(&0).unwrap().clone();
-      // TODO: commitments must be made public
-      // TODO: the commitment is done twice to verify the Reed Solomon Fingerprint. Need to do it with the random transcript the second time.
-      let _input_commitments1 = pit_commit_chip
-        .commit(
-          layouter.namespace(|| "commit"),
-          config.gadget_config.clone(),
-          &constants,
-          &inp_packed,
-          zero.clone(),
-        )
-        .unwrap();
-      let _input_commitments2 = pit_commit_chip
-        .commit(
-          layouter.namespace(|| "commit"),
-          config.gadget_config.clone(),
-          &constants,
-          &inp_packed,
-          zero.clone(),
-        )
-        .unwrap();
-      let _weight_commitments1 = pit_commit_chip
-        .commit(
-          layouter.namespace(|| "commit"),
-          config.gadget_config.clone(),
-          &constants,
-          &weight_packed,
-          zero.clone(),
-        )
-        .unwrap();
-      let _weight_commitments2 = pit_commit_chip
-        .commit(
-          layouter.namespace(|| "commit"),
-          config.gadget_config.clone(),
-          &constants,
-          &weight_packed,
-          zero,
-        )
-        .unwrap();
-
-      tensors
     } else {
       self.assign_tensors(
         layouter.namespace(|| "assignment"),
