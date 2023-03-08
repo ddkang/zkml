@@ -30,7 +30,8 @@ pub enum GadgetType {
   MulPairs,
   VarDivRound,
   VarDivRoundBig,
-  Packer, // This is a special case
+  Packer,      // This is a special case
+  InputLookup, // Dummy placeholder for the input lookup
 }
 
 #[derive(Clone, Debug, Default)]

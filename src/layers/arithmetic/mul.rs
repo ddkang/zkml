@@ -82,6 +82,10 @@ impl<F: FieldExt> Layer<F> for MulChip {
 
 impl GadgetConsumer for MulChip {
   fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
-    vec![GadgetType::MulPairs, GadgetType::VarDivRound]
+    vec![
+      GadgetType::MulPairs,
+      GadgetType::VarDivRound,
+      GadgetType::InputLookup,
+    ]
   }
 }

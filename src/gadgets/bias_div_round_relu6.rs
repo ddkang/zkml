@@ -47,7 +47,8 @@ impl<F: FieldExt> BiasDivRoundRelu6Chip<F> {
     let two = Expression::Constant(F::from(2));
     let columns = gadget_config.columns;
 
-    let div_lookup = meta.lookup_table_column();
+    let mut tables = gadget_config.tables;
+    let div_lookup = tables.get(&GadgetType::InputLookup).unwrap()[0];
     let relu_lookup = meta.lookup_table_column();
 
     meta.create_gate("bias_mul", |meta| {
@@ -100,8 +101,7 @@ impl<F: FieldExt> BiasDivRoundRelu6Chip<F> {
     let mut selectors = gadget_config.selectors;
     selectors.insert(GadgetType::BiasDivRoundRelu6, vec![selector]);
 
-    let mut tables = gadget_config.tables;
-    tables.insert(GadgetType::BiasDivRoundRelu6, vec![div_lookup, relu_lookup]);
+    tables.insert(GadgetType::BiasDivRoundRelu6, vec![relu_lookup]);
 
     let mut maps = gadget_config.maps;
     let relu_map = Self::get_map(
@@ -141,8 +141,7 @@ impl<F: FieldExt> Gadget<F> for BiasDivRoundRelu6Chip<F> {
   fn load_lookups(&self, mut layouter: impl Layouter<F>) -> Result<(), Error> {
     let map = &self.config.maps[&GadgetType::BiasDivRoundRelu6][0];
 
-    let div_lookup = self.config.tables[&GadgetType::BiasDivRoundRelu6][0];
-    let relu_lookup = self.config.tables[&GadgetType::BiasDivRoundRelu6][1];
+    let relu_lookup = self.config.tables[&GadgetType::BiasDivRoundRelu6][0];
 
     let range = self.config.max_val - self.config.min_val;
 
@@ -152,14 +151,6 @@ impl<F: FieldExt> Gadget<F> for BiasDivRoundRelu6Chip<F> {
         |mut table| {
           for i in 0..range {
             let val = map.get(&i).unwrap();
-            table
-              .assign_cell(
-                || "mod lookup",
-                div_lookup,
-                i as usize,
-                || Value::known(F::from(i as u64)),
-              )
-              .unwrap();
             table
               .assign_cell(
                 || "relu lookup",

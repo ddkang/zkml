@@ -310,6 +310,7 @@ impl<F: FieldExt> GadgetConsumer for FullyConnectedChip<F> {
       GadgetType::Adder,
       GadgetType::DotProduct,
       GadgetType::VarDivRound,
+      GadgetType::InputLookup,
     ]
   }
 }

@@ -68,6 +68,10 @@ impl<F: FieldExt> Layer<F> for SquaredDiffChip {
 
 impl GadgetConsumer for SquaredDiffChip {
   fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
-    vec![GadgetType::SquaredDiff, GadgetType::VarDivRound]
+    vec![
+      GadgetType::SquaredDiff,
+      GadgetType::VarDivRound,
+      GadgetType::InputLookup,
+    ]
   }
 }

@@ -66,6 +66,6 @@ impl<F: FieldExt> Layer<F> for RsqrtChip {
 
 impl GadgetConsumer for RsqrtChip {
   fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
-    vec![GadgetType::Rsqrt]
+    vec![GadgetType::Rsqrt, GadgetType::InputLookup]
   }
 }

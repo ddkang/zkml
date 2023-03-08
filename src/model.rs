@@ -21,6 +21,7 @@ use crate::{
     bias_div_round_relu6::BiasDivRoundRelu6Chip,
     dot_prod::DotProductChip,
     gadget::{Gadget, GadgetConfig, GadgetType},
+    input_lookup::InputLookupChip,
     max::MaxChip,
     mul_pairs::MulPairsChip,
     nonlinear::{exp::ExpGadgetChip, relu::ReluChip},
@@ -461,8 +462,8 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
     gadget_config.fixed_columns = vec![meta.fixed_column()];
     meta.enable_equality(gadget_config.fixed_columns[0]);
 
-    // FIXME: The BDR chip must always go first. Move the input lookup elsewhere
-    gadget_config = BiasDivRoundRelu6Chip::<F>::configure(meta, gadget_config);
+    // The input lookup is always loaded
+    gadget_config = InputLookupChip::<F>::configure(meta, gadget_config);
     // FIXME: The relu needs to be conditionally loaded
     gadget_config = ReluChip::<F>::configure(meta, gadget_config);
 
@@ -471,7 +472,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
       gadget_config = match gadget_type {
         GadgetType::AddPairs => AddPairsChip::<F>::configure(meta, gadget_config),
         GadgetType::Adder => AdderChip::<F>::configure(meta, gadget_config),
-        GadgetType::BiasDivRoundRelu6 => gadget_config, // Already done
+        GadgetType::BiasDivRoundRelu6 => BiasDivRoundRelu6Chip::<F>::configure(meta, gadget_config),
         GadgetType::BiasDivFloorRelu6 => panic!(),
         GadgetType::DotProduct => DotProductChip::<F>::configure(meta, gadget_config),
         GadgetType::Exp => ExpGadgetChip::<F>::configure(meta, gadget_config),
@@ -486,6 +487,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
         GadgetType::SubPairs => SubPairsChip::<F>::configure(meta, gadget_config),
         GadgetType::VarDivRound => VarDivRoundChip::<F>::configure(meta, gadget_config),
         GadgetType::VarDivRoundBig => VarDivRoundBigChip::<F>::configure(meta, gadget_config),
+        GadgetType::InputLookup => gadget_config, // This is always loaded
         GadgetType::Packer => panic!(),
       };
     }
@@ -541,6 +543,10 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
         GadgetType::Logistic => {
           let chip = LogisticGadgetChip::<F>::construct(gadget_rc.clone());
           chip.load_lookups(layouter.namespace(|| "logistic lookup"))?;
+        }
+        GadgetType::InputLookup => {
+          let chip = InputLookupChip::<F>::construct(gadget_rc.clone());
+          chip.load_lookups(layouter.namespace(|| "input lookup"))?;
         }
         GadgetType::VarDivRoundBig => {}
         GadgetType::Max => {}

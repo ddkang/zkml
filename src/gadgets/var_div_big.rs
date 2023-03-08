@@ -35,11 +35,7 @@ impl<F: FieldExt> VarDivRoundBigChip<F> {
     let range = Expression::Constant(F::from(range as u64));
 
     let tables = gadget_config.tables;
-    let lookup = if tables.contains_key(&GadgetType::BiasDivRoundRelu6) {
-      tables.get(&GadgetType::BiasDivRoundRelu6).unwrap()[0]
-    } else {
-      panic!()
-    };
+    let lookup = tables.get(&GadgetType::InputLookup).unwrap()[0];
 
     // a | c | r | (2 b - r)_1 | (2 b - r)_0 | r_1 | r_0 | ... | b
     // a / b = c

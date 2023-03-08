@@ -130,6 +130,10 @@ impl<F: FieldExt> Layer<F> for MeanChip {
 
 impl GadgetConsumer for MeanChip {
   fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
-    vec![GadgetType::Adder, GadgetType::VarDivRound]
+    vec![
+      GadgetType::Adder,
+      GadgetType::VarDivRound,
+      GadgetType::InputLookup,
+    ]
   }
 }

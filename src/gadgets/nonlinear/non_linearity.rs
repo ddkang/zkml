@@ -35,13 +35,7 @@ pub trait NonLinearGadget<F: FieldExt>: Gadget<F> {
     let columns = gadget_config.columns;
 
     let mut tables = gadget_config.tables;
-    let inp_lookup = if tables.contains_key(&GadgetType::BiasDivRoundRelu6) {
-      tables.get(&GadgetType::BiasDivRoundRelu6).unwrap()[0]
-    } else {
-      panic!("currently only supports with BiasDivRoundRelu6");
-      #[allow(unreachable_code)]
-      meta.lookup_table_column()
-    };
+    let inp_lookup = tables.get(&GadgetType::InputLookup).unwrap()[0];
     let outp_lookup = meta.lookup_table_column();
 
     for op_idx in 0..columns.len() / NUM_COLS_PER_OP {
