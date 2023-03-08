@@ -426,12 +426,19 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
 }
 
 impl<F: FieldExt> GadgetConsumer for Conv2DChip<F> {
-  fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
-    vec![
+  fn used_gadgets(&self, layer_params: Vec<i64>) -> Vec<crate::gadgets::gadget::GadgetType> {
+    let conv_config = &Self::param_vec_to_config(layer_params.clone());
+    let mut outp = vec![
       GadgetType::Adder,
       GadgetType::DotProduct,
-      GadgetType::BiasDivRoundRelu6,
       GadgetType::InputLookup,
-    ]
+      GadgetType::BiasDivRoundRelu6,
+    ];
+
+    if conv_config.activation == ActivationType::Relu {
+      outp.push(GadgetType::Relu);
+    }
+
+    outp
   }
 }

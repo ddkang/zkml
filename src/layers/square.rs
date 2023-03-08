@@ -59,7 +59,7 @@ impl<F: FieldExt> Layer<F> for SquareChip {
 }
 
 impl GadgetConsumer for SquareChip {
-  fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
+  fn used_gadgets(&self, _layer_params: Vec<i64>) -> Vec<crate::gadgets::gadget::GadgetType> {
     vec![
       GadgetType::Square,
       GadgetType::VarDivRound,

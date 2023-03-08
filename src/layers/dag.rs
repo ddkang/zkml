@@ -342,7 +342,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
 
 impl<F: FieldExt> GadgetConsumer for DAGLayerChip<F> {
   // Special case: DAG doesn't do anything
-  fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
+  fn used_gadgets(&self, _layer_params: Vec<i64>) -> Vec<crate::gadgets::gadget::GadgetType> {
     vec![]
   }
 }

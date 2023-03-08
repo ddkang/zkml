@@ -368,7 +368,7 @@ impl<F: FieldExt> ModelCircuit<F> {
             LayerType::Sub => Box::new(SubChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Transpose => Box::new(TransposeChip {}) as Box<dyn GadgetConsumer>,
           }
-          .used_gadgets();
+          .used_gadgets(layer.params.clone());
           for gadget in layer_gadgets {
             used_gadgets.insert(gadget);
           }
@@ -464,8 +464,6 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
 
     // The input lookup is always loaded
     gadget_config = InputLookupChip::<F>::configure(meta, gadget_config);
-    // FIXME: The relu needs to be conditionally loaded
-    gadget_config = ReluChip::<F>::configure(meta, gadget_config);
 
     let used_gadgets = gadget_config.used_gadgets.clone();
     for gadget_type in used_gadgets.iter() {

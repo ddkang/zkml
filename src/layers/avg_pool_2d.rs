@@ -89,7 +89,7 @@ impl<F: FieldExt> Layer<F> for AvgPool2DChip {
 }
 
 impl GadgetConsumer for AvgPool2DChip {
-  fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
+  fn used_gadgets(&self, _layer_params: Vec<i64>) -> Vec<crate::gadgets::gadget::GadgetType> {
     vec![
       GadgetType::Adder,
       GadgetType::VarDivRound,
