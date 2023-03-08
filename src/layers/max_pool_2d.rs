@@ -119,7 +119,7 @@ impl<F: FieldExt> Layer<F> for MaxPool2DChip<F> {
 }
 
 impl<F: FieldExt> GadgetConsumer for MaxPool2DChip<F> {
-  fn used_gadgets(&self) -> Vec<GadgetType> {
+  fn used_gadgets(&self, _layer_params: Vec<i64>) -> Vec<GadgetType> {
     vec![GadgetType::Max, GadgetType::InputLookup]
   }
 }

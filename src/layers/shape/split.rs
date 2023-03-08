@@ -31,7 +31,7 @@ impl<F: FieldExt> Layer<F> for SplitChip {
 }
 
 impl GadgetConsumer for SplitChip {
-  fn used_gadgets(&self) -> Vec<GadgetType> {
+  fn used_gadgets(&self, _layer_params: Vec<i64>) -> Vec<GadgetType> {
     vec![]
   }
 }

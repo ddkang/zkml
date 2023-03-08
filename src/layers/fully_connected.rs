@@ -98,6 +98,15 @@ impl<F: FieldExt> FullyConnectedChip<F> {
 
     Ok(outp)
   }
+
+  fn get_activation(&self, layer_params: &Vec<i64>) -> ActivationType {
+    let activation = layer_params[0];
+    match activation {
+      0 => ActivationType::None,
+      1 => ActivationType::Relu,
+      _ => panic!("Unsupported activation type for add"),
+    }
+  }
 }
 
 impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
@@ -110,12 +119,7 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
     assert!(tensors.len() <= 3);
-    let activation = layer_config.layer_params[0];
-    let activation = match activation {
-      0 => ActivationType::None,
-      1 => ActivationType::Relu,
-      _ => panic!("invalid activation"),
-    };
+    let activation = self.get_activation(&layer_config.layer_params);
 
     let input = &tensors[0];
     let ndim = input.ndim();
@@ -243,7 +247,6 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
       )
       .unwrap();
 
-    // TODO: bias, division, activation
     let shape = [mm_result.shape()[0], mm_result.shape()[1]];
     let final_result_flat = if self.config.normalize {
       let mm_flat = mm_result.iter().collect::<Vec<_>>();
@@ -261,7 +264,6 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
         .unwrap();
 
       let mm_div = if tensors.len() == 3 {
-        // TODO: use relu?
         let bias = tensors[2].broadcast(shape.clone()).unwrap();
         let bias = bias.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
         let mm_div = mm_div.iter().collect::<Vec<_>>();
@@ -305,12 +307,19 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
 }
 
 impl<F: FieldExt> GadgetConsumer for FullyConnectedChip<F> {
-  fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
-    vec![
+  fn used_gadgets(&self, layer_params: Vec<i64>) -> Vec<crate::gadgets::gadget::GadgetType> {
+    let activation = self.get_activation(&layer_params);
+    let mut outp = vec![
       GadgetType::Adder,
       GadgetType::DotProduct,
       GadgetType::VarDivRound,
       GadgetType::InputLookup,
-    ]
+    ];
+    match activation {
+      ActivationType::Relu => outp.push(GadgetType::Relu),
+      ActivationType::None => (),
+      _ => panic!("Unsupported activation type"),
+    }
+    outp
   }
 }

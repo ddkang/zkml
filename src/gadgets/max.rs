@@ -49,7 +49,6 @@ impl<F: FieldExt> MaxChip<F> {
       constraints
     });
 
-    // TODO: need to check that the max is equal to one of the inputs
     for idx in 0..columns.len() / Self::num_cols_per_op() {
       meta.lookup("max inp1", |meta| {
         let s = meta.query_selector(selector);
@@ -117,7 +116,6 @@ impl<F: FieldExt> Gadget<F> for MaxChip<F> {
 
     let mut outp = vec![];
 
-    // TODO: this is a bit of a hack
     let chunks: Vec<&[&AssignedCell<F, F>]> = inp.chunks(self.num_outputs_per_row()).collect();
     let i1 = chunks[0];
     let i2 = chunks[1];
@@ -160,7 +158,7 @@ impl<F: FieldExt> Gadget<F> for MaxChip<F> {
       inputs.push(first);
     }
 
-    // TODO: I'm not sure if this is correct
+    // TODO: pretty sure this is correct but check
     let num_iters = inputs.len().div_ceil(self.num_inputs_per_row()) + self.num_inputs_per_row();
 
     let mut outputs = self.op_aligned_rows(

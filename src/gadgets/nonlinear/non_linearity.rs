@@ -14,7 +14,6 @@ use super::super::gadget::{GadgetConfig, GadgetType};
 
 const NUM_COLS_PER_OP: usize = 2;
 
-// TODO: load lookups
 pub trait NonLinearGadget<F: FieldExt>: Gadget<F> {
   fn generate_map(scale_factor: u64, min_val: i64, max_val: i64) -> HashMap<i64, i64>;
 

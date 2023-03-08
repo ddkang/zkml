@@ -121,7 +121,6 @@ impl<F: FieldExt> Gadget<F> for SqrtBigChip<F> {
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     let inps = &vec_inputs[0];
 
-    // TODO: selector
     if self.config.use_selectors {
       let selector = self.config.selectors.get(&GadgetType::SqrtBig).unwrap()[0];
       selector.enable(region, row_offset)?;
