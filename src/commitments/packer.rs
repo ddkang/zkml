@@ -79,8 +79,9 @@ impl<F: FieldExt> PackerChip<F> {
     packer_config: PackerConfig<F>,
     gadget_config: GadgetConfig,
   ) -> GadgetConfig {
-    let selector = meta.selector();
+    let selector = meta.complex_selector();
     let columns = gadget_config.columns;
+    let lookup = gadget_config.tables.get(&GadgetType::InputLookup).unwrap()[0];
 
     let exponents = &packer_config.exponents;
 
@@ -113,6 +114,19 @@ impl<F: FieldExt> PackerChip<F> {
 
       constraints
     });
+
+    // Ensure that the weights/inputs are in the correct range
+    for i in 0..packer_config.num_packed_per_row {
+      let offset = i * (packer_config.num_elem_per_packed + 1);
+      for j in 0..packer_config.num_elem_per_packed {
+        meta.lookup("packer lookup", |meta| {
+          let s = meta.query_selector(selector);
+          let inp = meta.query_advice(columns[offset + j], Rotation::cur());
+
+          vec![(s * (inp + min_val_pos.clone()), lookup)]
+        });
+      }
+    }
 
     let mut selectors = gadget_config.selectors;
     selectors.insert(GadgetType::Packer, vec![selector]);
