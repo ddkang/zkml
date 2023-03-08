@@ -112,7 +112,7 @@ impl<F: FieldExt> Gadget<F> for MaxChip<F> {
       selector.enable(region, row_offset)?;
     }
 
-    let min_val_pos = F::from((-self.config.div_outp_min_val) as u64);
+    let min_val_pos = F::from((-self.config.shift_min_val) as u64);
 
     let mut outp = vec![];
 
