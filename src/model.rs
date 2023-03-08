@@ -1,5 +1,5 @@
 use std::{
-  collections::{HashMap, HashSet},
+  collections::{BTreeMap, HashMap, HashSet},
   marker::PhantomData,
   rc::Rc,
   sync::{Arc, Mutex},
@@ -68,9 +68,10 @@ lazy_static! {
 pub struct ModelCircuit<F: FieldExt> {
   pub used_gadgets: Arc<HashSet<GadgetType>>,
   pub dag_config: DAGLayerConfig,
-  pub tensors: HashMap<i64, Array<F, IxDyn>>,
+  pub tensors: BTreeMap<i64, Array<F, IxDyn>>,
   pub commit: bool,
   pub k: usize,
+  pub inp_idxes: Vec<i64>,
   pub _marker: PhantomData<F>,
 }
 
@@ -85,7 +86,7 @@ impl<F: FieldExt> ModelCircuit<F> {
     &self,
     mut layouter: impl Layouter<F>,
     columns: &Vec<Column<Advice>>,
-    tensors: &HashMap<i64, Array<F, IxDyn>>,
+    tensors: &BTreeMap<i64, Array<F, IxDyn>>,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let tensors = layouter.assign_region(
       || "asssignment",
@@ -318,7 +319,7 @@ impl<F: FieldExt> ModelCircuit<F> {
       _ => panic!("unknown op: {}", x),
     };
 
-    let mut tensors = HashMap::new();
+    let mut tensors = BTreeMap::new();
     for flat in config.tensors {
       let value_flat = flat.data.iter().map(|x| to_field(*x)).collect::<Vec<_>>();
       let shape = flat.shape.iter().map(|x| *x as usize).collect::<Vec<_>>();
@@ -431,6 +432,7 @@ impl<F: FieldExt> ModelCircuit<F> {
       dag_config,
       used_gadgets,
       k: config.k as usize,
+      inp_idxes: config.inp_idxes.clone(),
       commit: config.commit.unwrap_or(true),
     }
   }
@@ -576,12 +578,24 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
       let packer_chip = PackerChip::<F> {
         config: packer_config,
       };
-      let (tensor_map, packed) = packer_chip.assign_and_pack(
-        layouter.namespace(|| "packer"),
-        config.gadget_config.clone(),
-        &constants,
-        &self.tensors,
-      )?;
+      let (tensor_map, packed) = packer_chip
+        .assign_and_pack(
+          layouter.namespace(|| "packer"),
+          config.gadget_config.clone(),
+          &constants,
+          &self.tensors,
+        )
+        .unwrap();
+      let mut inp_packed = vec![];
+      let mut weight_packed = vec![];
+      // This is sorted
+      for (key, _) in tensor_map.iter() {
+        if self.inp_idxes.contains(key) {
+          inp_packed.push(packed[*key as usize].clone());
+        } else {
+          weight_packed.push(packed[*key as usize].clone());
+        }
+      }
 
       let smallest_tensor = tensor_map
         .iter()
@@ -606,15 +620,44 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
 
       let zero = constants.get(&0).unwrap().clone();
       // TODO: commitments must be made public
-      let _commitments = pit_commit_chip
+      // TODO: the commitment is done twice to verify the Reed Solomon Fingerprint. Need to do it with the random transcript the second time.
+      let _input_commitments1 = pit_commit_chip
         .commit(
           layouter.namespace(|| "commit"),
           config.gadget_config.clone(),
           &constants,
-          &packed,
+          &inp_packed,
+          zero.clone(),
+        )
+        .unwrap();
+      let _input_commitments2 = pit_commit_chip
+        .commit(
+          layouter.namespace(|| "commit"),
+          config.gadget_config.clone(),
+          &constants,
+          &inp_packed,
+          zero.clone(),
+        )
+        .unwrap();
+      let _weight_commitments1 = pit_commit_chip
+        .commit(
+          layouter.namespace(|| "commit"),
+          config.gadget_config.clone(),
+          &constants,
+          &weight_packed,
+          zero.clone(),
+        )
+        .unwrap();
+      let _weight_commitments2 = pit_commit_chip
+        .commit(
+          layouter.namespace(|| "commit"),
+          config.gadget_config.clone(),
+          &constants,
+          &weight_packed,
           zero,
         )
         .unwrap();
+
       tensors
     } else {
       self.assign_tensors(

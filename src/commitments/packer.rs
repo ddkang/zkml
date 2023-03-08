@@ -1,6 +1,6 @@
 use std::{
   cmp::{max, min},
-  collections::HashMap,
+  collections::{BTreeMap, HashMap},
   marker::PhantomData,
   rc::Rc,
 };
@@ -205,8 +205,8 @@ impl<F: FieldExt> PackerChip<F> {
     mut layouter: impl Layouter<F>,
     gadget_config: Rc<GadgetConfig>,
     constants: &HashMap<i64, CellRc<F>>,
-    tensors: &HashMap<i64, Array<F, IxDyn>>,
-  ) -> Result<(HashMap<i64, AssignedTensor<F>>, Vec<CellRc<F>>), Error> {
+    tensors: &BTreeMap<i64, Array<F, IxDyn>>,
+  ) -> Result<(BTreeMap<i64, AssignedTensor<F>>, Vec<CellRc<F>>), Error> {
     let mut values = vec![];
     for (_, tensor) in tensors {
       for value in tensor.iter() {
@@ -234,7 +234,7 @@ impl<F: FieldExt> PackerChip<F> {
       assigned.extend(row_assigned);
     }
 
-    let mut assigned_tensors = HashMap::new();
+    let mut assigned_tensors = BTreeMap::new();
     let mut start_idx = 0;
     for (tensor_id, tensor) in tensors {
       let num_el = tensor.len();
