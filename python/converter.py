@@ -307,7 +307,7 @@ class Converter:
         opt = tflite.PackOptions()
         opt.Init(op_opt.Bytes, op_opt.Pos)
         params = [opt.Axis()]
-        if params[0] != 0: raise NotImplementedError('Only axis=0 supported')
+        if params[0] > 1: raise NotImplementedError(f'Only axis=0,1 supported at layer {op_idx}')
       elif op_code == tflite.BuiltinOperator.SPLIT:
         layer_type = 'Split'
         op_opt = op.BuiltinOptions()

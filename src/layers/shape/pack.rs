@@ -22,8 +22,8 @@ impl<F: FieldExt> Layer<F> for PackChip {
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let axis = layer_config.layer_params[0] as usize;
-    if axis != 0 {
-      panic!("Pack only supports axis=0");
+    if axis > 1 {
+      panic!("Pack only supports axis=0 or axis=1");
     }
 
     let expanded = tensors
