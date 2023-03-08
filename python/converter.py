@@ -401,7 +401,6 @@ class Converter:
     }
     print()
     print(d['layers'][-1])
-    print(d['out_idxes'])
     # d['out_idxes'] = [14]
     print(d.keys())
     print(d['out_idxes'])
