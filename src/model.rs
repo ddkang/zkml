@@ -405,10 +405,8 @@ impl<F: FieldExt> ModelCircuit<F> {
       }
     };
 
-    // FIXME: hack
-    used_gadgets.insert(GadgetType::BiasDivRoundRelu6);
-    // FIXME: needs to be removed
-    used_gadgets.insert(GadgetType::Relu);
+    // The input lookup is always used
+    used_gadgets.insert(GadgetType::InputLookup);
     let used_gadgets = Arc::new(used_gadgets);
     let gadget = &GADGET_CONFIG;
     let cloned_gadget = gadget.lock().unwrap().clone();
