@@ -24,7 +24,7 @@ impl<F: FieldExt> VarDivRoundBigChip<F> {
   }
 
   pub fn num_cols_per_op() -> usize {
-    5
+    7
   }
 
   pub fn configure(meta: &mut ConstraintSystem<F>, gadget_config: GadgetConfig) -> GadgetConfig {
@@ -41,7 +41,7 @@ impl<F: FieldExt> VarDivRoundBigChip<F> {
       panic!()
     };
 
-    // a | c | r | (2 b - r)_1 | (2 b - r)_0 | ... | b
+    // a | c | r | (2 b - r)_1 | (2 b - r)_0 | r_1 | r_0 | ... | b
     // a / b = c
     meta.create_gate("var_div_arithm", |meta| {
       let s = meta.query_selector(selector);
@@ -65,14 +65,20 @@ impl<F: FieldExt> VarDivRoundBigChip<F> {
         let lhs = b.clone() * two.clone() - r.clone();
         let rhs = br1 * range.clone() + br0;
         constraints.push(s.clone() * (lhs - rhs));
+
+        // Constrains that r = r1 * max_val + r0
+        let r1 = meta.query_advice(columns[offset + 5], Rotation::cur());
+        let r0 = meta.query_advice(columns[offset + 6], Rotation::cur());
+        let lhs = r.clone();
+        let rhs = r1 * range.clone() + r0;
+        constraints.push(s.clone() * (lhs - rhs));
       }
 
       constraints
     });
 
     // For var div big, we assume that a, b > 0 and are outputs of the previous layer
-    // c and r must be constrained
-    // However, constraining r properly also constrains c
+    // r must be constrained to be in [0, b)
     for i in 0..(columns.len() - 1) / Self::num_cols_per_op() {
       let offset = i * Self::num_cols_per_op();
 
@@ -86,6 +92,17 @@ impl<F: FieldExt> VarDivRoundBigChip<F> {
         let s = meta.query_selector(selector);
         let br0 = meta.query_advice(columns[offset + 4], Rotation::cur());
         vec![(s * br0, lookup)]
+      });
+      // r_{1, 0} \in [0, 2^N)
+      meta.lookup("var div big r1", |meta| {
+        let s = meta.query_selector(selector);
+        let r1 = meta.query_advice(columns[offset + 5], Rotation::cur());
+        vec![(s * r1, lookup)]
+      });
+      meta.lookup("var div big r0", |meta| {
+        let s = meta.query_selector(selector);
+        let r0 = meta.query_advice(columns[offset + 6], Rotation::cur());
+        vec![(s * r0, lookup)]
       });
     }
 
@@ -183,6 +200,13 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundBigChip<F> {
         (p1, p0)
       });
 
+      let r_split = div_mod.map(|(_, r)| {
+        let p1 = r / range;
+        let p0 = r % range;
+        // val = p1 * max_val + p0
+        (p1, p0)
+      });
+
       let div_cell = region.assign_advice(
         || "",
         self.config.columns[offset + 1],
@@ -213,6 +237,19 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundBigChip<F> {
         self.config.columns[offset + 4],
         row_offset,
         || br_split.map(|(_, p0)| F::from(p0 as u64)),
+      )?;
+      // Assign r to the next 2 columns
+      let _r_split_cell_1 = region.assign_advice(
+        || "",
+        self.config.columns[offset + 5],
+        row_offset,
+        || r_split.map(|(p1, _)| F::from(p1 as u64)),
+      )?;
+      let _r_split_cell_2 = region.assign_advice(
+        || "",
+        self.config.columns[offset + 6],
+        row_offset,
+        || r_split.map(|(_, p0)| F::from(p0 as u64)),
       )?;
 
       div_out.push(div_cell);
