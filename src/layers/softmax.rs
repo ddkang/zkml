@@ -146,6 +146,7 @@ impl GadgetConsumer for SoftmaxChip {
       GadgetType::VarDivRoundBig,
       GadgetType::Max,
       GadgetType::SubPairs,
+      GadgetType::InputLookup,
     ]
   }
 }

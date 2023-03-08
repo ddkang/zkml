@@ -33,13 +33,7 @@ impl<F: FieldExt> MaxChip<F> {
     let columns = gadget_config.columns;
     let tables = gadget_config.tables;
 
-    let inp_lookup = if tables.contains_key(&GadgetType::BiasDivRoundRelu6) {
-      tables.get(&GadgetType::BiasDivRoundRelu6).unwrap()[0]
-    } else {
-      panic!("currently only supports with BiasDivRoundRelu6");
-      #[allow(unreachable_code)]
-      meta.lookup_table_column()
-    };
+    let inp_lookup = tables.get(&GadgetType::InputLookup).unwrap()[0];
 
     meta.create_gate("max arithmetic", |meta| {
       let s = meta.query_selector(selector);

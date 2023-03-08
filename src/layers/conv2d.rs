@@ -431,6 +431,7 @@ impl<F: FieldExt> GadgetConsumer for Conv2DChip<F> {
       GadgetType::Adder,
       GadgetType::DotProduct,
       GadgetType::BiasDivRoundRelu6,
+      GadgetType::InputLookup,
     ]
   }
 }

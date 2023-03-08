@@ -35,11 +35,7 @@ impl<F: FieldExt> VarDivRoundChip<F> {
     let two = Expression::Constant(F::from(2));
 
     let tables = gadget_config.tables;
-    let lookup = if tables.contains_key(&GadgetType::BiasDivRoundRelu6) {
-      tables.get(&GadgetType::BiasDivRoundRelu6).unwrap()[0]
-    } else {
-      meta.lookup_table_column()
-    };
+    let lookup = tables.get(&GadgetType::InputLookup).unwrap()[0];
 
     // a | c | r | ... | b
     // (2 * a + b) = (2 * b) * c + r

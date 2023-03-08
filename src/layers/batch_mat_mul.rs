@@ -69,6 +69,7 @@ impl GadgetConsumer for BatchMatMulChip {
       GadgetType::Adder,
       GadgetType::DotProduct,
       GadgetType::VarDivRound,
+      GadgetType::InputLookup,
     ]
   }
 }

@@ -90,6 +90,10 @@ impl<F: FieldExt> Layer<F> for AvgPool2DChip {
 
 impl GadgetConsumer for AvgPool2DChip {
   fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
-    vec![GadgetType::Adder, GadgetType::VarDivRound]
+    vec![
+      GadgetType::Adder,
+      GadgetType::VarDivRound,
+      GadgetType::InputLookup,
+    ]
   }
 }

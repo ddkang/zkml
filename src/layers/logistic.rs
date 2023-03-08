@@ -44,6 +44,6 @@ impl<F: FieldExt> Layer<F> for LogisticChip {
 
 impl GadgetConsumer for LogisticChip {
   fn used_gadgets(&self) -> Vec<crate::gadgets::gadget::GadgetType> {
-    vec![GadgetType::Logistic]
+    vec![GadgetType::Logistic, GadgetType::InputLookup]
   }
 }
