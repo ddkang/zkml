@@ -27,6 +27,7 @@ impl SoftmaxChip {
     constants: &HashMap<i64, CellRc<F>>,
     inp_flat: Vec<&AssignedCell<F, F>>,
     gadget_config: Rc<GadgetConfig>,
+    sub_max: bool,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     let exp_chip = ExpGadgetChip::<F>::construct(gadget_config.clone());
     let adder_chip = AdderChip::<F>::construct(gadget_config.clone());
@@ -40,23 +41,28 @@ impl SoftmaxChip {
       .unwrap()
       .as_ref();
 
-    // Compute the max
-    let max = max_chip
-      .forward(
-        layouter.namespace(|| format!("max")),
-        &vec![inp_flat.clone()],
-        &vec![zero],
-      )
-      .unwrap();
-    let max = &max[0];
+    let sub = if sub_max {
+      // Compute the max
+      let max = max_chip
+        .forward(
+          layouter.namespace(|| format!("max")),
+          &vec![inp_flat.clone()],
+          &vec![zero],
+        )
+        .unwrap();
+      let max = &max[0];
 
-    // Subtract the max
-    let max_flat = vec![max; inp_flat.len()];
-    let sub = sub_pairs_chip.forward(
-      layouter.namespace(|| format!("sub")),
-      &vec![inp_flat, max_flat],
-      &vec![zero],
-    )?;
+      // Subtract the max
+      let max_flat = vec![max; inp_flat.len()];
+      let sub = sub_pairs_chip.forward(
+        layouter.namespace(|| format!("sub")),
+        &vec![inp_flat, max_flat],
+        &vec![zero],
+      )?;
+      sub
+    } else {
+      inp_flat.iter().map(|x| (*x).clone()).collect()
+    };
     let sub = sub.iter().collect::<Vec<_>>();
 
     // Compute the exp
@@ -97,8 +103,13 @@ impl<F: FieldExt> Layer<F> for SoftmaxChip {
     tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, CellRc<F>>,
     gadget_config: Rc<GadgetConfig>,
-    _layer_config: &LayerConfig,
+    layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
+    let sub_max = if layer_config.layer_params.len() > 0 {
+      layer_config.layer_params[0] == 1
+    } else {
+      true
+    };
     let inp = &tensors[0];
     assert!(inp.ndim() == 2 || inp.ndim() == 3 || inp.ndim() == 4);
     if inp.ndim() == 4 {
@@ -123,6 +134,7 @@ impl<F: FieldExt> Layer<F> for SoftmaxChip {
             constants,
             inp_flat,
             gadget_config.clone(),
+            sub_max,
           )
           .unwrap();
           outp.extend(dived);
