@@ -114,6 +114,7 @@ class Converter:
 
     layers = []
     keep_tensors = set()
+    adjusted_tensors = {}
     for op_idx in range(graph.OperatorsLength()):
       op = graph.Operators(op_idx)
       if op is None:
@@ -223,7 +224,22 @@ class Converter:
         params = []
       # Sub
       elif op_code == tflite.BuiltinOperator.SUB:
-        layer_type = 'Sub'
+        sub_val = interpreter.get_tensor(op.Inputs(1))
+        if np.any(np.isin(sub_val, 10000)):
+          layer_type = 'MaskNegInf'
+          mask = (sub_val == 10000).astype(np.int64)
+          params = [len(mask.shape)] + list(mask.shape)
+          params += mask.flatten().tolist()
+        else:
+          layer_type = 'Sub'
+          params = []
+      # Div
+      elif op_code == tflite.BuiltinOperator.DIV:
+        # Implement division as multiplication by the inverse
+        layer_type = 'Mul'
+        div_val = interpreter.get_tensor(op.Inputs(1))
+        if type(div_val) != np.float32: raise NotImplementedError('Only support one divisor')
+        adjusted_tensors[op.Inputs(1)] = np.array([(self.scale_factor / div_val).round().astype(np.int64)])
         params = []
       # Pad
       elif op_code == tflite.BuiltinOperator.PAD:
@@ -383,6 +399,9 @@ class Converter:
         continue
       else:
         raise NotImplementedError('Unsupported tensor type: {}'.format(tensor.Type()))
+
+      if tensor_idx in adjusted_tensors:
+        tensor_data = adjusted_tensors[tensor_idx]
 
       tensors.append({
         'idx': tensor_idx,
