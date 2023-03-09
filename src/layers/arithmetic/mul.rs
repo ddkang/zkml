@@ -68,11 +68,7 @@ impl<F: FieldExt> Layer<F> for MulChip {
     let zero = constants.get(&0).unwrap().as_ref();
     let single_inputs = vec![zero, div];
     let out = out.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
-    let out = var_div_chip.forward(
-      layouter.namespace(|| "average div"),
-      &vec![out],
-      &single_inputs,
-    )?;
+    let out = var_div_chip.forward(layouter.namespace(|| "mul div"), &vec![out], &single_inputs)?;
 
     let out = out.into_iter().map(|x| Rc::new(x)).collect::<Vec<_>>();
     let out = Array::from_shape_vec(IxDyn(out_shape.as_slice()), out).unwrap();
