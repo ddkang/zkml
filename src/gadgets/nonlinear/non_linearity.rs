@@ -91,19 +91,23 @@ pub trait NonLinearGadget<F: FieldExt>: Gadget<F> {
       || "non linear table",
       |mut table| {
         for i in 0..range {
-          let tmp = map.get(&i).unwrap();
-          let tmp = *tmp + shift_pos_i64;
+          // FIXME: refactor this
+          let tmp = *map.get(&i).unwrap();
+          let val = if i == 0 {
+            F::zero()
+          } else {
+            if tmp >= 0 {
+              F::from(tmp as u64)
+            } else {
+              let tmp = tmp + shift_pos_i64;
+              F::from(tmp as u64) - shift_pos
+            }
+          };
           table.assign_cell(
             || "non linear cell",
             table_col,
             i as usize,
-            || {
-              if i == 0 {
-                Value::known(F::zero())
-              } else {
-                Value::known(F::from(tmp as u64) - shift_pos)
-              }
-            },
+            || Value::known(val),
           )?;
         }
         Ok(())
@@ -139,9 +143,17 @@ pub trait NonLinearGadget<F: FieldExt>: Gadget<F> {
       let outp = inp[i].value().map(|x: &F| {
         let pos = convert_to_u128(&(*x + shift_val_pos)) as i128 - shift_val_pos_i64 as i128;
         let x = pos as i64 - min_val;
-        let val = map.get(&x).unwrap();
-        let val_pos = *val + shift_val_pos_i64;
-        F::from(val_pos as u64) - F::from(shift_val_pos_i64 as u64)
+        let val = *map.get(&x).unwrap();
+        if x == 0 {
+          F::zero()
+        } else {
+          if val >= 0 {
+            F::from(val as u64)
+          } else {
+            let val_pos = val + shift_val_pos_i64;
+            F::from(val_pos as u64) - F::from(shift_val_pos_i64 as u64)
+          }
+        }
       });
 
       let outp =
