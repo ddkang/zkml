@@ -274,6 +274,13 @@ class Converter:
       elif op_code == tflite.BuiltinOperator.LOGISTIC:
         layer_type = 'Logistic'
         params = []
+      elif op_code == tflite.BuiltinOperator.POW:
+        layer_type = 'Pow'
+        power = interpreter.get_tensor(op.Inputs(1)).flatten().astype(np.float32)
+        if power != 3.: raise NotImplementedError(f'Only support power 3')
+        power = power.round().astype(np.int64)
+        if len(power) != 1: raise NotImplementedError(f'Only scalar power is supported: {op_idx}')
+        params = power.tolist()
 
       # The following are no-ops in the sense that they don't change the tensor
       # However, we need to pass along the right tensors
