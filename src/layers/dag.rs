@@ -21,6 +21,7 @@ use crate::{
     softmax::SoftmaxChip,
     square::SquareChip,
     squared_diff::SquaredDiffChip,
+    tanh::TanhChip,
   },
   utils::helpers::print_assigned_arr,
 };
@@ -223,6 +224,16 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           let pow_chip = PowChip {};
           pow_chip.forward(
             layouter.namespace(|| "dag logistic"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+            &layer_config,
+          )?
+        }
+        LayerType::Tanh => {
+          let tanh_chip = TanhChip {};
+          tanh_chip.forward(
+            layouter.namespace(|| "dag tanh"),
             &vec_inps,
             constants,
             gadget_config.clone(),

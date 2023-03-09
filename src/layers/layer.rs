@@ -35,6 +35,7 @@ pub enum LayerType {
   Square,
   SquaredDifference,
   Sub,
+  Tanh,
   Transpose,
 }
 
