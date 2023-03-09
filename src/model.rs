@@ -24,7 +24,7 @@ use crate::{
     input_lookup::InputLookupChip,
     max::MaxChip,
     mul_pairs::MulPairsChip,
-    nonlinear::{exp::ExpGadgetChip, relu::ReluChip},
+    nonlinear::{exp::ExpGadgetChip, pow::PowGadgetChip, relu::ReluChip},
     nonlinear::{logistic::LogisticGadgetChip, rsqrt::RsqrtGadgetChip},
     sqrt_big::SqrtBigChip,
     square::SquareGadgetChip,
@@ -45,6 +45,7 @@ use crate::{
     max_pool_2d::MaxPool2DChip,
     mean::MeanChip,
     noop::NoopChip,
+    pow::PowChip,
     rsqrt::RsqrtChip,
     shape::{
       concatenation::ConcatenationChip, mask_neg_inf::MaskNegInfChip, pack::PackChip, pad::PadChip,
@@ -308,6 +309,7 @@ impl<F: FieldExt> ModelCircuit<F> {
       "Noop" => LayerType::Noop,
       "Pack" => LayerType::Pack,
       "Pad" => LayerType::Pad,
+      "Pow" => LayerType::Pow,
       "Reshape" => LayerType::Reshape,
       "Rsqrt" => LayerType::Rsqrt,
       "Slice" => LayerType::Slice,
@@ -361,6 +363,7 @@ impl<F: FieldExt> ModelCircuit<F> {
             LayerType::Noop => Box::new(NoopChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Pack => Box::new(PackChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Pad => Box::new(PadChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::Pow => Box::new(PowChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Reshape => Box::new(ReshapeChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Rsqrt => Box::new(RsqrtChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Slice => Box::new(SliceChip {}) as Box<dyn GadgetConsumer>,
@@ -574,6 +577,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
         GadgetType::Logistic => LogisticGadgetChip::<F>::configure(meta, gadget_config),
         GadgetType::Max => MaxChip::<F>::configure(meta, gadget_config),
         GadgetType::MulPairs => MulPairsChip::<F>::configure(meta, gadget_config),
+        GadgetType::Pow => PowGadgetChip::<F>::configure(meta, gadget_config),
         GadgetType::Relu => ReluChip::<F>::configure(meta, gadget_config),
         GadgetType::Rsqrt => RsqrtGadgetChip::<F>::configure(meta, gadget_config),
         GadgetType::SqrtBig => SqrtBigChip::<F>::configure(meta, gadget_config),
@@ -622,6 +626,10 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
         GadgetType::VarDivRound => {
           let chip = VarDivRoundChip::<F>::construct(gadget_rc.clone());
           chip.load_lookups(layouter.namespace(|| "var div lookup"))?;
+        }
+        GadgetType::Pow => {
+          let chip = PowGadgetChip::<F>::construct(gadget_rc.clone());
+          chip.load_lookups(layouter.namespace(|| "pow lookup"))?;
         }
         GadgetType::Relu => {
           let chip = ReluChip::<F>::construct(gadget_rc.clone());
