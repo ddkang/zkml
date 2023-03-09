@@ -24,7 +24,7 @@ use crate::{
     input_lookup::InputLookupChip,
     max::MaxChip,
     mul_pairs::MulPairsChip,
-    nonlinear::{exp::ExpGadgetChip, pow::PowGadgetChip, relu::ReluChip},
+    nonlinear::{exp::ExpGadgetChip, pow::PowGadgetChip, relu::ReluChip, tanh::TanhGadgetChip},
     nonlinear::{logistic::LogisticGadgetChip, rsqrt::RsqrtGadgetChip},
     sqrt_big::SqrtBigChip,
     square::SquareGadgetChip,
@@ -54,6 +54,7 @@ use crate::{
     softmax::SoftmaxChip,
     square::SquareChip,
     squared_diff::SquaredDiffChip,
+    tanh::TanhChip,
   },
   utils::{
     helpers::{NUM_RANDOMS, RAND_START_IDX},
@@ -318,6 +319,7 @@ impl<F: FieldExt> ModelCircuit<F> {
       "Square" => LayerType::Square,
       "SquaredDifference" => LayerType::SquaredDifference,
       "Sub" => LayerType::Sub,
+      "Tanh" => LayerType::Tanh,
       "Transpose" => LayerType::Transpose,
       _ => panic!("unknown op: {}", x),
     };
@@ -372,6 +374,7 @@ impl<F: FieldExt> ModelCircuit<F> {
             LayerType::Square => Box::new(SquareChip {}) as Box<dyn GadgetConsumer>,
             LayerType::SquaredDifference => Box::new(SquaredDiffChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Sub => Box::new(SubChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::Tanh => Box::new(TanhChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Transpose => Box::new(TransposeChip {}) as Box<dyn GadgetConsumer>,
           }
           .used_gadgets(layer.params.clone());
@@ -584,6 +587,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
         GadgetType::Square => SquareGadgetChip::<F>::configure(meta, gadget_config),
         GadgetType::SquaredDiff => SquaredDiffGadgetChip::<F>::configure(meta, gadget_config),
         GadgetType::SubPairs => SubPairsChip::<F>::configure(meta, gadget_config),
+        GadgetType::Tanh => TanhGadgetChip::<F>::configure(meta, gadget_config),
         GadgetType::VarDivRound => VarDivRoundChip::<F>::configure(meta, gadget_config),
         GadgetType::VarDivRoundBig => VarDivRoundBigChip::<F>::configure(meta, gadget_config),
         GadgetType::InputLookup => gadget_config, // This is always loaded
@@ -638,6 +642,10 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
         GadgetType::Rsqrt => {
           let chip = RsqrtGadgetChip::<F>::construct(gadget_rc.clone());
           chip.load_lookups(layouter.namespace(|| "rsqrt lookup"))?;
+        }
+        GadgetType::Tanh => {
+          let chip = TanhGadgetChip::<F>::construct(gadget_rc.clone());
+          chip.load_lookups(layouter.namespace(|| "tanh lookup"))?;
         }
         GadgetType::Exp => {
           let chip = ExpGadgetChip::<F>::construct(gadget_rc.clone());

@@ -274,6 +274,9 @@ class Converter:
       elif op_code == tflite.BuiltinOperator.LOGISTIC:
         layer_type = 'Logistic'
         params = []
+      elif op_code == tflite.BuiltinOperator.TANH:
+        layer_type = 'Tanh'
+        params = []
       elif op_code == tflite.BuiltinOperator.POW:
         layer_type = 'Pow'
         power = interpreter.get_tensor(op.Inputs(1)).flatten().astype(np.float32)

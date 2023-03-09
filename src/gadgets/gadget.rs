@@ -28,6 +28,7 @@ pub enum GadgetType {
   Square,
   SquaredDiff,
   SubPairs,
+  Tanh,
   MulPairs,
   VarDivRound,
   VarDivRoundBig,
