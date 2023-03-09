@@ -21,6 +21,7 @@ pub enum GadgetType {
   Exp,
   Logistic,
   Max,
+  Pow,
   Relu,
   Rsqrt,
   SqrtBig,

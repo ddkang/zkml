@@ -26,6 +26,7 @@ pub enum LayerType {
   Noop,
   Pack,
   Pad,
+  Pow,
   Reshape,
   Rsqrt,
   Slice,

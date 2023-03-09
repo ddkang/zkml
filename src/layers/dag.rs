@@ -12,6 +12,7 @@ use crate::{
     max_pool_2d::MaxPool2DChip,
     mean::MeanChip,
     noop::NoopChip,
+    pow::PowChip,
     rsqrt::RsqrtChip,
     shape::{
       concatenation::ConcatenationChip, mask_neg_inf::MaskNegInfChip, pack::PackChip, pad::PadChip,
@@ -211,6 +212,16 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
         LayerType::Logistic => {
           let logistic_chip = LogisticChip {};
           logistic_chip.forward(
+            layouter.namespace(|| "dag logistic"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+            &layer_config,
+          )?
+        }
+        LayerType::Pow => {
+          let pow_chip = PowChip {};
+          pow_chip.forward(
             layouter.namespace(|| "dag logistic"),
             &vec_inps,
             constants,
