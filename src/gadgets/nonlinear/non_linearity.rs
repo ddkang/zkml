@@ -85,17 +85,25 @@ pub trait NonLinearGadget<F: FieldExt>: Gadget<F> {
     let table_col = config.tables.get(&gadget_type).unwrap()[1];
 
     let range = config.max_val - config.min_val;
+    let shift_pos_i64 = -config.shift_min_val;
+    let shift_pos = F::from(shift_pos_i64 as u64);
     layouter.assign_table(
       || "non linear table",
       |mut table| {
         for i in 0..range {
           let tmp = map.get(&i).unwrap();
-          let val = if i == 0 { 0 } else { *tmp };
+          let tmp = *tmp + shift_pos_i64;
           table.assign_cell(
             || "non linear cell",
             table_col,
             i as usize,
-            || Value::known(F::from(val as u64)),
+            || {
+              if i == 0 {
+                Value::known(F::zero())
+              } else {
+                Value::known(F::from(tmp as u64) - shift_pos)
+              }
+            },
           )?;
         }
         Ok(())
@@ -132,7 +140,8 @@ pub trait NonLinearGadget<F: FieldExt>: Gadget<F> {
         let pos = convert_to_u128(&(*x + shift_val_pos)) as i128 - shift_val_pos_i64 as i128;
         let x = pos as i64 - min_val;
         let val = map.get(&x).unwrap();
-        F::from(*val as u64)
+        let val_pos = *val + shift_val_pos_i64;
+        F::from(val_pos as u64) - F::from(shift_val_pos_i64 as u64)
       });
 
       let outp =
