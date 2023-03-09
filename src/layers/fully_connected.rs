@@ -87,7 +87,7 @@ impl<F: FieldExt> FullyConnectedChip<F> {
     size: usize,
   ) -> Result<Vec<CellRc<F>>, Error> {
     if size > NUM_RANDOMS as usize {
-      panic!("random vector size too large");
+      panic!("random vector size too large: {}", size);
     }
     let mut outp = vec![];
     for idx in 0..size {
