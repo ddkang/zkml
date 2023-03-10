@@ -96,12 +96,20 @@ impl SoftmaxChip {
       &vec![zero, &sum_div_sf],
     )?;
 
-    // After doing all the operations, add back the negative infinity values
-    let dived = dived
-      .into_iter()
-      .enumerate()
-      .map(|(i, x)| if mask[i] == 1 { zero.clone() } else { x })
-      .collect::<Vec<_>>();
+    // Take either zero (softmax(-inf)) or the result
+    let mut div_idx = 0;
+    let dived = mask
+      .iter()
+      .map(|x| {
+        if *x == 1 {
+          zero.clone()
+        } else {
+          let tmp = dived[div_idx].clone();
+          div_idx = div_idx + 1;
+          tmp
+        }
+      })
+      .collect();
 
     Ok(dived)
   }
