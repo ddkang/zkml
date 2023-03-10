@@ -27,7 +27,7 @@ impl SoftmaxChip {
     constants: &HashMap<i64, CellRc<F>>,
     inp_flat: Vec<&AssignedCell<F, F>>,
     gadget_config: Rc<GadgetConfig>,
-    sub_max: bool,
+    mask: &Vec<i64>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
     let exp_chip = ExpGadgetChip::<F>::construct(gadget_config.clone());
     let adder_chip = AdderChip::<F>::construct(gadget_config.clone());
@@ -41,28 +41,32 @@ impl SoftmaxChip {
       .unwrap()
       .as_ref();
 
-    let sub = if sub_max {
-      // Compute the max
-      let max = max_chip
-        .forward(
-          layouter.namespace(|| format!("max")),
-          &vec![inp_flat.clone()],
-          &vec![zero],
-        )
-        .unwrap();
-      let max = &max[0];
+    // Mask the input for max computation and subtraction
+    let inp_take = inp_flat
+      .iter()
+      .enumerate()
+      .filter(|(i, _)| mask[*i] == 0) // Awkwardly, 1 = take negative infinity
+      .map(|(_, x)| *x)
+      .collect::<Vec<_>>();
 
-      // Subtract the max
-      let max_flat = vec![max; inp_flat.len()];
-      let sub = sub_pairs_chip.forward(
-        layouter.namespace(|| format!("sub")),
-        &vec![inp_flat, max_flat],
+    // Compute the max
+    let max = max_chip
+      .forward(
+        layouter.namespace(|| format!("max")),
+        &vec![inp_take.clone()],
         &vec![zero],
-      )?;
-      sub
-    } else {
-      inp_flat.iter().map(|x| (*x).clone()).collect()
-    };
+      )
+      .unwrap();
+    let max = &max[0];
+
+    // Subtract the max
+    let max_flat = vec![max; inp_take.len()];
+    let sub = sub_pairs_chip.forward(
+      layouter.namespace(|| format!("sub")),
+      &vec![inp_take, max_flat],
+      &vec![zero],
+    )?;
+
     let sub = sub.iter().collect::<Vec<_>>();
 
     // Compute the exp
@@ -92,6 +96,13 @@ impl SoftmaxChip {
       &vec![zero, &sum_div_sf],
     )?;
 
+    // After doing all the operations, add back the negative infinity values
+    let dived = dived
+      .into_iter()
+      .enumerate()
+      .map(|(i, x)| if mask[i] == 1 { zero.clone() } else { x })
+      .collect::<Vec<_>>();
+
     Ok(dived)
   }
 }
@@ -105,11 +116,6 @@ impl<F: FieldExt> Layer<F> for SoftmaxChip {
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
-    let sub_max = if layer_config.layer_params.len() > 0 {
-      layer_config.layer_params[0] == 1
-    } else {
-      true
-    };
     let inp = &tensors[0];
     assert!(inp.ndim() == 2 || inp.ndim() == 3 || inp.ndim() == 4);
     if inp.ndim() == 4 {
@@ -123,18 +129,28 @@ impl<F: FieldExt> Layer<F> for SoftmaxChip {
     };
     let inp = inp.to_owned().into_shape(shape.clone()).unwrap();
 
+    let mask = if layer_config.layer_params.len() == 0 {
+      Array::from_shape_fn(IxDyn(&shape), |_| 0)
+    } else {
+      let mask_shape_len = layer_config.layer_params[0] as usize;
+      let mask = layer_config.layer_params[(1 + mask_shape_len)..].to_vec();
+      Array::from_shape_vec(IxDyn(&shape), mask).unwrap()
+    };
+
     let mut outp = vec![];
     if inp.ndim() == 3 {
       for i in 0..shape[0] {
         for j in 0..shape[1] {
           let inp_slice = inp.slice(s![i, j, ..]);
           let inp_flat = inp_slice.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
+          let mask_slice = mask.slice(s![i, j, ..]);
+          let mask_flat = mask_slice.iter().map(|x| *x as i64).collect::<Vec<_>>();
           let dived = Self::softmax_flat(
             layouter.namespace(|| format!("softmax {} {}", i, j)),
             constants,
             inp_flat,
             gadget_config.clone(),
-            sub_max,
+            &mask_flat,
           )
           .unwrap();
           outp.extend(dived);

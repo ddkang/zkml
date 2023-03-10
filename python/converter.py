@@ -225,6 +225,7 @@ class Converter:
       # Sub
       elif op_code == tflite.BuiltinOperator.SUB:
         sub_val = interpreter.get_tensor(op.Inputs(1))
+        # TODO: this is a bit of a hack
         if np.any(np.isin(sub_val, 10000)):
           layer_type = 'MaskNegInf'
           mask = (sub_val == 10000).astype(np.int64)
@@ -250,7 +251,11 @@ class Converter:
       # Softmax
       elif op_code == tflite.BuiltinOperator.SOFTMAX:
         layer_type = 'Softmax'
-        params = []
+        # TODO: conditionally determine whether or not to subtract the max
+        if layers[-1]['layer_type'] == 'MaskNegInf':
+          params = layers[-1]['params']
+        else:
+          params = []
       # Mean
       elif op_code == tflite.BuiltinOperator.MEAN:
         layer_type = 'Mean'
