@@ -14,6 +14,8 @@ Cargo.lock
 
 **/.DS_Store
 *.swp
+out.msgpack
 proof_size_check
 params_kzg
 params_ipa
+examples
