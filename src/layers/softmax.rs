@@ -122,20 +122,28 @@ impl<F: FieldExt> Layer<F> for SoftmaxChip {
       assert_eq!(inp.shape()[0], 1);
     }
 
+    let inp_shape = inp.shape().iter().map(|x| *x).collect::<Vec<_>>();
+    let mask = if layer_config.layer_params.len() == 0 {
+      Array::from_shape_fn(IxDyn(&inp_shape), |_| 0)
+    } else {
+      let mask_shape_len = layer_config.layer_params[0] as usize;
+      let mask_shape = layer_config.layer_params[1..(1 + mask_shape_len)]
+        .iter()
+        .map(|x| *x as usize)
+        .collect::<Vec<_>>();
+      let mask = layer_config.layer_params[(1 + mask_shape_len)..].to_vec();
+      let mask = Array::from_shape_vec(IxDyn(&mask_shape), mask).unwrap();
+      let mask = mask.broadcast(IxDyn(&inp_shape)).unwrap().to_owned();
+      mask
+    };
+
     let shape = if inp.ndim() == 2 || inp.ndim() == 3 {
       inp.shape().iter().map(|x| *x).collect::<Vec<_>>()
     } else {
       vec![inp.shape()[1], inp.shape()[2], inp.shape()[3]]
     };
     let inp = inp.to_owned().into_shape(shape.clone()).unwrap();
-
-    let mask = if layer_config.layer_params.len() == 0 {
-      Array::from_shape_fn(IxDyn(&shape), |_| 0)
-    } else {
-      let mask_shape_len = layer_config.layer_params[0] as usize;
-      let mask = layer_config.layer_params[(1 + mask_shape_len)..].to_vec();
-      Array::from_shape_vec(IxDyn(&shape), mask).unwrap()
-    };
+    let mask = mask.into_shape(shape.clone()).unwrap();
 
     let mut outp = vec![];
     if inp.ndim() == 3 {
