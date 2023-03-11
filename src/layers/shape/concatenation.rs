@@ -23,7 +23,8 @@ impl<F: FieldExt> Layer<F> for ConcatenationChip {
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let axis = layer_config.layer_params[0] as usize;
     let views = tensors.iter().map(|x| x.view()).collect::<Vec<_>>();
-    let out = concatenate(Axis(axis), views.as_slice()).unwrap();
+    // TODO: this is a bit of a hack
+    let out = concatenate(Axis(axis), views.as_slice()).unwrap_or(tensors[0].clone());
 
     Ok(vec![out])
   }
