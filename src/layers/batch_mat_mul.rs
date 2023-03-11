@@ -48,12 +48,18 @@ impl<F: FieldExt> Layer<F> for BatchMatMulChip {
       let inp2_slice = inp2.index_axis(Axis(0), i).t().to_owned();
       println!("inp1_slice: {:?}", inp1_slice.shape());
       println!("inp2_slice: {:?}", inp2_slice.shape());
+      // Batch MM doesn't have a fused activation, so insert it here
+      // TODO: consider putting this in the converter?
+      let tmp_config = LayerConfig {
+        layer_params: vec![0],
+        ..layer_config.clone()
+      };
       let outp_slice = fc_chip.forward(
         layouter.namespace(|| ""),
         &vec![inp1_slice, inp2_slice],
         constants,
         gadget_config.clone(),
-        layer_config,
+        &tmp_config,
       )?;
       outp.extend(outp_slice[0].iter().map(|x| x.clone()).collect::<Vec<_>>());
     }
