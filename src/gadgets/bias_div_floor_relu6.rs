@@ -28,20 +28,12 @@ impl<F: FieldExt> BiasDivFloorRelu6Chip<F> {
     }
   }
 
-  pub fn get_map(
-    scale_factor: u64,
-    min_val: i64,
-    max_val: i64,
-    div_outp_min_val: i64,
-  ) -> HashMap<i64, i64> {
+  pub fn get_map(scale_factor: u64, num_rows: i64, div_outp_min_val: i64) -> HashMap<i64, i64> {
     let div_val = scale_factor;
-    let min_val = min_val;
-    let max_val = max_val;
     let div_outp_min_val = div_outp_min_val;
-    let range = max_val - min_val;
 
     let mut map = HashMap::new();
-    for i in 0..range {
+    for i in 0..num_rows {
       let shifted = i + div_outp_min_val;
       let val = shifted.clamp(0, 6 * div_val as i64);
       map.insert(i as i64, val);
@@ -114,8 +106,7 @@ impl<F: FieldExt> BiasDivFloorRelu6Chip<F> {
     let mut maps = gadget_config.maps;
     let relu_map = Self::get_map(
       gadget_config.scale_factor,
-      gadget_config.min_val,
-      gadget_config.max_val,
+      gadget_config.num_rows as i64,
       gadget_config.div_outp_min_val,
     );
     maps.insert(GadgetType::BiasDivFloorRelu6, vec![relu_map]);
