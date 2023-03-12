@@ -37,13 +37,11 @@ impl<F: FieldExt> Gadget<F> for InputLookupChip<F> {
   fn load_lookups(&self, mut layouter: impl Layouter<F>) -> Result<(), Error> {
     let lookup = self.config.tables[&GadgetType::InputLookup][0];
 
-    let range = self.config.max_val - self.config.min_val;
-
     layouter
       .assign_table(
         || "input lookup",
         |mut table| {
-          for i in 0..range {
+          for i in 0..self.config.num_rows as i64 {
             table
               .assign_cell(
                 || "mod lookup",

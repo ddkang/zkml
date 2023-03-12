@@ -31,12 +31,11 @@ impl<F: FieldExt> PowGadgetChip<F> {
 }
 
 impl<F: FieldExt> NonLinearGadget<F> for PowGadgetChip<F> {
-  fn generate_map(scale_factor: u64, min_val: i64, max_val: i64) -> HashMap<i64, i64> {
-    let range = max_val - min_val;
+  fn generate_map(scale_factor: u64, min_val: i64, num_rows: i64) -> HashMap<i64, i64> {
     let power = 3.; // FIXME: need to make this variable somehow...
 
     let mut map = HashMap::new();
-    for i in 0..range {
+    for i in 0..num_rows {
       let shifted = i + min_val;
       let x = (shifted as f64) / (scale_factor as f64);
       let y = x.powf(power);

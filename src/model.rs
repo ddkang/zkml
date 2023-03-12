@@ -141,37 +141,19 @@ impl<F: FieldExt> ModelCircuit<F> {
       || "constants",
       |mut region| {
         let mut constants: HashMap<i64, CellRc<F>> = HashMap::new();
-        let zero = region.assign_fixed(
-          || "zero",
-          gadget_config.fixed_columns[0],
-          0,
-          || Value::known(F::zero()),
-        )?;
-        let one = region.assign_fixed(
-          || "one",
-          gadget_config.fixed_columns[0],
-          1,
-          || Value::known(F::one()),
-        )?;
-        let sf_cell = region.assign_fixed(
-          || "sf",
-          gadget_config.fixed_columns[0],
-          2,
-          || Value::known(F::from(sf)),
-        )?;
-        let min_val_cell = region.assign_fixed(
-          || "min_val",
-          gadget_config.fixed_columns[0],
-          3,
-          || Value::known(F::zero() - F::from((-min_val) as u64)),
-        )?;
-        // TODO: the table goes from min_val to max_val - 1... fix this
-        let max_val_cell = region.assign_fixed(
-          || "max_val",
-          gadget_config.fixed_columns[0],
-          4,
-          || Value::known(F::from((max_val - 1) as u64)),
-        )?;
+
+        let vals = vec![0 as i64, 1, sf as i64, min_val, max_val];
+        let shift_val_i64 = -min_val * 2; // FIXME
+        let shift_val_f = F::from(shift_val_i64 as u64);
+        for (i, val) in vals.iter().enumerate() {
+          let cell = region.assign_fixed(
+            || format!("constant_{}", i),
+            gadget_config.fixed_columns[0],
+            i,
+            || Value::known(F::from((val + shift_val_i64) as u64) - shift_val_f),
+          )?;
+          constants.insert(*val, Rc::new(cell));
+        }
 
         // TODO: I've made some very bad life decisions
         // TOOD: read this from the config
@@ -181,18 +163,13 @@ impl<F: FieldExt> ModelCircuit<F> {
           let rand = region.assign_fixed(
             || format!("rand_{}", i),
             gadget_config.fixed_columns[0],
-            (5 + i).try_into().unwrap(),
+            constants.len(),
             || Value::known(r),
           )?;
           r = r * r_base;
           constants.insert(RAND_START_IDX + (i as i64), Rc::new(rand));
         }
 
-        constants.insert(0, Rc::new(zero));
-        constants.insert(1, Rc::new(one));
-        constants.insert(sf as i64, Rc::new(sf_cell));
-        constants.insert(min_val, Rc::new(min_val_cell));
-        constants.insert(max_val, Rc::new(max_val_cell));
         Ok(constants)
       },
     )?;
@@ -216,44 +193,29 @@ impl<F: FieldExt> ModelCircuit<F> {
       || "constants",
       |mut region| {
         let mut constants: HashMap<i64, CellRc<F>> = HashMap::new();
-        let zero = region.assign_advice(
-          || "zero",
-          gadget_config.columns[0],
-          0,
-          || Value::known(F::zero()),
-        )?;
-        let one = region.assign_advice(
-          || "one",
-          gadget_config.columns[1],
-          0,
-          || Value::known(F::one()),
-        )?;
-        let sf_cell = region.assign_advice(
-          || "sf",
-          gadget_config.columns[2],
-          0,
-          || Value::known(F::from(sf)),
-        )?;
-        let min_val_cell = region.assign_advice(
-          || "min_val",
-          gadget_config.columns[3],
-          0,
-          || Value::known(F::zero() - F::from((-min_val) as u64)),
-        )?;
-        // TODO: the table goes from min_val to max_val - 1... fix this
-        let max_val_cell = region.assign_advice(
-          || "max_val",
-          gadget_config.columns[0],
-          4,
-          || Value::known(F::from((max_val - 1) as u64)),
-        )?;
+
+        let vals = vec![0 as i64, 1, sf as i64, min_val, max_val];
+        let shift_val_i64 = -min_val * 2; // FIXME
+        let shift_val_f = F::from(shift_val_i64 as u64);
+        for (i, val) in vals.iter().enumerate() {
+          let assignment_idx = i as usize;
+          let row_idx = assignment_idx / gadget_config.columns.len();
+          let col_idx = assignment_idx % gadget_config.columns.len();
+          let cell = region.assign_advice(
+            || format!("constant_{}", i),
+            gadget_config.columns[col_idx],
+            row_idx,
+            || Value::known(F::from((val + shift_val_i64) as u64) - shift_val_f),
+          )?;
+          constants.insert(*val, Rc::new(cell));
+        }
 
         // TODO: I've made some very bad life decisions
         // TOOD: read this from the config
         let r_base = F::from(0x123456789abcdef);
         let mut r = r_base.clone();
         for i in 0..NUM_RANDOMS {
-          let assignment_idx = (5 + i) as usize;
+          let assignment_idx = constants.len();
           let row_idx = assignment_idx / gadget_config.columns.len();
           let col_idx = assignment_idx % gadget_config.columns.len();
           let rand = region.assign_advice(
@@ -266,17 +228,7 @@ impl<F: FieldExt> ModelCircuit<F> {
           constants.insert(RAND_START_IDX + (i as i64), Rc::new(rand));
         }
 
-        constants.insert(0, Rc::new(zero));
-        constants.insert(1, Rc::new(one));
-        constants.insert(sf as i64, Rc::new(sf_cell));
-        constants.insert(min_val, Rc::new(min_val_cell));
-        constants.insert(max_val, Rc::new(max_val_cell));
-
         for (k, v) in fixed_constants.iter() {
-          // This particular equality check fails... figure out why...
-          if (*k) == max_val {
-            continue;
-          }
           let v2 = constants.get(k).unwrap();
           region.constrain_equal(v.cell(), v2.cell()).unwrap();
         }
@@ -426,7 +378,7 @@ impl<F: FieldExt> ModelCircuit<F> {
       min_val: -(1 << (config.k - 1)),
       max_val: (1 << (config.k - 1)) - 10,
       k: config.k as usize,
-      num_rows: (1 << config.k) - 10,
+      num_rows: (1 << config.k) - 10 + 1,
       num_cols: config.num_cols as usize,
       used_gadgets: used_gadgets.clone(),
       commit: config.commit.unwrap_or(true),

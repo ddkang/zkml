@@ -28,12 +28,11 @@ impl<F: FieldExt> BiasDivRoundRelu6Chip<F> {
     }
   }
 
-  pub fn get_map(scale_factor: u64, min_val: i64, max_val: i64) -> HashMap<i64, i64> {
+  pub fn get_map(scale_factor: u64, min_val: i64, num_rows: i64) -> HashMap<i64, i64> {
     let div_val = scale_factor;
-    let range = max_val - min_val;
 
     let mut map = HashMap::new();
-    for i in 0..range {
+    for i in 0..num_rows {
       let shifted = i + min_val;
       let val = shifted.clamp(0, 6 * div_val as i64);
       map.insert(i as i64, val);
@@ -107,7 +106,7 @@ impl<F: FieldExt> BiasDivRoundRelu6Chip<F> {
     let relu_map = Self::get_map(
       gadget_config.scale_factor,
       gadget_config.min_val,
-      gadget_config.max_val,
+      gadget_config.num_rows as i64,
     );
     maps.insert(GadgetType::BiasDivRoundRelu6, vec![relu_map]);
 
@@ -143,13 +142,12 @@ impl<F: FieldExt> Gadget<F> for BiasDivRoundRelu6Chip<F> {
 
     let relu_lookup = self.config.tables[&GadgetType::BiasDivRoundRelu6][0];
 
-    let range = self.config.max_val - self.config.min_val;
-
     layouter
       .assign_table(
         || "bdr round div/relu lookup",
         |mut table| {
-          for i in 0..range {
+          for i in 0..self.config.num_rows {
+            let i = i as i64;
             let val = map.get(&i).unwrap();
             table
               .assign_cell(

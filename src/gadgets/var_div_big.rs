@@ -31,8 +31,7 @@ impl<F: FieldExt> VarDivRoundBigChip<F> {
     let columns = gadget_config.columns;
     let selector = meta.complex_selector();
     let two = Expression::Constant(F::from(2));
-    let range = gadget_config.max_val - gadget_config.min_val;
-    let range = Expression::Constant(F::from(range as u64));
+    let range = Expression::Constant(F::from(gadget_config.num_rows as u64));
 
     let tables = gadget_config.tables;
     let lookup = tables.get(&GadgetType::InputLookup).unwrap()[0];
@@ -144,7 +143,7 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundBigChip<F> {
 
     let div_outp_min_val_i64 = self.config.div_outp_min_val;
     let div_inp_min_val_pos_i64 = -self.config.shift_min_val;
-    let range = self.config.max_val - self.config.min_val;
+    let num_rows = self.config.num_rows as i64;
 
     if self.config.use_selectors {
       let selector = self
@@ -190,15 +189,15 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundBigChip<F> {
       let br_split = div_mod.zip(b.value()).map(|((_, r), b)| {
         let b = convert_to_u128(b) as i64;
         let val = 2 * b - r;
-        let p1 = val / range;
-        let p0 = val % range;
+        let p1 = val / num_rows;
+        let p0 = val % num_rows;
         // val = p1 * max_val + p0
         (p1, p0)
       });
 
       let r_split = div_mod.map(|(_, r)| {
-        let p1 = r / range;
-        let p0 = r % range;
+        let p1 = r / num_rows;
+        let p0 = r % num_rows;
         // val = p1 * max_val + p0
         (p1, p0)
       });

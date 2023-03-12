@@ -15,7 +15,7 @@ use super::super::gadget::{GadgetConfig, GadgetType};
 const NUM_COLS_PER_OP: usize = 2;
 
 pub trait NonLinearGadget<F: FieldExt>: Gadget<F> {
-  fn generate_map(scale_factor: u64, min_val: i64, max_val: i64) -> HashMap<i64, i64>;
+  fn generate_map(scale_factor: u64, min_val: i64, num_rows: i64) -> HashMap<i64, i64>;
 
   fn get_map(&self) -> &HashMap<i64, i64>;
 
@@ -62,7 +62,7 @@ pub trait NonLinearGadget<F: FieldExt>: Gadget<F> {
     let non_linear_map = Self::generate_map(
       gadget_config.scale_factor,
       gadget_config.min_val,
-      gadget_config.max_val,
+      gadget_config.num_rows as i64,
     );
     maps.insert(gadget_type, vec![non_linear_map]);
 
@@ -84,13 +84,13 @@ pub trait NonLinearGadget<F: FieldExt>: Gadget<F> {
     let map = self.get_map();
     let table_col = config.tables.get(&gadget_type).unwrap()[1];
 
-    let range = config.max_val - config.min_val;
     let shift_pos_i64 = -config.shift_min_val;
     let shift_pos = F::from(shift_pos_i64 as u64);
     layouter.assign_table(
       || "non linear table",
       |mut table| {
-        for i in 0..range {
+        for i in 0..config.num_rows {
+          let i = i as i64;
           // FIXME: refactor this
           let tmp = *map.get(&i).unwrap();
           let val = if i == 0 {
