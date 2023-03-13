@@ -162,7 +162,11 @@ class Converter:
       elif op_code == tflite.BuiltinOperator.CUSTOM:
         layer_type = 'Conv2D'
         activation = 0
-        params = [0, 0, activation, 1, 1]
+        weights = self.interpreter.get_tensor(op.Inputs(1))
+        weights = np.transpose(weights, (3, 0, 1, 2))
+        weights = (weights * self.scale_factor).round().astype(np.int64)
+        adjusted_tensors[op.Inputs(1)] = weights
+        params = [0, 1, activation, 1, 1]
       # Conv2D
       elif op_code == tflite.BuiltinOperator.CONV_2D:
         layer_type = 'Conv2D'
@@ -425,6 +429,7 @@ class Converter:
 
       if tensor_idx in adjusted_tensors:
         tensor_data = adjusted_tensors[tensor_idx]
+        shape = tensor_data.shape
 
       tensors.append({
         'idx': tensor_idx,
