@@ -7,7 +7,10 @@ use halo2_proofs::{
 };
 use ndarray::{Array, IxDyn};
 
-use crate::gadgets::gadget::{GadgetConfig, GadgetType};
+use crate::{
+  gadgets::gadget::{GadgetConfig, GadgetType},
+  layers::max_pool_2d::MaxPool2DChip,
+};
 
 use super::{
   averager::Averager,
@@ -17,22 +20,13 @@ use super::{
 pub struct AvgPool2DChip {}
 
 impl<F: FieldExt> Averager<F> for AvgPool2DChip {
-  fn splat<G: Clone>(&self, input: &Array<G, IxDyn>, _layer_config: &LayerConfig) -> Vec<Vec<G>> {
+  fn splat(&self, input: &AssignedTensor<F>, layer_config: &LayerConfig) -> Vec<Vec<CellRc<F>>> {
     assert_eq!(input.shape().len(), 4);
     // Don't support batch size > 1 yet
     assert_eq!(input.shape()[0], 1);
 
-    let mut splat = vec![];
-    for k in 0..input.shape()[3] {
-      let mut tmp = vec![];
-      for i in 0..input.shape()[1] {
-        for j in 0..input.shape()[2] {
-          tmp.push(input[[0, i, j, k]].clone());
-        }
-      }
-      splat.push(tmp);
-    }
-    splat
+    // TODO: refactor this
+    MaxPool2DChip::splat(input, layer_config).unwrap()
   }
 
   fn get_div_val(
@@ -80,10 +74,12 @@ impl<F: FieldExt> Layer<F> for AvgPool2DChip {
       .unwrap();
 
     let inp = &tensors[0];
-    let mut outp_shape = inp.shape().to_vec();
-    outp_shape[1] = 1;
-    outp_shape[2] = 1;
-    let out = Array::from_shape_vec(IxDyn(&outp_shape), dived).unwrap();
+    // TODO: refactor this
+    let out_xy = MaxPool2DChip::shape(inp, layer_config);
+    let out_shape = vec![1, out_xy.0, out_xy.1, inp.shape()[3]];
+    println!("out_shape: {:?}", out_shape);
+
+    let out = Array::from_shape_vec(IxDyn(&out_shape), dived).unwrap();
     Ok(vec![out])
   }
 }

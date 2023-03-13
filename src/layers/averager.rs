@@ -5,7 +5,6 @@ use halo2_proofs::{
   halo2curves::FieldExt,
   plonk::Error,
 };
-use ndarray::{Array, IxDyn};
 
 use crate::gadgets::gadget::Gadget;
 use crate::gadgets::{adder::AdderChip, gadget::GadgetConfig, var_div::VarDivRoundChip};
@@ -13,7 +12,7 @@ use crate::gadgets::{adder::AdderChip, gadget::GadgetConfig, var_div::VarDivRoun
 use super::layer::{AssignedTensor, CellRc, LayerConfig};
 
 pub trait Averager<F: FieldExt> {
-  fn splat<G: Clone>(&self, input: &Array<G, IxDyn>, layer_config: &LayerConfig) -> Vec<Vec<G>>;
+  fn splat(&self, input: &AssignedTensor<F>, layer_config: &LayerConfig) -> Vec<Vec<CellRc<F>>>;
 
   fn get_div_val(
     &self,
