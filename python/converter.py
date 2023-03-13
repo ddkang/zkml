@@ -252,8 +252,12 @@ class Converter:
       elif op_code == tflite.BuiltinOperator.SOFTMAX:
         layer_type = 'Softmax'
         # TODO: conditionally determine whether or not to subtract the max
+        # It should depend on the input to the softmax
         if layers[-1]['layer_type'] == 'MaskNegInf':
           params = layers[-1]['params']
+        elif layers[-2]['layer_type'] == 'MaskNegInf':
+          params = layers[-2]['params']
+          params = [params[0] - 1] + params[2:]
         else:
           params = []
       # Mean
@@ -367,8 +371,12 @@ class Converter:
 
       inp_idxes = get_inputs(op)
       # FIXME: hack for testing
-      if op_idx == 99:
-        mask = [0, 1]
+      rsqrt_overflows = [99, 158, 194, 253, 289, 348]
+      if op_idx in rsqrt_overflows:
+        if op_code == tflite.BuiltinOperator.RSQRT:
+          mask = [0, 1]
+        else:
+          mask = []
       else:
         mask = []
       layers.append({
