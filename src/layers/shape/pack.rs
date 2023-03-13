@@ -32,7 +32,8 @@ impl<F: FieldExt> Layer<F> for PackChip {
       .collect::<Vec<_>>();
     let views = expanded.iter().map(|x| x.view()).collect::<Vec<_>>();
 
-    let out = concatenate(Axis(axis), views.as_slice()).unwrap();
+    // TODO: in some cases, the pack is unnecessary. Simply return the first tensor in this case
+    let out = concatenate(Axis(axis), views.as_slice()).unwrap_or(tensors[0].clone());
 
     Ok(vec![out])
   }
