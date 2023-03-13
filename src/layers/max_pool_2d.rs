@@ -18,7 +18,7 @@ pub struct MaxPool2DChip<F: FieldExt> {
 }
 
 impl<F: FieldExt> MaxPool2DChip<F> {
-  pub fn shape(&self, inp: &AssignedTensor<F>, layer_config: &LayerConfig) -> (usize, usize) {
+  pub fn shape(inp: &AssignedTensor<F>, layer_config: &LayerConfig) -> (usize, usize) {
     let params = &layer_config.layer_params;
     let (fx, fy) = (params[0], params[1]);
     let (fx, fy) = (fx as usize, fy as usize);
@@ -42,7 +42,6 @@ impl<F: FieldExt> MaxPool2DChip<F> {
   }
 
   pub fn splat(
-    &self,
     inp: &AssignedTensor<F>,
     layer_config: &LayerConfig,
   ) -> Result<Vec<Vec<CellRc<F>>>, Error> {
@@ -55,7 +54,7 @@ impl<F: FieldExt> MaxPool2DChip<F> {
     // Only support batch size 1 for now
     assert_eq!(inp.shape()[0], 1);
 
-    let out_shape = self.shape(inp, layer_config);
+    let out_shape = Self::shape(inp, layer_config);
 
     let mut splat = vec![];
     for i in 0..out_shape.0 {
@@ -90,7 +89,7 @@ impl<F: FieldExt> Layer<F> for MaxPool2DChip<F> {
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let inp = &tensors[0];
-    let splat = self.splat(inp, layer_config).unwrap();
+    let splat = Self::splat(inp, layer_config).unwrap();
 
     let max_chip = MaxChip::<F>::construct(gadget_config.clone());
     let mut out = vec![];
@@ -109,7 +108,7 @@ impl<F: FieldExt> Layer<F> for MaxPool2DChip<F> {
     let out = out.into_iter().map(|x| Rc::new(x)).collect();
 
     // TODO: refactor this
-    let out_xy = self.shape(inp, layer_config);
+    let out_xy = Self::shape(inp, layer_config);
     let out_shape = vec![1, out_xy.0, out_xy.1, inp.shape()[3]];
 
     let out = Array::from_shape_vec(IxDyn(&out_shape), out).unwrap();

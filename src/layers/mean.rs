@@ -53,7 +53,7 @@ impl MeanChip {
 }
 
 impl<F: FieldExt> Averager<F> for MeanChip {
-  fn splat<G: Clone>(&self, input: &Array<G, IxDyn>, layer_config: &LayerConfig) -> Vec<Vec<G>> {
+  fn splat(&self, input: &AssignedTensor<F>, layer_config: &LayerConfig) -> Vec<Vec<CellRc<F>>> {
     // Only support batch size = 1
     assert_eq!(input.shape()[0], 1);
     // Only support batch + 2D, summing over one axis
