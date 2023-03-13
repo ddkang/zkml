@@ -629,6 +629,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
         GadgetType::Max => {}
         GadgetType::MulPairs => {}
         GadgetType::SqrtBig => {}
+        GadgetType::Square => {}
         GadgetType::SquaredDiff => {}
         GadgetType::SubPairs => {}
         GadgetType::Update => {}
