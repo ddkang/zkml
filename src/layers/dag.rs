@@ -21,7 +21,7 @@ use crate::{
     softmax::SoftmaxChip,
     square::SquareChip,
     squared_diff::SquaredDiffChip,
-    tanh::TanhChip,
+    tanh::TanhChip, update::UpdateChip, div::DivChip,
   },
   utils::helpers::{print_assigned_arr, convert_pos_int},
 };
@@ -151,6 +151,16 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           };
           conv_2d_chip.forward(
             layouter.namespace(|| "dag conv 2d"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+            &layer_config,
+          )?
+        }
+        LayerType::Div => {
+          let add_chip = DivChip {};
+          add_chip.forward(
+            layouter.namespace(|| "dag div"),
             &vec_inps,
             constants,
             gadget_config.clone(),
@@ -360,6 +370,16 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
             &layer_config,
           )?
         }
+        LayerType::Update => {
+          let split_chip = UpdateChip {};
+          split_chip.forward(
+            layouter.namespace(|| "dag update"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+            &layer_config,
+          )?
+        }
         LayerType::Slice => {
           let slice_chip = SliceChip {};
           slice_chip.forward(
@@ -409,7 +429,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
     println!("final out idxes: {:?}", self.dag_config.final_out_idxes);
 
     let mut file = File::create("foo.txt")?;
-    for i in 0..102 {
+    for i in 0..tmp.len() {
       file.write_all(&format!("{}\n", convert_pos_int(tmp[i].value().map(|x| x.to_owned())))[..].as_bytes()).unwrap();
     }
 

@@ -470,6 +470,7 @@ def main():
   parser.add_argument('--output', type=str, required=True)
   parser.add_argument('--scale_factor', type=int, default=2**16)
   parser.add_argument('--k', type=int, default=19)
+  parser.add_argument('--eta', type=float, default=0.001)
   parser.add_argument('--num_cols', type=int, default=6)
   parser.add_argument('--use_selectors', action=argparse.BooleanOptionalAction, required=False, default=True)
   parser.add_argument('--commit', action=argparse.BooleanOptionalAction, required=False, default=False)

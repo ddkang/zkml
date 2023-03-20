@@ -55,7 +55,7 @@ use crate::{
     softmax::SoftmaxChip,
     square::SquareChip,
     squared_diff::SquaredDiffChip,
-    tanh::TanhChip,
+    tanh::TanhChip, update::UpdateChip,
   },
   utils::{
     helpers::{NUM_RANDOMS, RAND_START_IDX},
@@ -255,6 +255,7 @@ impl<F: FieldExt> ModelCircuit<F> {
       "Broadcast" => LayerType::Broadcast,
       "Concatenation" => LayerType::Concatenation,
       "Conv2D" => LayerType::Conv2D,
+      "Div" => LayerType::Div,
       "FullyConnected" => LayerType::FullyConnected,
       "Logistic" => LayerType::Logistic,
       "MaskNegInf" => LayerType::MaskNegInf,
@@ -277,6 +278,7 @@ impl<F: FieldExt> ModelCircuit<F> {
       "Sub" => LayerType::Sub,
       "Tanh" => LayerType::Tanh,
       "Transpose" => LayerType::Transpose,
+      "Update" => LayerType::Update,
       _ => panic!("unknown op: {}", x),
     };
 
@@ -304,6 +306,7 @@ impl<F: FieldExt> ModelCircuit<F> {
             LayerType::BatchMatMul => Box::new(BatchMatMulChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Broadcast=> Box::new(BroadcastChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Concatenation => Box::new(ConcatenationChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::Div => Box::new(ConcatenationChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Conv2D => Box::new(Conv2DChip {
               config: LayerConfig::default(),
               _marker: PhantomData::<F>,
@@ -335,6 +338,7 @@ impl<F: FieldExt> ModelCircuit<F> {
             LayerType::Sub => Box::new(SubChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Tanh => Box::new(TanhChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Transpose => Box::new(TransposeChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::Update => Box::new(UpdateChip {}) as Box<dyn GadgetConsumer>,
           }
           .used_gadgets(layer.params.clone());
           for gadget in layer_gadgets {
@@ -385,6 +389,7 @@ impl<F: FieldExt> ModelCircuit<F> {
       min_val: -(1 << (config.k - 1)),
       max_val: (1 << (config.k - 1)) - 10,
       k: config.k as usize,
+      // eta: config.eta as usize,
       num_rows: (1 << config.k) - 10 + 1,
       num_cols: config.num_cols as usize,
       used_gadgets: used_gadgets.clone(),
@@ -625,6 +630,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
         GadgetType::SqrtBig => {}
         GadgetType::SquaredDiff => {}
         GadgetType::SubPairs => {}
+        GadgetType::Update => {}
         _ => panic!("unsupported gadget {:?}", gadget),
       }
     }

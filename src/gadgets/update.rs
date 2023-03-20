@@ -11,9 +11,6 @@ use crate::gadgets::gadget::{GadgetConfig, convert_to_u64, self};
 
 use super::gadget::{GadgetType, Gadget};
 
-// use crate::{chips::{DIV_INP_MIN_VAL_POS, ETA_TOP}, gadgets::gadget::GadgetConfig};
-// use super::{convert_to_u64, DIV_OUTP_MIN_VAL, DIV_VAL};
-
 type UpdateConfig = GadgetConfig;
 
 #[derive(Clone, Debug)]
@@ -41,14 +38,14 @@ impl<F: FieldExt> UpdateGadgetChip<F> {
         let mod_lookup = if tables.contains_key(&GadgetType::BiasDivRoundRelu6) {
             tables.get(&GadgetType::BiasDivRoundRelu6).unwrap()[0]
         } else {
-            meta.lookup_table_column()
+            panic!("Table uninitialized");
         };
 
         let columns = gadget_config.columns;
         let selector = meta.complex_selector();
     
         let div_val = gadget_config.scale_factor;
-        let eta = div_val / 1000;
+        let eta: u64 = (gadget_config.scale_factor as f64 * gadget_config.eta) as u64;
     
         meta.create_gate("updater_arith", |meta| {
             let s = meta.query_selector(selector);

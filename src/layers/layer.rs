@@ -17,6 +17,7 @@ pub enum LayerType {
   Broadcast,
   Concatenation,
   Conv2D,
+  Div,
   FullyConnected,
   Logistic,
   MaskNegInf,
@@ -29,7 +30,6 @@ pub enum LayerType {
   Pad,
   Pow,
   Permute,
-  Pow,
   Reshape,
   Rotate,
   Rsqrt,
@@ -41,6 +41,7 @@ pub enum LayerType {
   Sub,
   Tanh,
   Transpose,
+  Update,
 }
 
 // NOTE: This is the same order as the TFLite schema

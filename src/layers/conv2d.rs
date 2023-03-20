@@ -183,31 +183,33 @@ impl<F: FieldExt> Conv2DChip<F> {
     }
 
     // (O_H * O_W x inp_channels * C_H * C_W)
-    println!("{:?}", weights.shape());
-    println!("{:?}", inp_pad.shape());
-    for i in 0..oh {
-      for j in 0..ow {
-        inp_cells.push(vec![]);
-        for ci in 0..weights.shape()[1] {
-          for cj in 0..weights.shape()[2] {
-            for ck in 0..weights.shape()[3] {
-              let idx_i = i * si + ci;
-              let idx_j = j * sj + cj;
-              inp_cells[input_row_idx].push(inp_pad[[0, idx_i, idx_j, ck]].clone());
+    for batch in 0..inp.shape()[0] {
+      for i in 0..oh {
+        for j in 0..ow {
+          inp_cells.push(vec![]);
+          for ci in 0..weights.shape()[1] {
+            for cj in 0..weights.shape()[2] {
+              for ck in 0..weights.shape()[3] {
+                let idx_i = i * si + ci;
+                let idx_j = j * sj + cj;
+                inp_cells[input_row_idx].push(inp_pad[[batch, idx_i, idx_j, ck]].clone());
+              }
             }
           }
+          input_row_idx += 1;
         }
-        input_row_idx += 1;
       }
     }
 
-    for _ in 0..oh {
-      for _ in 0..ow {
-        for chan_out in 0..weights.shape()[0] {
-          if tensors.len() == 3 {
-            biases_cells.push(biases[chan_out].clone());
-          } else {
-            biases_cells.push(zero.clone());
+    for batch in 0..inp.shape()[0] {
+      for _ in 0..oh {
+        for _ in 0..ow {
+          for chan_out in 0..weights.shape()[0] {
+            if tensors.len() == 3 {
+              biases_cells.push(biases[chan_out].clone());
+            } else {
+              biases_cells.push(zero.clone());
+            }
           }
         }
       }
@@ -293,8 +295,10 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
     let conv_config = &Self::param_vec_to_config(self.config.layer_params.clone());
     let zero = constants.get(&0).unwrap();
 
+
     let inp = &tensors[0];
     let weights = &tensors[1];
+
     let (oh, ow) = Self::out_hw(
       inp.shape()[1],
       inp.shape()[2],
@@ -304,13 +308,12 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
       weights.shape()[2],
       conv_config.padding,
     );
+    let batch_size = inp.shape()[0];
 
     let (splat_inp, splat_weights, splat_biases) = match conv_config.conv_type {
       ConvLayerEnum::Conv2D => self.splat(tensors, zero.clone()),
       ConvLayerEnum::DepthwiseConv2D => self.splat_depthwise(tensors, zero.clone()),
     };
-    println!("splat_inp: {:?}", splat_inp.len());
-    println!("splat_weights: {:?}", splat_weights.len());
 
     let outp_flat: Vec<AssignedCell<F, F>> = match conv_config.conv_type {
       ConvLayerEnum::Conv2D => {
@@ -320,7 +323,7 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
         };
 
         let conv_size = splat_inp[0].len();
-        let flattened_inp = splat_inp.into_iter().flat_map(|x| x.into_iter()).collect();
+        let flattened_inp: Vec<_> = splat_inp.into_iter().flat_map(|x| x.into_iter()).collect();
         let flattened_weights = splat_weights
           .into_iter()
           .flat_map(|x| x.into_iter())
@@ -328,7 +331,7 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
 
         let out_channels = weights.shape()[0];
         let inp_array =
-          Array::from_shape_vec(IxDyn(&vec![oh * ow, conv_size]), flattened_inp).unwrap();
+          Array::from_shape_vec(IxDyn(&vec![batch_size * oh * ow, conv_size]), flattened_inp).unwrap();
         let weights_array =
           Array::from_shape_vec(IxDyn(&vec![out_channels, conv_size]), flattened_weights).unwrap();
 
@@ -421,7 +424,8 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
       ConvLayerEnum::DepthwiseConv2D => weights.shape()[3],
     };
     
-    let out_shape = vec![1, oh, ow, oc];
+    // let out_shape = vec![batch_size, oh, ow, oc];
+    let out_shape = vec![batch_size, oh, ow, oc];
     let outp = Array::from_shape_vec(IxDyn(&out_shape), outp).unwrap();
 
     Ok(vec![outp])

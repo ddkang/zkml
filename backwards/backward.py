@@ -176,18 +176,40 @@ class Conv2D():
         }
         transcript.append(input_conv_layer)
 
-        # Don't forget to deal with bias updates
-        # conv2d_layer = {
-        #     'layer_type': 'AvgPool2D',
-        #     'params': [],
-        #     # y_hat - y
-        #     'inp_idxes': [layer['out_idxes'][0], config.label_tensor_idx],
-        #     'out_idxes': [config.new_gradient_tensor(layer['in'][0])],
-        #     'inp_shapes': [layer['out_shapes'][0], layer['out_shapes'][0]],
-        #     'out_shapes': [layer['out_shapes'][0]],
-        # }
+        # FULL CONV(inputs, outputs)
 
-        # Fetch output 
+        # inputs: chanin, i, j, batchSize # inputs
+        # outputs: chanout, i, j, batchSize # Weights
+
+        # outputs: chanin, i, j, chanout
+        # Permute to get (chanout, i, j, chanin)
+        permutation = [3, 1, 2, 0]
+        permuted_dw_idx = config.new_tensor()
+        permuted_dw_shape = [dw_shape[p] for p in permutation]
+
+        permute_dw = {
+            'layer_type': 'Permute',
+            'params': permutation,
+            'inp_idxes': [dw_idx],
+            'out_idxes': [permuted_dw_idx],
+            'inp_shapes': [dw_shape],
+            'out_shapes': [permuted_dw_shape],
+            'mask': [],
+        }
+        transcript.append(permute_dw)
+
+        updated_weights_idx, updated_weights_shape = config.new_tensor(), dw_shape
+        # Call a layer to update the outputs of the convolution
+        update_weights_layer = {
+            'layer_type': 'Update',
+            'params': [],
+            'inp_idxes': [weights_idx, permuted_dw_idx],
+            'out_idxes': [updated_weights_idx],
+            'inp_shapes': [weights_shape, permuted_dw_shape],
+            'out_shapes': [updated_weights_shape],
+            'mask': [],
+        }
+        # transcript.append(update_weights_layer)
 
 class Softmax():
     def __init__(self, layer):
@@ -216,16 +238,33 @@ class AveragePool2D():
         # TODO: This is very model specific, must rewrite to be accurate
         # We just broadcast dx across 3 axes
         # 1 x 3 x 3 x 1 -> 1 x 1 x 1 x 1280
+
+        div_idx = config.new_tensor()
         reshape_layer = {
             'layer_type': 'Broadcast',
             'params': [],
             'inp_idxes': [config.gradient_tensor_idx(layer['out_idxes'][0])],
-            'out_idxes': [config.new_gradient_tensor(layer['inp_idxes'][0])],
+            'out_idxes': [div_idx],
             'inp_shapes': [layer['out_shapes'][0]],
             'out_shapes': [layer['inp_shapes'][0]],
             'mask': [],
         }
         transcript.append(reshape_layer)
+
+        out_idx = config.new_gradient_tensor(layer['inp_idxes'][0])
+        out_shape = layer['inp_shapes'][0]
+
+        div = {
+            'layer_type': 'Div',
+            'params': [layer['inp_shapes'][0][1] * layer['inp_shapes'][0][2]],
+            'inp_idxes': [div_idx],
+            'out_idxes': [out_idx],
+            'inp_shapes': [out_shape],
+            'out_shapes': [out_shape],
+            'mask': [],
+        }
+        transcript.append(div)
+
 
 class Reshape():
     def __init__(self, layer):
@@ -248,7 +287,6 @@ def produce_graph():
     # Read msgpack file
     with open("examples/truncated_mobinet/model.msgpack", "rb") as data_file:
         byte_data = data_file.read()
-
     model = msgpack.unpackb(byte_data)
 
     # TODO: I'm unsure whether the circuit output is always the last indexed tensor
@@ -284,7 +322,7 @@ def produce_graph():
 
     ### NOTE: Edit this to change the weights you print for debugging
     # model['out_idxes'] = [circuit_config.weights_update]
-    model['out_idxes'] = [26]
+    model['out_idxes'] = [31]
 
     packed = msgpack.packb(model, use_bin_type=True)
     with open("./examples/train_graph/train.msgpack", 'wb') as f:
@@ -294,7 +332,7 @@ def produce_graph():
     print(model.keys())
     
     return model
-    
+
 model = produce_graph()
 
 # for layer in model['layers']:

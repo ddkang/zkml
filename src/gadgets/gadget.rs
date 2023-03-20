@@ -51,6 +51,7 @@ pub struct GadgetConfig {
   pub num_rows: usize,
   pub num_cols: usize,
   pub k: usize,
+  pub eta: f64,
   pub min_val: i64,
   pub max_val: i64,
   pub div_outp_min_val: i64,
@@ -140,6 +141,9 @@ pub trait Gadget<F: FieldExt> {
     vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
     single_inputs: &Vec<&AssignedCell<F, F>>,
   ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    let x = &vec_inputs[0];
+    let to_add = &vec_inputs[1];
+
     self.op_aligned_rows(
       layouter.namespace(|| format!("forward row {}", self.name())),
       vec_inputs,
