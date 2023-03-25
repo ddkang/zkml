@@ -273,7 +273,6 @@ def produce_graph():
             [[out for out in layer['out_idxes']] for layer in model['layers']] + 
             [[inp for inp in layer['inp_idxes']] for layer in model['layers']]
     )[0])
-
     circuit_config = CircuitConfig(softmax_output_index + 1)
     circuit_config.new_label_tensor()
 
@@ -289,24 +288,18 @@ def produce_graph():
                 fetched_layer = Softmax(layer)
             case _:
                 fetched_layer = Reshape(layer)
-
         print(layer['layer_type'])
         fetched_layer.backward(layer, transcript, circuit_config)
         print('----------------')
 
     model['layers'] += transcript
-
     model['inp_idxes'].append(circuit_config.label_tensor_idx)
-
     model['out_idxes'] = [31]
 
     packed = msgpack.packb(model, use_bin_type=True)
     with open("./examples/train_graph/train.msgpack", 'wb') as f:
         f.write(packed)
-    
-
     print(model.keys())
-    
     return model
 
 model = produce_graph()
