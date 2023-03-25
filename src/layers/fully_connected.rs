@@ -247,7 +247,6 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
       )
       .unwrap();
 
-
     let shape = [mm_result.shape()[0], mm_result.shape()[1]];
     let final_result_flat = if self.config.normalize {
       println!("starting");

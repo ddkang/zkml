@@ -1,11 +1,16 @@
 use std::{collections::HashMap, rc::Rc, vec};
 
-use halo2_proofs::{circuit::{Layouter, AssignedCell, Value}, halo2curves::FieldExt, plonk::Error};
+use halo2_proofs::{
+  circuit::{AssignedCell, Layouter, Value},
+  halo2curves::FieldExt,
+  plonk::Error,
+};
 use ndarray::{Array, IxDyn};
 
 use crate::gadgets::{
   gadget::{Gadget, GadgetConfig, GadgetType},
-  nonlinear::pow::PowGadgetChip, var_div::VarDivRoundChip,
+  nonlinear::pow::PowGadgetChip,
+  var_div::VarDivRoundChip,
 };
 
 use super::layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig};
@@ -55,7 +60,6 @@ impl<F: FieldExt> Layer<F> for DivChip {
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
-
     let inp = &tensors[0];
     let inp_flat = inp.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
 
@@ -75,11 +79,11 @@ impl<F: FieldExt> Layer<F> for DivChip {
       .get(&(gadget_config.scale_factor as i64))
       .unwrap()
       .as_ref();
-    
+
     let dived = var_div_chip.forward(
       layouter.namespace(|| "average div"),
       &vec![inp_flat],
-      &vec![zero, &div]
+      &vec![zero, &div],
     )?;
     let dived = dived.into_iter().map(|x| Rc::new(x)).collect::<Vec<_>>();
     let out = Array::from_shape_vec(IxDyn(shape), dived).unwrap();

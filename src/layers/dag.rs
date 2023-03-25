@@ -1,12 +1,13 @@
-use std::{collections::HashMap, marker::PhantomData, rc::Rc, fs::File, io::Write};
+use std::{collections::HashMap, fs::File, io::Write, marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
 
 use crate::{
-  gadgets::{gadget::GadgetConfig},
+  gadgets::gadget::GadgetConfig,
   layers::{
     arithmetic::{add::AddChip, mul::MulChip, sub::SubChip},
     batch_mat_mul::BatchMatMulChip,
+    div::DivChip,
     fully_connected::{FullyConnectedChip, FullyConnectedConfig},
     logistic::LogisticChip,
     max_pool_2d::MaxPool2DChip,
@@ -15,15 +16,17 @@ use crate::{
     pow::PowChip,
     rsqrt::RsqrtChip,
     shape::{
-      concatenation::ConcatenationChip, mask_neg_inf::MaskNegInfChip, pack::PackChip, pad::PadChip,
-      reshape::ReshapeChip, split::SplitChip, transpose::TransposeChip, rotate::RotateChip, broadcast::BroadcastChip, permute::PermuteChip, slice::SliceChip,
+      broadcast::BroadcastChip, concatenation::ConcatenationChip, mask_neg_inf::MaskNegInfChip,
+      pack::PackChip, pad::PadChip, permute::PermuteChip, reshape::ReshapeChip, rotate::RotateChip,
+      slice::SliceChip, split::SplitChip, transpose::TransposeChip,
     },
     softmax::SoftmaxChip,
     square::SquareChip,
     squared_diff::SquaredDiffChip,
-    tanh::TanhChip, update::UpdateChip, div::DivChip,
+    tanh::TanhChip,
+    update::UpdateChip,
   },
-  utils::helpers::{print_assigned_arr, convert_pos_int},
+  utils::helpers::{convert_pos_int, print_assigned_arr},
 };
 
 use super::{
@@ -430,7 +433,15 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
 
     let mut file = File::create("foo.txt")?;
     for i in 0..tmp.len() {
-      file.write_all(&format!("{}\n", convert_pos_int(tmp[i].value().map(|x| x.to_owned())))[..].as_bytes()).unwrap();
+      file
+        .write_all(
+          &format!(
+            "{}\n",
+            convert_pos_int(tmp[i].value().map(|x| x.to_owned()))
+          )[..]
+            .as_bytes(),
+        )
+        .unwrap();
     }
 
     Ok(final_out)

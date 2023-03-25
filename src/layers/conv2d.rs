@@ -295,7 +295,6 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
     let conv_config = &Self::param_vec_to_config(self.config.layer_params.clone());
     let zero = constants.get(&0).unwrap();
 
-
     let inp = &tensors[0];
     let weights = &tensors[1];
 
@@ -331,7 +330,8 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
 
         let out_channels = weights.shape()[0];
         let inp_array =
-          Array::from_shape_vec(IxDyn(&vec![batch_size * oh * ow, conv_size]), flattened_inp).unwrap();
+          Array::from_shape_vec(IxDyn(&vec![batch_size * oh * ow, conv_size]), flattened_inp)
+            .unwrap();
         let weights_array =
           Array::from_shape_vec(IxDyn(&vec![out_channels, conv_size]), flattened_weights).unwrap();
 
@@ -423,7 +423,7 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
       ConvLayerEnum::Conv2D => weights.shape()[0],
       ConvLayerEnum::DepthwiseConv2D => weights.shape()[3],
     };
-    
+
     // let out_shape = vec![batch_size, oh, ow, oc];
     let out_shape = vec![batch_size, oh, ow, oc];
     let outp = Array::from_shape_vec(IxDyn(&out_shape), outp).unwrap();

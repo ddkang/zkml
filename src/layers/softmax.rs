@@ -169,7 +169,7 @@ impl<F: FieldExt> Layer<F> for SoftmaxChip {
         )
         .unwrap();
         outp.extend(dived);
-     }
+      }
     } else if inp.ndim() == 3 {
       for i in 0..shape[0] {
         for j in 0..shape[1] {

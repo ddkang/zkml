@@ -1,7 +1,7 @@
-// 
-// Broadcast is used as a temporary measure to represent a the backprop 
+//
+// Broadcast is used as a temporary measure to represent a the backprop
 // of a full-kernel AvgPool2D
-// 
+//
 
 use std::{collections::HashMap, rc::Rc};
 
@@ -36,7 +36,7 @@ impl<F: FieldExt> Layer<F> for BroadcastChip {
     assert!(shape.len() == 4);
 
     for (inp, outp) in shape.iter().zip(output_shape.iter()) {
-      if *inp != *outp && !(*inp == 1){
+      if *inp != *outp && !(*inp == 1) {
         panic!();
       }
     }
@@ -47,13 +47,11 @@ impl<F: FieldExt> Layer<F> for BroadcastChip {
       for j in 0..output_shape[1] {
         for k in 0..output_shape[2] {
           for l in 0..output_shape[3] {
-            let indexes = [i, j, k, l].iter().enumerate().map(|(idx, x)| {
-              if shape[idx] == 1 {
-                0
-              } else {
-                *x
-              }
-            }).collect::<Vec<_>>();
+            let indexes = [i, j, k, l]
+              .iter()
+              .enumerate()
+              .map(|(idx, x)| if shape[idx] == 1 { 0 } else { *x })
+              .collect::<Vec<_>>();
             output_flat.push(inp[[indexes[0], indexes[1], indexes[2], indexes[3]]].clone());
           }
         }

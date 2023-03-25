@@ -43,13 +43,13 @@ impl<F: FieldExt> Layer<F> for RotateChip {
       for j in 0..shape[1] {
         for k in 0..shape[2] {
           for l in 0..shape[3] {
-            let [ix, jx, kx, lx]: [usize; 4] = [i, j, k, l].iter().enumerate().map(|(idx, x)| {
-              if flip[idx] {
-                shape[idx] - 1 - *x
-              } else {
-                *x
-              }
-            }).collect::<Vec<_>>().try_into().unwrap();
+            let [ix, jx, kx, lx]: [usize; 4] = [i, j, k, l]
+              .iter()
+              .enumerate()
+              .map(|(idx, x)| if flip[idx] { shape[idx] - 1 - *x } else { *x })
+              .collect::<Vec<_>>()
+              .try_into()
+              .unwrap();
             out[[ix, jx, kx, lx]] = inp[[i, j, k, l]].clone();
           }
         }

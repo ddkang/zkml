@@ -224,7 +224,7 @@ impl<F: FieldExt> Gadget<F> for BiasDivRoundRelu6Chip<F> {
       let outp = div_res.map(|x: i64| {
         let mut x_pos = x - div_outp_min_val_i64;
         if !relu_map.contains_key(&(x_pos)) {
-          // println!("x: {}, x_pos: {}", x, x_pos);
+          println!("x: {}, x_pos: {}", x, x_pos);
           x_pos = 0;
         }
         let outp_val = relu_map.get(&(x_pos)).unwrap();

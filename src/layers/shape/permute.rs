@@ -22,7 +22,11 @@ impl<F: FieldExt> Layer<F> for PermuteChip {
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let inp = &tensors[0];
-    let params = &layer_config.layer_params.iter().map(|x| *x as usize).collect::<Vec<_>>()[..];
+    let params = &layer_config
+      .layer_params
+      .iter()
+      .map(|x| *x as usize)
+      .collect::<Vec<_>>()[..];
 
     assert!(inp.ndim() == params.len());
 

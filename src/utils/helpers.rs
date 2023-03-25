@@ -19,7 +19,7 @@ pub fn convert_pos_int<F: FieldExt>(x: Value<F>) -> i128 {
     let tmp = x_pos as i128 - bias;
     outp = tmp;
   });
-  return outp
+  return outp;
 }
 
 pub fn print_pos_int<F: FieldExt>(prefix: &str, x: Value<F>) {
