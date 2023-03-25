@@ -73,7 +73,7 @@ impl<F: FieldExt> Grain<F> {
     };
 
     // Discard the first 160 bits.
-    for _ in 0..100 {
+    for _ in 0..20 {
       grain.load_next_8_bits();
       grain.next_bit = STATE;
     }
