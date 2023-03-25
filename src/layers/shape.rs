@@ -5,7 +5,7 @@ pub mod pack;
 pub mod pad;
 pub mod permute;
 pub mod reshape;
-pub mod rotate;
+pub mod flip;
 pub mod slice;
 pub mod split;
 pub mod transpose;

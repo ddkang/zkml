@@ -50,7 +50,7 @@ use crate::{
     rsqrt::RsqrtChip,
     shape::{
       broadcast::BroadcastChip, concatenation::ConcatenationChip, mask_neg_inf::MaskNegInfChip,
-      pack::PackChip, pad::PadChip, permute::PermuteChip, reshape::ReshapeChip, rotate::RotateChip,
+      pack::PackChip, pad::PadChip, permute::PermuteChip, reshape::ReshapeChip, flip::FlipChip,
       slice::SliceChip, split::SplitChip, transpose::TransposeChip,
     },
     softmax::SoftmaxChip,
@@ -330,7 +330,7 @@ impl<F: FieldExt> ModelCircuit<F> {
             LayerType::Pow => Box::new(PowChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Permute => Box::new(PermuteChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Reshape => Box::new(ReshapeChip {}) as Box<dyn GadgetConsumer>,
-            LayerType::Rotate => Box::new(RotateChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::Rotate => Box::new(FlipChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Rsqrt => Box::new(RsqrtChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Slice => Box::new(SliceChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Softmax => Box::new(SoftmaxChip {}) as Box<dyn GadgetConsumer>,

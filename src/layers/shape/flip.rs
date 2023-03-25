@@ -1,5 +1,3 @@
-// TODO: The implementation is not ideal.
-
 use std::{collections::HashMap, rc::Rc};
 
 use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
@@ -12,18 +10,21 @@ use crate::{
 
 use super::super::layer::{Layer, LayerConfig};
 
-pub struct RotateChip {}
+pub struct FlipChip {}
 
+// @desc: Flips input in the axes that are provided in the params.
+// ------------------------------------
 // Example:
 // input:
 // [1 2 3 4] 
 // [5 6 7 8]
-// 
 // params: [1] -- flip axis 1 only
+// ----------------------------------
 // output:
 // [4 3 2 1]
 // [8 7 6 5]
-impl<F: FieldExt> Layer<F> for RotateChip {
+// 
+impl<F: FieldExt> Layer<F> for FlipChip {
   fn forward(
     &self,
     _layouter: impl Layouter<F>,
@@ -42,8 +43,6 @@ impl<F: FieldExt> Layer<F> for RotateChip {
       flip[*p as usize] = true;
     }
     let shape = inp.shape();
-
-    println!("Rotate: {:?} -> {:?}", inp.shape(), shape);
 
     let mut out = inp.clone();
 
@@ -68,7 +67,7 @@ impl<F: FieldExt> Layer<F> for RotateChip {
   }
 }
 
-impl GadgetConsumer for RotateChip {
+impl GadgetConsumer for FlipChip {
   fn used_gadgets(&self, _layer_params: Vec<i64>) -> Vec<crate::gadgets::gadget::GadgetType> {
     vec![]
   }

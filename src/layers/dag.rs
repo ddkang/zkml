@@ -17,7 +17,7 @@ use crate::{
     rsqrt::RsqrtChip,
     shape::{
       broadcast::BroadcastChip, concatenation::ConcatenationChip, mask_neg_inf::MaskNegInfChip,
-      pack::PackChip, pad::PadChip, permute::PermuteChip, reshape::ReshapeChip, rotate::RotateChip,
+      pack::PackChip, pad::PadChip, permute::PermuteChip, reshape::ReshapeChip, flip::FlipChip,
       slice::SliceChip, split::SplitChip, transpose::TransposeChip,
     },
     softmax::SoftmaxChip,
@@ -334,7 +334,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           )?
         }
         LayerType::Rotate => {
-          let rotate_chip = RotateChip {};
+          let rotate_chip = FlipChip {};
           rotate_chip.forward(
             layouter.namespace(|| "dag rotate"),
             &vec_inps,
