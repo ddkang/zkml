@@ -34,6 +34,7 @@ pub enum GadgetType {
   VarDivRoundBig,
   Packer,      // This is a special case
   InputLookup, // Dummy placeholder for the input lookup
+  Update,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -50,6 +51,7 @@ pub struct GadgetConfig {
   pub num_rows: usize,
   pub num_cols: usize,
   pub k: usize,
+  pub eta: f64,
   pub min_val: i64,
   pub max_val: i64,
   pub div_outp_min_val: i64,

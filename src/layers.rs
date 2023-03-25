@@ -8,6 +8,7 @@ pub mod shape;
 pub mod avg_pool_2d;
 pub mod batch_mat_mul;
 pub mod conv2d;
+pub mod div;
 pub mod fully_connected;
 pub mod logistic;
 pub mod max_pool_2d;
@@ -19,6 +20,7 @@ pub mod softmax;
 pub mod square;
 pub mod squared_diff;
 pub mod tanh;
+pub mod update;
 
 // Special: dag
 pub mod dag;

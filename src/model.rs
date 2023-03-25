@@ -30,6 +30,7 @@ use crate::{
     square::SquareGadgetChip,
     squared_diff::SquaredDiffGadgetChip,
     sub_pairs::SubPairsChip,
+    update::UpdateGadgetChip,
     var_div::VarDivRoundChip,
     var_div_big::VarDivRoundBigChip,
   },
@@ -48,13 +49,15 @@ use crate::{
     pow::PowChip,
     rsqrt::RsqrtChip,
     shape::{
-      concatenation::ConcatenationChip, mask_neg_inf::MaskNegInfChip, pack::PackChip, pad::PadChip,
-      reshape::ReshapeChip, slice::SliceChip, split::SplitChip, transpose::TransposeChip,
+      broadcast::BroadcastChip, concatenation::ConcatenationChip, mask_neg_inf::MaskNegInfChip,
+      pack::PackChip, pad::PadChip, permute::PermuteChip, reshape::ReshapeChip, rotate::RotateChip,
+      slice::SliceChip, split::SplitChip, transpose::TransposeChip,
     },
     softmax::SoftmaxChip,
     square::SquareChip,
     squared_diff::SquaredDiffChip,
     tanh::TanhChip,
+    update::UpdateChip,
   },
   utils::{
     helpers::{NUM_RANDOMS, RAND_START_IDX},
@@ -251,8 +254,10 @@ impl<F: FieldExt> ModelCircuit<F> {
       "AveragePool2D" => LayerType::AvgPool2D,
       "Add" => LayerType::Add,
       "BatchMatMul" => LayerType::BatchMatMul,
+      "Broadcast" => LayerType::Broadcast,
       "Concatenation" => LayerType::Concatenation,
       "Conv2D" => LayerType::Conv2D,
+      "Div" => LayerType::Div,
       "FullyConnected" => LayerType::FullyConnected,
       "Logistic" => LayerType::Logistic,
       "MaskNegInf" => LayerType::MaskNegInf,
@@ -263,7 +268,9 @@ impl<F: FieldExt> ModelCircuit<F> {
       "Pack" => LayerType::Pack,
       "Pad" => LayerType::Pad,
       "Pow" => LayerType::Pow,
+      "Permute" => LayerType::Permute,
       "Reshape" => LayerType::Reshape,
+      "Rotate" => LayerType::Rotate,
       "Rsqrt" => LayerType::Rsqrt,
       "Slice" => LayerType::Slice,
       "Softmax" => LayerType::Softmax,
@@ -273,6 +280,7 @@ impl<F: FieldExt> ModelCircuit<F> {
       "Sub" => LayerType::Sub,
       "Tanh" => LayerType::Tanh,
       "Transpose" => LayerType::Transpose,
+      "Update" => LayerType::Update,
       _ => panic!("unknown op: {}", x),
     };
 
@@ -298,7 +306,9 @@ impl<F: FieldExt> ModelCircuit<F> {
             LayerType::Add => Box::new(AddChip {}) as Box<dyn GadgetConsumer>,
             LayerType::AvgPool2D => Box::new(AvgPool2DChip {}) as Box<dyn GadgetConsumer>,
             LayerType::BatchMatMul => Box::new(BatchMatMulChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::Broadcast => Box::new(BroadcastChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Concatenation => Box::new(ConcatenationChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::Div => Box::new(ConcatenationChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Conv2D => Box::new(Conv2DChip {
               config: LayerConfig::default(),
               _marker: PhantomData::<F>,
@@ -318,7 +328,9 @@ impl<F: FieldExt> ModelCircuit<F> {
             LayerType::Pack => Box::new(PackChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Pad => Box::new(PadChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Pow => Box::new(PowChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::Permute => Box::new(PermuteChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Reshape => Box::new(ReshapeChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::Rotate => Box::new(RotateChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Rsqrt => Box::new(RsqrtChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Slice => Box::new(SliceChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Softmax => Box::new(SoftmaxChip {}) as Box<dyn GadgetConsumer>,
@@ -328,6 +340,7 @@ impl<F: FieldExt> ModelCircuit<F> {
             LayerType::Sub => Box::new(SubChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Tanh => Box::new(TanhChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Transpose => Box::new(TransposeChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::Update => Box::new(UpdateChip {}) as Box<dyn GadgetConsumer>,
           }
           .used_gadgets(layer.params.clone());
           for gadget in layer_gadgets {
@@ -543,6 +556,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
         GadgetType::VarDivRound => VarDivRoundChip::<F>::configure(meta, gadget_config),
         GadgetType::VarDivRoundBig => VarDivRoundBigChip::<F>::configure(meta, gadget_config),
         GadgetType::InputLookup => gadget_config, // This is always loaded
+        GadgetType::Update => UpdateGadgetChip::<F>::configure(meta, gadget_config),
         GadgetType::Packer => panic!(),
       };
     }
@@ -614,9 +628,10 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
         GadgetType::VarDivRoundBig => {}
         GadgetType::Max => {}
         GadgetType::MulPairs => {}
-        GadgetType::SubPairs => {}
         GadgetType::SqrtBig => {}
         GadgetType::SquaredDiff => {}
+        GadgetType::SubPairs => {}
+        GadgetType::Update => {}
         _ => panic!("unsupported gadget {:?}", gadget),
       }
     }

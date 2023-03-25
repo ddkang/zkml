@@ -14,8 +14,10 @@ pub enum LayerType {
   Add,
   AvgPool2D,
   BatchMatMul,
+  Broadcast,
   Concatenation,
   Conv2D,
+  Div,
   FullyConnected,
   Logistic,
   MaskNegInf,
@@ -27,7 +29,9 @@ pub enum LayerType {
   Pack,
   Pad,
   Pow,
+  Permute,
   Reshape,
+  Rotate,
   Rsqrt,
   Slice,
   Softmax,
@@ -37,6 +41,7 @@ pub enum LayerType {
   Sub,
   Tanh,
   Transpose,
+  Update,
 }
 
 // NOTE: This is the same order as the TFLite schema
