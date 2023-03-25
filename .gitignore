@@ -18,4 +18,5 @@ out.msgpack
 proof_size_check
 params_kzg
 params_ipa
+examples
 testing/data
