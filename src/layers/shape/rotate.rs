@@ -14,6 +14,15 @@ use super::super::layer::{Layer, LayerConfig};
 
 pub struct RotateChip {}
 
+// Example:
+// input:
+// [1 2 3 4] 
+// [5 6 7 8]
+// 
+// params: [1] -- flip axis 1 only
+// output:
+// [4 3 2 1]
+// [8 7 6 5]
 impl<F: FieldExt> Layer<F> for RotateChip {
   fn forward(
     &self,
@@ -32,7 +41,6 @@ impl<F: FieldExt> Layer<F> for RotateChip {
     for p in params {
       flip[*p as usize] = true;
     }
-    // See which layers to 'flip'
     let shape = inp.shape();
 
     println!("Rotate: {:?} -> {:?}", inp.shape(), shape);
