@@ -14,5 +14,5 @@ fn main() {
 
   let outp = vec![];
   let prover = MockProver::run(config.k.try_into().unwrap(), &circuit, vec![outp.clone()]).unwrap();
-  // assert_eq!(prover.verify(), Ok(()));
+  assert_eq!(prover.verify(), Ok(()));
 }

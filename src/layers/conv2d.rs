@@ -424,7 +424,6 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
       ConvLayerEnum::DepthwiseConv2D => weights.shape()[3],
     };
 
-    // let out_shape = vec![batch_size, oh, ow, oc];
     let out_shape = vec![batch_size, oh, ow, oc];
     let outp = Array::from_shape_vec(IxDyn(&out_shape), outp).unwrap();
 

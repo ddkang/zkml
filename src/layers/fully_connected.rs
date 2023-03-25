@@ -249,9 +249,7 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
 
     let shape = [mm_result.shape()[0], mm_result.shape()[1]];
     let final_result_flat = if self.config.normalize {
-      println!("starting");
       let mm_flat = mm_result.iter().collect::<Vec<_>>();
-      println!("{:?} flat", mm_flat.len());
       let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
       let sf = constants
         .get(&(gadget_config.scale_factor as i64))
@@ -303,7 +301,6 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
         .collect::<Vec<_>>()
     };
     let final_result = Array::from_shape_vec(IxDyn(&shape), final_result_flat).unwrap();
-    println!("left");
 
     Ok(vec![final_result])
   }

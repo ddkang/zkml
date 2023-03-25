@@ -428,7 +428,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
     }
 
     let tmp = final_out[0].iter().map(|x| x.as_ref()).collect::<Vec<_>>();
-    print_assigned_arr("final out", &tmp[..102].to_vec());
+    print_assigned_arr("final out", &tmp.to_vec());
     println!("final out idxes: {:?}", self.dag_config.final_out_idxes);
 
     let mut file = File::create("foo.txt")?;

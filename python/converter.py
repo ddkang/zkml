@@ -146,7 +146,6 @@ class Converter:
         opt = tflite.Pool2DOptions()
         opt.Init(op_opt.Bytes, op_opt.Pos)
         params = [opt.FilterHeight(), opt.FilterWidth(), opt.StrideH(), opt.StrideW()]
-
       elif op_code == tflite.BuiltinOperator.MAX_POOL_2D:
         layer_type = 'MaxPool2D'
         op_opt = op.BuiltinOptions()
@@ -159,13 +158,11 @@ class Converter:
         if opt.FusedActivationFunction() != tflite.ActivationFunctionType.NONE:
           raise NotImplementedError('Fused activation is not supported')
         params = [opt.FilterHeight(), opt.FilterWidth(), opt.StrideH(), opt.StrideW()]
-
       # FIXME: hack for Keras... not sure why this isn't being converted properly
       elif op_code == tflite.BuiltinOperator.CUSTOM:
         layer_type = 'Conv2D'
         activation = 0
         params = [0, 0, activation, 1, 1]
-
       # Conv2D
       elif op_code == tflite.BuiltinOperator.CONV_2D:
         layer_type = 'Conv2D'
@@ -184,7 +181,6 @@ class Converter:
           [opt.Padding()] + \
           [opt.FusedActivationFunction()] + \
           [opt.StrideH(), opt.StrideW()]
-      
       # DepthwiseConv2D
       elif op_code == tflite.BuiltinOperator.DEPTHWISE_CONV_2D:
         layer_type = 'Conv2D'
@@ -203,7 +199,6 @@ class Converter:
           [opt.Padding()] + \
           [opt.FusedActivationFunction()] + \
           [opt.StrideH(), opt.StrideW()]
-      
       # Fully connected
       elif op_code == tflite.BuiltinOperator.FULLY_CONNECTED:
         layer_type = 'FullyConnected'
@@ -215,7 +210,6 @@ class Converter:
         if opt.FusedActivationFunction() not in self.valid_activations():
           raise NotImplementedError(f'Unsupported activation function at layer {op_idx}')
         params = [opt.FusedActivationFunction()]
-
       elif op_code == tflite.BuiltinOperator.BATCH_MATMUL:
         layer_type = 'BatchMatMul'
         params = []
