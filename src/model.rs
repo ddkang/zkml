@@ -391,7 +391,6 @@ impl<F: FieldExt> ModelCircuit<F> {
       min_val: -(1 << (config.k - 1)),
       max_val: (1 << (config.k - 1)) - 10,
       k: config.k as usize,
-      // eta: config.eta as usize,
       num_rows: (1 << config.k) - 10 + 1,
       num_cols: config.num_cols as usize,
       used_gadgets: used_gadgets.clone(),
