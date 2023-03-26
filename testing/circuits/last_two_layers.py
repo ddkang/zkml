@@ -64,10 +64,7 @@ my_sequential_model.conv1.set_weights([np.transpose(Wc, [1,2,3,0]), Bc])
 
 # We want to transform this so that we rotate the input by 90 degrees
 
-W = np.ones([1, 1, 1280, 102])
-for i in range(1280):
-    for j in range(102):
-        W[0, 0, i, j] = ((i + j) % 6) / 8
+W = np.zeros([1, 1, 1280, 102])
 
 my_sequential_model.conv2.set_weights([
     W,
@@ -77,5 +74,5 @@ my_sequential_model.conv2.set_weights([
 converter = tf.lite.TFLiteConverter.from_keras_model(my_sequential_model)
 tflite_model = converter.convert()
 
-with open('./examples/truncated_mobinet/model.tflite', 'wb') as f:
+with open('./examples/v2_1.0_224_truncated/v2_1.0_224_truncated.tflite', 'wb') as f:
   f.write(tflite_model)
