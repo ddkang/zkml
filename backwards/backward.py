@@ -264,7 +264,7 @@ class Reshape():
 
 def produce_graph():
     # Read msgpack file
-    with open("examples/truncated_mobinet/model.msgpack", "rb") as data_file:
+    with open("examples/v2_1.0_224_truncated/model.msgpack", "rb") as data_file:
         byte_data = data_file.read()
     model = msgpack.unpackb(byte_data)
 
