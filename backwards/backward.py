@@ -90,7 +90,6 @@ class Conv2D():
         }
         transcript.append(inputs_permute_layer)
 
-
         dw_idx, dw_shape = config.new_tensor(), weights_shape
         dw_conv = {
             'layer_type': 'Conv2D',
@@ -200,7 +199,6 @@ class Softmax():
         sub_layer = {
             'layer_type': 'Sub',
             'params': [],
-            # y_hat - y
             'inp_idxes': [layer['out_idxes'][0], config.label_tensor_idx],
             'out_idxes': [config.new_gradient_tensor(layer['inp_idxes'][0])],
             'inp_shapes': [layer['out_shapes'][0], layer['out_shapes'][0]],
@@ -232,7 +230,6 @@ class AveragePool2D():
 
         out_idx = config.new_gradient_tensor(layer['inp_idxes'][0])
         out_shape = layer['inp_shapes'][0]
-
         div = {
             'layer_type': 'Div',
             'params': [layer['inp_shapes'][0][1] * layer['inp_shapes'][0][2]],
@@ -243,7 +240,6 @@ class AveragePool2D():
             'mask': [],
         }
         transcript.append(div)
-
 
 class Reshape():
     def __init__(self, layer):
@@ -261,10 +257,9 @@ class Reshape():
         }
         transcript.append(reshape_layer)
 
-
 def produce_graph():
     # Read msgpack file
-    with open("examples/truncated_mobinet/model.msgpack", "rb") as data_file:
+    with open("examples/v2_1.0_224_truncated/model.msgpack", "rb") as data_file:
         byte_data = data_file.read()
     model = msgpack.unpackb(byte_data)
 
