@@ -201,7 +201,7 @@ impl<F: FieldExt> Conv2DChip<F> {
       }
     }
 
-    for batch in 0..inp.shape()[0] {
+    for _batch in 0..inp.shape()[0] {
       for _ in 0..oh {
         for _ in 0..ow {
           for chan_out in 0..weights.shape()[0] {

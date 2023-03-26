@@ -243,16 +243,6 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
             &layer_config,
           )?
         }
-        LayerType::Permute => {
-          let permute_chip = PermuteChip {};
-          permute_chip.forward(
-            layouter.namespace(|| "dag permute"),
-            &vec_inps,
-            constants,
-            gadget_config.clone(),
-            &layer_config,
-          )?
-        }
         LayerType::Logistic => {
           let logistic_chip = LogisticChip {};
           logistic_chip.forward(
