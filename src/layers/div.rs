@@ -9,7 +9,6 @@ use ndarray::{Array, IxDyn};
 
 use crate::gadgets::{
   gadget::{Gadget, GadgetConfig, GadgetType},
-  nonlinear::pow::PowGadgetChip,
   var_div::VarDivRoundChip,
 };
 
@@ -74,11 +73,6 @@ impl<F: FieldExt> Layer<F> for DivChip {
     )?;
 
     let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
-
-    let sf = constants
-      .get(&(gadget_config.scale_factor as i64))
-      .unwrap()
-      .as_ref();
 
     let dived = var_div_chip.forward(
       layouter.namespace(|| "average div"),

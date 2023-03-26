@@ -20,7 +20,7 @@ impl<F: FieldExt> Layer<F> for UpdateChip {
     tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, CellRc<F>>,
     gadget_config: Rc<GadgetConfig>,
-    layer_config: &LayerConfig,
+    _layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let w = &tensors[0];
     let dw = &tensors[1];
