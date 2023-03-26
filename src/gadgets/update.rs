@@ -1,13 +1,13 @@
-use std::{marker::PhantomData, rc::Rc};
+use std::marker::PhantomData;
 
 use halo2_proofs::{
   arithmetic::FieldExt,
   circuit::{AssignedCell, Layouter, Region},
-  plonk::{Advice, Column, ConstraintSystem, Error, Expression, Selector, TableColumn},
+  plonk::{ConstraintSystem, Error, Expression},
   poly::Rotation,
 };
 
-use crate::gadgets::gadget::{self, convert_to_u64, GadgetConfig};
+use crate::gadgets::gadget::{convert_to_u64, GadgetConfig};
 
 use super::gadget::{Gadget, GadgetType};
 
@@ -136,8 +136,8 @@ impl<F: FieldExt> Gadget<F> for UpdateGadgetChip<F> {
 
     for i in 0..w.len() {
       let offset = i * self.num_cols_per_op();
-      let w_cell = w[i].copy_advice(|| "", region, columns[offset + 0], row_offset)?;
-      let dw_cell = dw[i].copy_advice(|| "", region, columns[offset + 1], row_offset)?;
+      let _w_cell = w[i].copy_advice(|| "", region, columns[offset + 0], row_offset)?;
+      let _dw_cell = dw[i].copy_advice(|| "", region, columns[offset + 1], row_offset)?;
 
       let w_val = w[i].value().map(|x: &F| x.to_owned());
       let dw_val = dw[i].value().map(|x: &F| x.to_owned());
