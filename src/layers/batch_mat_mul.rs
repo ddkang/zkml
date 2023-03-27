@@ -32,7 +32,13 @@ impl<F: FieldExt> Layer<F> for BatchMatMulChip {
     assert_eq!(inp1.ndim(), 3);
     assert_eq!(inp2.ndim(), 3);
     assert_eq!(inp1.shape()[0], inp2.shape()[0]);
-    assert_eq!(inp1.shape()[2], inp2.shape()[1]);
+
+    let adj_y = layer_config.layer_params[1] == 1;
+    if adj_y {
+      assert_eq!(inp1.shape()[2], inp2.shape()[2]);
+    } else {
+      assert_eq!(inp1.shape()[2], inp2.shape()[1]);
+    }
 
     let out_shape = vec![inp1.shape()[0], inp1.shape()[1], inp2.shape()[2]];
 
@@ -45,7 +51,11 @@ impl<F: FieldExt> Layer<F> for BatchMatMulChip {
     for i in 0..inp1.shape()[0] {
       let inp1_slice = inp1.index_axis(Axis(0), i).to_owned();
       // Due to tensorflow BS, transpose the "weights"
-      let inp2_slice = inp2.index_axis(Axis(0), i).t().to_owned();
+      let inp2_slice = if adj_y {
+        inp2.index_axis(Axis(0), i).to_owned()
+      } else {
+        inp2.index_axis(Axis(0), i).t().to_owned()
+      };
       println!("inp1_slice: {:?}", inp1_slice.shape());
       println!("inp2_slice: {:?}", inp2_slice.shape());
       // Batch MM doesn't have a fused activation, so insert it here
