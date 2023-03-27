@@ -17,8 +17,9 @@ use crate::{
     rsqrt::RsqrtChip,
     shape::{
       broadcast::BroadcastChip, concatenation::ConcatenationChip, mask_neg_inf::MaskNegInfChip,
-      pack::PackChip, pad::PadChip, permute::PermuteChip, reshape::ReshapeChip, rotate::RotateChip,
-      slice::SliceChip, split::SplitChip, transpose::TransposeChip,
+      pack::PackChip, pad::PadChip, permute::PermuteChip, reshape::ReshapeChip,
+      resize_nn::ResizeNNChip, rotate::RotateChip, slice::SliceChip, split::SplitChip,
+      transpose::TransposeChip,
     },
     softmax::SoftmaxChip,
     square::SquareChip,
@@ -317,6 +318,16 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           let reshape_chip = ReshapeChip {};
           reshape_chip.forward(
             layouter.namespace(|| "dag reshape"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+            &layer_config,
+          )?
+        }
+        LayerType::ResizeNN => {
+          let resize_nn_chip = ResizeNNChip {};
+          resize_nn_chip.forward(
+            layouter.namespace(|| "dag resize nn"),
             &vec_inps,
             constants,
             gadget_config.clone(),

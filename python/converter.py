@@ -365,6 +365,21 @@ class Converter:
         begin = interpreter.get_tensor(op.Inputs(1)).flatten().astype(np.int64).tolist()
         size = interpreter.get_tensor(op.Inputs(2)).flatten().astype(np.int64).tolist()
         params = begin + size
+      elif op_code == tflite.BuiltinOperator.RESIZE_NEAREST_NEIGHBOR:
+        layer_type = 'ResizeNearestNeighbor'
+        op_opt = op.BuiltinOptions()
+        if op_opt is None:
+          raise RuntimeError('ResizeNearestNeighbor options is None')
+        opt = tflite.ResizeNearestNeighborOptions()
+        opt.Init(op_opt.Bytes, op_opt.Pos)
+        if opt.AlignCorners():
+          raise NotImplementedError(f'Align corners not supported at layer {op_idx}')
+        if not opt.HalfPixelCenters():
+          raise NotImplementedError(f'Half pixel centers not supported at layer {op_idx}')
+        # Can take the out shape directly from the tensor
+        params = [int(opt.AlignCorners()), int(opt.HalfPixelCenters())]
+
+      # Not implemented
       else:
         op_name = None
         for attr in dir(tflite.BuiltinOperator):
