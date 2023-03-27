@@ -216,7 +216,13 @@ class Converter:
         params = [opt.FusedActivationFunction()]
       elif op_code == tflite.BuiltinOperator.BATCH_MATMUL:
         layer_type = 'BatchMatMul'
-        params = []
+        op_opt = op.BuiltinOptions()
+        if op_opt is None:
+          raise RuntimeError('BatchMatMul options is None')
+        opt = tflite.BatchMatMulOptions()
+        opt.Init(op_opt.Bytes, op_opt.Pos)
+        if opt.AdjX() is True: raise NotImplementedError('AdjX is not supported')
+        params = [opt.AdjX(), opt.AdjY()]
 
       ## Arithmetic
       # Add
