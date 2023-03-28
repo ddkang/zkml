@@ -40,7 +40,11 @@ impl<F: FieldExt> Layer<F> for BatchMatMulChip {
       assert_eq!(inp1.shape()[2], inp2.shape()[1]);
     }
 
-    let out_shape = vec![inp1.shape()[0], inp1.shape()[1], inp2.shape()[2]];
+    let out_shape = if adj_y {
+      vec![inp1.shape()[0], inp1.shape()[1], inp2.shape()[1]]
+    } else {
+      vec![inp1.shape()[0], inp1.shape()[1], inp2.shape()[2]]
+    };
 
     let fc_chip = FullyConnectedChip::<F> {
       _marker: PhantomData,

@@ -222,7 +222,7 @@ class Converter:
         opt = tflite.BatchMatMulOptions()
         opt.Init(op_opt.Bytes, op_opt.Pos)
         if opt.AdjX() is True: raise NotImplementedError('AdjX is not supported')
-        params = [opt.AdjX(), opt.AdjY()]
+        params = [int(opt.AdjX()), int(opt.AdjY())]
 
       ## Arithmetic
       # Add
