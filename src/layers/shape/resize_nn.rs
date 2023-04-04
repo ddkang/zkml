@@ -1,7 +1,7 @@
 use std::{collections::HashMap, rc::Rc};
 
 use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
-use ndarray::IxDyn;
+use ndarray::{Array, IxDyn};
 
 use crate::{
   gadgets::gadget::GadgetConfig,
@@ -25,7 +25,26 @@ impl<F: FieldExt> Layer<F> for ResizeNNChip {
     let inp = &tensors[0];
     let output_shape = layer_config.out_shapes[0].clone();
 
-    let outp = inp.broadcast(IxDyn(&output_shape)).unwrap().into_owned();
+    assert_eq!(inp.ndim(), 4);
+    assert_eq!(inp.shape()[0], 1);
+    assert_eq!(inp.shape()[3], output_shape[3]);
+
+    let mut flat = vec![];
+    // Do nearest neighbor interpolation over batch, h, w, c
+    // The interpolation is over h and w
+    for b in 0..inp.shape()[0] {
+      for h in 0..output_shape[1] {
+        let h_in = (h as f64 * (inp.shape()[1] as f64 / output_shape[1] as f64)) as usize;
+        for w in 0..output_shape[2] {
+          let w_in = (w as f64 * (inp.shape()[2] as f64 / output_shape[2] as f64)) as usize;
+          for c in 0..inp.shape()[3] {
+            flat.push(inp[[b, h_in, w_in, c]].clone());
+          }
+        }
+      }
+    }
+
+    let outp = Array::from_shape_vec(IxDyn(&output_shape), flat).unwrap();
     Ok(vec![outp])
   }
 }
