@@ -115,7 +115,7 @@ impl<F: FieldExt> VarDivRoundBigChip<F> {
 
 impl<F: FieldExt> Gadget<F> for VarDivRoundBigChip<F> {
   fn name(&self) -> String {
-    "VarDivRoundChip".to_string()
+    "VarDivBigRoundChip".to_string()
   }
 
   fn num_cols_per_op(&self) -> usize {
