@@ -13,7 +13,7 @@ use crate::gadgets::{
   max::MaxChip,
   nonlinear::exp::ExpGadgetChip,
   sub_pairs::SubPairsChip,
-  var_div_big::VarDivRoundBigChip,
+  var_div_big3::VarDivRoundBig3Chip,
 };
 
 use super::layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig};
@@ -33,7 +33,7 @@ impl SoftmaxChip {
     let adder_chip = AdderChip::<F>::construct(gadget_config.clone());
     let sub_pairs_chip = SubPairsChip::<F>::construct(gadget_config.clone());
     let max_chip = MaxChip::<F>::construct(gadget_config.clone());
-    let var_div_big_chip = VarDivRoundBigChip::<F>::construct(gadget_config.clone());
+    let var_div_big_chip = VarDivRoundBig3Chip::<F>::construct(gadget_config.clone());
 
     let zero = constants.get(&0).unwrap().as_ref();
     let sf = constants
@@ -203,7 +203,7 @@ impl GadgetConsumer for SoftmaxChip {
     vec![
       GadgetType::Exp,
       GadgetType::Adder,
-      GadgetType::VarDivRoundBig,
+      GadgetType::VarDivRoundBig3,
       GadgetType::Max,
       GadgetType::SubPairs,
       GadgetType::InputLookup,

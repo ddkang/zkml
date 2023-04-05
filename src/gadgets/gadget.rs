@@ -32,6 +32,7 @@ pub enum GadgetType {
   MulPairs,
   VarDivRound,
   VarDivRoundBig,
+  VarDivRoundBig3,
   Packer,      // This is a special case
   InputLookup, // Dummy placeholder for the input lookup
   Update,
