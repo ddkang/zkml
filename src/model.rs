@@ -631,6 +631,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
           chip.load_lookups(layouter.namespace(|| "input lookup"))?;
         }
         GadgetType::VarDivRoundBig => {}
+        GadgetType::VarDivRoundBig3 => {}
         GadgetType::Max => {}
         GadgetType::MulPairs => {}
         GadgetType::SqrtBig => {}
