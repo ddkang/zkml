@@ -33,6 +33,7 @@ use crate::{
     update::UpdateGadgetChip,
     var_div::VarDivRoundChip,
     var_div_big::VarDivRoundBigChip,
+    var_div_big3::VarDivRoundBig3Chip,
   },
   layers::{
     arithmetic::{add::AddChip, mul::MulChip, sub::SubChip},
@@ -558,6 +559,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
         GadgetType::Tanh => TanhGadgetChip::<F>::configure(meta, gadget_config),
         GadgetType::VarDivRound => VarDivRoundChip::<F>::configure(meta, gadget_config),
         GadgetType::VarDivRoundBig => VarDivRoundBigChip::<F>::configure(meta, gadget_config),
+        GadgetType::VarDivRoundBig3 => VarDivRoundBig3Chip::<F>::configure(meta, gadget_config),
         GadgetType::InputLookup => gadget_config, // This is always loaded
         GadgetType::Update => UpdateGadgetChip::<F>::configure(meta, gadget_config),
         GadgetType::Packer => panic!(),
