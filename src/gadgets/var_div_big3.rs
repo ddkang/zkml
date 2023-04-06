@@ -182,9 +182,9 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundBig3Chip<F> {
 
       let div_mod = a.value().zip(b.value()).map(|(a, b)| {
         let b = convert_to_u128(b);
-        // Needs to be divisible by b^3
-        let b_cubed = (b * b * b) as i128;
-        let div_inp_min_val_pos_i128 = div_inp_min_val_pos_i128 / b_cubed;
+        // Needs to be divisible by b^2
+        let b_sq = (b * b) as i128;
+        let div_inp_min_val_pos_i128 = div_inp_min_val_pos_i128 / b_sq;
         let div_inp_min_val_pos = F::from(div_inp_min_val_pos_i128 as u64);
 
         let a_pos = *a + div_inp_min_val_pos;
