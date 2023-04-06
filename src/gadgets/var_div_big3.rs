@@ -203,7 +203,7 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundBig3Chip<F> {
         let b = convert_to_u128(b) as i128;
         let val = 2 * b - r;
         let p2 = val / (num_rows * num_rows);
-        let p1 = val / num_rows;
+        let p1 = (val % (num_rows * num_rows)) / num_rows;
         let p0 = val % num_rows;
         // val = p2 * max_val^2 + p1 * max_val + p0
         (p2, p1, p0)
@@ -211,7 +211,7 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundBig3Chip<F> {
 
       let r_split = div_mod.map(|(_, r)| {
         let p2 = r / (num_rows * num_rows);
-        let p1 = r / num_rows;
+        let p1 = (r % (num_rows * num_rows)) / num_rows;
         let p0 = r % num_rows;
         // val = p1 * max_val + p0
         (p2, p1, p0)
