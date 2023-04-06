@@ -154,8 +154,7 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundBig3Chip<F> {
     // let zero = single_inputs[0].clone();
     let b = &single_inputs[1];
 
-    let div_outp_min_val_i128 = (-(1_i64 << 62)) as i128;
-    let div_inp_min_val_pos_i128 = -self.config.shift_min_val as i128;
+    let c_shift_base = (-(1_i64 << 62)) as i128;
     let num_rows = self.config.num_rows as i128;
 
     if self.config.use_selectors {
@@ -182,7 +181,7 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundBig3Chip<F> {
 
       let div_mod = a.value().zip(b.value()).map(|(a, b)| {
         let b = convert_to_u128(b);
-        let c_shift = (-div_outp_min_val_i128) as u128 / b * b;
+        let c_shift = (-c_shift_base) as u128 / b * b;
         let div_inp_min_val_pos = F::from(c_shift as u64);
 
         let a_pos = *a + div_inp_min_val_pos;
@@ -221,8 +220,8 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundBig3Chip<F> {
         row_offset,
         || {
           div_mod.map(|(c, _)| {
-            let offset = F::from(-div_outp_min_val_i128 as u64);
-            let c = F::from((c - div_outp_min_val_i128) as u64);
+            let offset = F::from(-c_shift_base as u64);
+            let c = F::from((c - c_shift_base) as u64);
             c - offset
           })
         },
