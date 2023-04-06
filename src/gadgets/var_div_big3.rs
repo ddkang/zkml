@@ -154,7 +154,7 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundBig3Chip<F> {
     // let zero = single_inputs[0].clone();
     let b = &single_inputs[1];
 
-    let div_outp_min_val_i128 = self.config.div_outp_min_val as i128;
+    let div_outp_min_val_i128 = (-(1_i64 << 62)) as i128;
     let div_inp_min_val_pos_i128 = -self.config.shift_min_val as i128;
     let num_rows = self.config.num_rows as i128;
 
@@ -182,16 +182,14 @@ impl<F: FieldExt> Gadget<F> for VarDivRoundBig3Chip<F> {
 
       let div_mod = a.value().zip(b.value()).map(|(a, b)| {
         let b = convert_to_u128(b);
-        // Needs to be divisible by b^2
-        let b_sq = (b * b) as i128;
-        let div_inp_min_val_pos_i128 = div_inp_min_val_pos_i128 / b_sq;
-        let div_inp_min_val_pos = F::from(div_inp_min_val_pos_i128 as u64);
+        let c_shift = (-div_outp_min_val_i128) as u128 / b * b;
+        let div_inp_min_val_pos = F::from(c_shift as u64);
 
         let a_pos = *a + div_inp_min_val_pos;
         let a = convert_to_u128(&a_pos);
         // c = (2 * a + b) / (2 * b)
         let c_pos = a.rounded_div(b);
-        let c = c_pos as i128 - (div_inp_min_val_pos_i128 as u128 / b) as i128;
+        let c = c_pos as i128 - (c_shift / b) as i128;
 
         // r = (2 * a + b) % (2 * b)
         let rem_floor = (a as i128) - (c_pos * b) as i128;
