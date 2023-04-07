@@ -24,6 +24,7 @@ pub enum GadgetType {
   Pow,
   Relu,
   Rsqrt,
+  Sqrt,
   SqrtBig,
   Square,
   SquaredDiff,

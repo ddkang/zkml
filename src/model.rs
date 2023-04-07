@@ -25,7 +25,7 @@ use crate::{
     max::MaxChip,
     mul_pairs::MulPairsChip,
     nonlinear::{exp::ExpGadgetChip, pow::PowGadgetChip, relu::ReluChip, tanh::TanhGadgetChip},
-    nonlinear::{logistic::LogisticGadgetChip, rsqrt::RsqrtGadgetChip},
+    nonlinear::{logistic::LogisticGadgetChip, rsqrt::RsqrtGadgetChip, sqrt::SqrtGadgetChip},
     sqrt_big::SqrtBigChip,
     square::SquareGadgetChip,
     squared_diff::SquaredDiffGadgetChip,
@@ -36,7 +36,7 @@ use crate::{
     var_div_big3::VarDivRoundBig3Chip,
   },
   layers::{
-    arithmetic::{add::AddChip, mul::MulChip, sub::SubChip},
+    arithmetic::{add::AddChip, div_var::DivVarChip, mul::MulChip, sub::SubChip},
     avg_pool_2d::AvgPool2DChip,
     batch_mat_mul::BatchMatMulChip,
     conv2d::Conv2DChip,
@@ -56,6 +56,7 @@ use crate::{
       transpose::TransposeChip,
     },
     softmax::SoftmaxChip,
+    sqrt::SqrtChip,
     square::SquareChip,
     squared_diff::SquaredDiffChip,
     tanh::TanhChip,
@@ -259,7 +260,8 @@ impl<F: FieldExt> ModelCircuit<F> {
       "Broadcast" => LayerType::Broadcast,
       "Concatenation" => LayerType::Concatenation,
       "Conv2D" => LayerType::Conv2D,
-      "Div" => LayerType::Div,
+      "Div" => LayerType::DivFixed, // TODO: rename to DivFixed
+      "DivVar" => LayerType::DivVar,
       "FullyConnected" => LayerType::FullyConnected,
       "Logistic" => LayerType::Logistic,
       "MaskNegInf" => LayerType::MaskNegInf,
@@ -278,6 +280,7 @@ impl<F: FieldExt> ModelCircuit<F> {
       "Slice" => LayerType::Slice,
       "Softmax" => LayerType::Softmax,
       "Split" => LayerType::Split,
+      "Sqrt" => LayerType::Sqrt,
       "Square" => LayerType::Square,
       "SquaredDifference" => LayerType::SquaredDifference,
       "Sub" => LayerType::Sub,
@@ -311,7 +314,8 @@ impl<F: FieldExt> ModelCircuit<F> {
             LayerType::BatchMatMul => Box::new(BatchMatMulChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Broadcast => Box::new(BroadcastChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Concatenation => Box::new(ConcatenationChip {}) as Box<dyn GadgetConsumer>,
-            LayerType::Div => Box::new(ConcatenationChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::DivFixed => Box::new(ConcatenationChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::DivVar => Box::new(DivVarChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Conv2D => Box::new(Conv2DChip {
               config: LayerConfig::default(),
               _marker: PhantomData::<F>,
@@ -339,6 +343,7 @@ impl<F: FieldExt> ModelCircuit<F> {
             LayerType::Slice => Box::new(SliceChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Softmax => Box::new(SoftmaxChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Split => Box::new(SplitChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::Sqrt => Box::new(SqrtChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Square => Box::new(SquareChip {}) as Box<dyn GadgetConsumer>,
             LayerType::SquaredDifference => Box::new(SquaredDiffChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Sub => Box::new(SubChip {}) as Box<dyn GadgetConsumer>,
@@ -552,6 +557,7 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
         GadgetType::Pow => PowGadgetChip::<F>::configure(meta, gadget_config),
         GadgetType::Relu => ReluChip::<F>::configure(meta, gadget_config),
         GadgetType::Rsqrt => RsqrtGadgetChip::<F>::configure(meta, gadget_config),
+        GadgetType::Sqrt => SqrtGadgetChip::<F>::configure(meta, gadget_config),
         GadgetType::SqrtBig => SqrtBigChip::<F>::configure(meta, gadget_config),
         GadgetType::Square => SquareGadgetChip::<F>::configure(meta, gadget_config),
         GadgetType::SquaredDiff => SquaredDiffGadgetChip::<F>::configure(meta, gadget_config),
@@ -613,6 +619,10 @@ impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
         GadgetType::Rsqrt => {
           let chip = RsqrtGadgetChip::<F>::construct(gadget_rc.clone());
           chip.load_lookups(layouter.namespace(|| "rsqrt lookup"))?;
+        }
+        GadgetType::Sqrt => {
+          let chip = SqrtGadgetChip::<F>::construct(gadget_rc.clone());
+          chip.load_lookups(layouter.namespace(|| "sqrt lookup"))?;
         }
         GadgetType::Tanh => {
           let chip = TanhGadgetChip::<F>::construct(gadget_rc.clone());
