@@ -2,7 +2,7 @@ use std::{collections::HashMap, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Region, Value},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::{ConstraintSystem, Error, Expression, Selector},
   poly::Rotation,
 };
@@ -14,7 +14,7 @@ use super::super::gadget::{GadgetConfig, GadgetType};
 
 const NUM_COLS_PER_OP: usize = 2;
 
-pub trait NonLinearGadget<F: FieldExt>: Gadget<F> {
+pub trait NonLinearGadget<F: PrimeField>: Gadget<F> {
   fn generate_map(scale_factor: u64, min_val: i64, num_rows: i64) -> HashMap<i64, i64>;
 
   fn get_map(&self) -> &HashMap<i64, i64>;
@@ -94,7 +94,7 @@ pub trait NonLinearGadget<F: FieldExt>: Gadget<F> {
           // FIXME: refactor this
           let tmp = *map.get(&i).unwrap();
           let val = if i == 0 {
-            F::zero()
+            F::ZERO
           } else {
             if tmp >= 0 {
               F::from(tmp as u64)
@@ -145,7 +145,7 @@ pub trait NonLinearGadget<F: FieldExt>: Gadget<F> {
         let x = pos as i64 - min_val;
         let val = *map.get(&x).unwrap();
         if x == 0 {
-          F::zero()
+          F::ZERO
         } else {
           if val >= 0 {
             F::from(val as u64)

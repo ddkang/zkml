@@ -2,7 +2,7 @@ use std::{collections::HashMap, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::Error,
 };
 
@@ -15,7 +15,7 @@ pub mod div_var;
 pub mod mul;
 pub mod sub;
 
-pub trait Arithmetic<F: FieldExt> {
+pub trait Arithmetic<F: PrimeField> {
   fn gadget_forward(
     &self,
     layouter: impl Layouter<F>,

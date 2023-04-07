@@ -21,9 +21,9 @@ opt-level = 3
 
 [dependencies]
 bitvec = "1.0.1"
-halo2 = { git="https://github.com/privacy-scaling-explorations/halo2", package="halo2", rev="c7e42e41f8141745ba0b90213438f240d55cb347" }
-halo2_gadgets = { git="https://github.com/privacy-scaling-explorations/halo2", package="halo2_gadgets", rev="c7e42e41f8141745ba0b90213438f240d55cb347" }
-halo2_proofs = { git="https://github.com/privacy-scaling-explorations/halo2", package="halo2_proofs", rev="c7e42e41f8141745ba0b90213438f240d55cb347" }
+halo2 = { git="https://github.com/privacy-scaling-explorations/halo2", package="halo2", rev="fcdd5b910d92ab278d679cf8aa176c885455aa6c" }
+halo2_gadgets = { git="https://github.com/privacy-scaling-explorations/halo2", package="halo2_gadgets", rev="fcdd5b910d92ab278d679cf8aa176c885455aa6c" }
+halo2_proofs = { git="https://github.com/privacy-scaling-explorations/halo2", package="halo2_proofs", rev="fcdd5b910d92ab278d679cf8aa176c885455aa6c" }
 lazy_static = "1.4.0"
 ndarray = "0.15.6"
 num-bigint = "0.4.3"

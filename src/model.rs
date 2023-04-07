@@ -7,7 +7,7 @@ use std::{
 
 use halo2_proofs::{
   circuit::{Layouter, SimpleFloorPlanner, Value},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::{Advice, Circuit, Column, ConstraintSystem, Error},
 };
 use lazy_static::lazy_static;
@@ -73,7 +73,7 @@ lazy_static! {
 }
 
 #[derive(Clone, Debug)]
-pub struct ModelCircuit<F: FieldExt> {
+pub struct ModelCircuit<F: PrimeField> {
   pub used_gadgets: Arc<HashSet<GadgetType>>,
   pub dag_config: DAGLayerConfig,
   pub tensors: BTreeMap<i64, Array<F, IxDyn>>,
@@ -84,12 +84,12 @@ pub struct ModelCircuit<F: FieldExt> {
 }
 
 #[derive(Clone, Debug)]
-pub struct ModelConfig<F: FieldExt> {
+pub struct ModelConfig<F: PrimeField> {
   pub gadget_config: Rc<GadgetConfig>,
   pub _marker: PhantomData<F>,
 }
 
-impl<F: FieldExt> ModelCircuit<F> {
+impl<F: PrimeField> ModelCircuit<F> {
   pub fn assign_tensors(
     &self,
     mut layouter: impl Layouter<F>,
@@ -515,7 +515,7 @@ impl<F: FieldExt> ModelCircuit<F> {
   }
 }
 
-impl<F: FieldExt> Circuit<F> for ModelCircuit<F> {
+impl<F: PrimeField + Ord> Circuit<F> for ModelCircuit<F> {
   type Config = ModelConfig<F>;
   type FloorPlanner = SimpleFloorPlanner;
 

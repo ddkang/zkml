@@ -1,10 +1,10 @@
 use std::{collections::HashMap, rc::Rc};
 
-use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
+use halo2_proofs::{circuit::Layouter, halo2curves::ff::PrimeField, plonk::Error};
 
 use crate::{gadgets::gadget::GadgetConfig, layers::layer::CellRc};
 
-pub trait Commit<F: FieldExt> {
+pub trait Commit<F: PrimeField> {
   fn commit(
     &self,
     layouter: impl Layouter<F>,

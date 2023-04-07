@@ -5,7 +5,7 @@
 
 use std::{collections::HashMap, rc::Rc};
 
-use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
+use halo2_proofs::{circuit::Layouter, halo2curves::ff::PrimeField, plonk::Error};
 use ndarray::Array;
 
 use crate::{
@@ -18,7 +18,7 @@ use super::super::layer::{Layer, LayerConfig};
 pub struct BroadcastChip {}
 
 // TODO: Fix this after demo
-impl<F: FieldExt> Layer<F> for BroadcastChip {
+impl<F: PrimeField> Layer<F> for BroadcastChip {
   fn forward(
     &self,
     _layouter: impl Layouter<F>,

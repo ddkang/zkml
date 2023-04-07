@@ -2,7 +2,7 @@ use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Region, Value},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::{Advice, Column, Error},
 };
 use ndarray::{Array, ArrayView, Axis, IxDyn};
@@ -31,12 +31,12 @@ impl FullyConnectedConfig {
   }
 }
 
-pub struct FullyConnectedChip<F: FieldExt> {
+pub struct FullyConnectedChip<F: PrimeField> {
   pub _marker: PhantomData<F>,
   pub config: FullyConnectedConfig,
 }
 
-impl<F: FieldExt> FullyConnectedChip<F> {
+impl<F: PrimeField> FullyConnectedChip<F> {
   pub fn compute_mm(
     // input: &AssignedTensor<F>,
     input: &ArrayView<CellRc<F>, IxDyn>,
@@ -109,7 +109,7 @@ impl<F: FieldExt> FullyConnectedChip<F> {
   }
 }
 
-impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
+impl<F: PrimeField> Layer<F> for FullyConnectedChip<F> {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
@@ -306,7 +306,7 @@ impl<F: FieldExt> Layer<F> for FullyConnectedChip<F> {
   }
 }
 
-impl<F: FieldExt> GadgetConsumer for FullyConnectedChip<F> {
+impl<F: PrimeField> GadgetConsumer for FullyConnectedChip<F> {
   fn used_gadgets(&self, layer_params: Vec<i64>) -> Vec<crate::gadgets::gadget::GadgetType> {
     let activation = self.get_activation(&layer_params);
     let mut outp = vec![

@@ -2,7 +2,7 @@ use std::{marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Region},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::{ConstraintSystem, Error},
   poly::Rotation,
 };
@@ -11,12 +11,12 @@ use super::gadget::{Gadget, GadgetConfig, GadgetType};
 
 type SquaredDiffConfig = GadgetConfig;
 
-pub struct SquaredDiffGadgetChip<F: FieldExt> {
+pub struct SquaredDiffGadgetChip<F: PrimeField> {
   config: Rc<SquaredDiffConfig>,
   _marker: PhantomData<F>,
 }
 
-impl<F: FieldExt> SquaredDiffGadgetChip<F> {
+impl<F: PrimeField> SquaredDiffGadgetChip<F> {
   pub fn construct(config: Rc<SquaredDiffConfig>) -> Self {
     Self {
       config,
@@ -59,7 +59,7 @@ impl<F: FieldExt> SquaredDiffGadgetChip<F> {
   }
 }
 
-impl<F: FieldExt> Gadget<F> for SquaredDiffGadgetChip<F> {
+impl<F: PrimeField> Gadget<F> for SquaredDiffGadgetChip<F> {
   fn name(&self) -> String {
     "SquaredDiff".to_string()
   }

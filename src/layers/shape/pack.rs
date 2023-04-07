@@ -1,6 +1,6 @@
 use std::{collections::HashMap, rc::Rc};
 
-use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
+use halo2_proofs::{circuit::Layouter, halo2curves::ff::PrimeField, plonk::Error};
 use ndarray::{concatenate, Axis};
 
 use crate::{
@@ -12,7 +12,7 @@ use super::super::layer::{Layer, LayerConfig};
 
 pub struct PackChip {}
 
-impl<F: FieldExt> Layer<F> for PackChip {
+impl<F: PrimeField> Layer<F> for PackChip {
   fn forward(
     &self,
     _layouter: impl Layouter<F>,

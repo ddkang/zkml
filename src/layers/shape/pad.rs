@@ -2,7 +2,7 @@ use std::{collections::HashMap, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::Error,
 };
 use ndarray::{Array, Axis, IxDyn, Slice};
@@ -69,7 +69,7 @@ impl PadChip {
   }
 }
 
-impl<F: FieldExt> Layer<F> for PadChip {
+impl<F: PrimeField> Layer<F> for PadChip {
   fn forward(
     &self,
     _layouter: impl Layouter<F>,

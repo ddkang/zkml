@@ -2,7 +2,7 @@ use std::{collections::HashMap, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::Error,
 };
 
@@ -11,7 +11,7 @@ use crate::gadgets::{adder::AdderChip, gadget::GadgetConfig, var_div::VarDivRoun
 
 use super::layer::{AssignedTensor, CellRc, LayerConfig};
 
-pub trait Averager<F: FieldExt> {
+pub trait Averager<F: PrimeField> {
   fn splat(&self, input: &AssignedTensor<F>, layer_config: &LayerConfig) -> Vec<Vec<CellRc<F>>>;
 
   fn get_div_val(

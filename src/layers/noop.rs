@@ -1,6 +1,6 @@
 use std::{collections::HashMap, rc::Rc};
 
-use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
+use halo2_proofs::{circuit::Layouter, halo2curves::ff::PrimeField, plonk::Error};
 
 use crate::gadgets::gadget::GadgetConfig;
 
@@ -8,7 +8,7 @@ use super::layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig};
 
 pub struct NoopChip {}
 
-impl<F: FieldExt> Layer<F> for NoopChip {
+impl<F: PrimeField> Layer<F> for NoopChip {
   fn forward(
     &self,
     _layouter: impl Layouter<F>,

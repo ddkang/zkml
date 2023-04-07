@@ -2,7 +2,7 @@ use std::{marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Region, Value},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::{ConstraintSystem, Error, Expression},
   poly::Rotation,
 };
@@ -11,12 +11,12 @@ use super::gadget::{Gadget, GadgetConfig, GadgetType};
 
 type AdderConfig = GadgetConfig;
 
-pub struct AdderChip<F: FieldExt> {
+pub struct AdderChip<F: PrimeField> {
   config: Rc<AdderConfig>,
   _marker: PhantomData<F>,
 }
 
-impl<F: FieldExt> AdderChip<F> {
+impl<F: PrimeField> AdderChip<F> {
   pub fn construct(config: Rc<AdderConfig>) -> Self {
     Self {
       config,
@@ -38,7 +38,7 @@ impl<F: FieldExt> AdderChip<F> {
 
       let res = gate_inp
         .iter()
-        .fold(Expression::Constant(F::zero()), |a, b| a + b.clone());
+        .fold(Expression::Constant(F::ZERO), |a, b| a + b.clone());
 
       vec![s * (res - gate_output)]
     });
@@ -55,7 +55,7 @@ impl<F: FieldExt> AdderChip<F> {
 }
 
 // NOTE: The forward pass of the adder adds _everything_ into one cell
-impl<F: FieldExt> Gadget<F> for AdderChip<F> {
+impl<F: PrimeField> Gadget<F> for AdderChip<F> {
   fn name(&self) -> String {
     "adder".to_string()
   }
@@ -93,7 +93,7 @@ impl<F: FieldExt> Gadget<F> for AdderChip<F> {
       .map(|(i, cell)| cell.copy_advice(|| "", region, self.config.columns[i], row_offset))
       .collect::<Result<Vec<_>, _>>()?;
 
-    let e = inp.iter().fold(Value::known(F::from(0)), |a, b| {
+    let e = inp.iter().fold(Value::known(F::ZERO), |a, b| {
       a + b.value().map(|x: &F| x.to_owned())
     });
     let res = region.assign_advice(

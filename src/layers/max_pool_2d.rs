@@ -1,6 +1,6 @@
 use std::{collections::HashMap, rc::Rc};
 
-use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
+use halo2_proofs::{circuit::Layouter, halo2curves::ff::PrimeField, plonk::Error};
 use ndarray::{Array, IxDyn};
 
 use crate::{
@@ -13,11 +13,11 @@ use crate::{
 
 use super::layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig};
 
-pub struct MaxPool2DChip<F: FieldExt> {
+pub struct MaxPool2DChip<F: PrimeField> {
   pub marker: std::marker::PhantomData<F>,
 }
 
-impl<F: FieldExt> MaxPool2DChip<F> {
+impl<F: PrimeField> MaxPool2DChip<F> {
   pub fn shape(inp: &AssignedTensor<F>, layer_config: &LayerConfig) -> (usize, usize) {
     let params = &layer_config.layer_params;
     let (fx, fy) = (params[0], params[1]);
@@ -79,7 +79,7 @@ impl<F: FieldExt> MaxPool2DChip<F> {
   }
 }
 
-impl<F: FieldExt> Layer<F> for MaxPool2DChip<F> {
+impl<F: PrimeField> Layer<F> for MaxPool2DChip<F> {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
@@ -117,7 +117,7 @@ impl<F: FieldExt> Layer<F> for MaxPool2DChip<F> {
   }
 }
 
-impl<F: FieldExt> GadgetConsumer for MaxPool2DChip<F> {
+impl<F: PrimeField> GadgetConsumer for MaxPool2DChip<F> {
   fn used_gadgets(&self, _layer_params: Vec<i64>) -> Vec<GadgetType> {
     vec![GadgetType::Max, GadgetType::InputLookup]
   }

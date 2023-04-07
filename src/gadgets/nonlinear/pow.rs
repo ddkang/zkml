@@ -2,7 +2,7 @@ use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Region},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::{ConstraintSystem, Error},
 };
 
@@ -12,12 +12,12 @@ use super::{
 };
 
 // IMPORTANT: PowGadget assumes a single power across the entire DAG
-pub struct PowGadgetChip<F: FieldExt> {
+pub struct PowGadgetChip<F: PrimeField> {
   config: Rc<GadgetConfig>,
   _marker: PhantomData<F>,
 }
 
-impl<F: FieldExt> PowGadgetChip<F> {
+impl<F: PrimeField> PowGadgetChip<F> {
   pub fn construct(config: Rc<GadgetConfig>) -> Self {
     Self {
       config,
@@ -30,7 +30,7 @@ impl<F: FieldExt> PowGadgetChip<F> {
   }
 }
 
-impl<F: FieldExt> NonLinearGadget<F> for PowGadgetChip<F> {
+impl<F: PrimeField> NonLinearGadget<F> for PowGadgetChip<F> {
   fn generate_map(scale_factor: u64, min_val: i64, num_rows: i64) -> HashMap<i64, i64> {
     let power = 3.; // FIXME: need to make this variable somehow...
 
@@ -55,7 +55,7 @@ impl<F: FieldExt> NonLinearGadget<F> for PowGadgetChip<F> {
   }
 }
 
-impl<F: FieldExt> Gadget<F> for PowGadgetChip<F> {
+impl<F: PrimeField> Gadget<F> for PowGadgetChip<F> {
   fn name(&self) -> String {
     "PowGadgetChip".to_string()
   }

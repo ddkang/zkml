@@ -2,7 +2,7 @@ use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Region},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::{ConstraintSystem, Error},
 };
 
@@ -11,12 +11,12 @@ use super::{
   non_linearity::NonLinearGadget,
 };
 
-pub struct TanhGadgetChip<F: FieldExt> {
+pub struct TanhGadgetChip<F: PrimeField> {
   config: Rc<GadgetConfig>,
   _marker: PhantomData<F>,
 }
 
-impl<F: FieldExt> TanhGadgetChip<F> {
+impl<F: PrimeField> TanhGadgetChip<F> {
   pub fn construct(config: Rc<GadgetConfig>) -> Self {
     Self {
       config,
@@ -29,7 +29,7 @@ impl<F: FieldExt> TanhGadgetChip<F> {
   }
 }
 
-impl<F: FieldExt> NonLinearGadget<F> for TanhGadgetChip<F> {
+impl<F: PrimeField> NonLinearGadget<F> for TanhGadgetChip<F> {
   fn generate_map(scale_factor: u64, min_val: i64, num_rows: i64) -> HashMap<i64, i64> {
     let scale_factor = scale_factor as f64;
 
@@ -54,7 +54,7 @@ impl<F: FieldExt> NonLinearGadget<F> for TanhGadgetChip<F> {
   }
 }
 
-impl<F: FieldExt> Gadget<F> for TanhGadgetChip<F> {
+impl<F: PrimeField> Gadget<F> for TanhGadgetChip<F> {
   fn name(&self) -> String {
     "TanhGadgetChip".to_string()
   }

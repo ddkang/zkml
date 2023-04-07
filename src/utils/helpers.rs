@@ -1,6 +1,6 @@
 use halo2_proofs::{
   circuit::{AssignedCell, Value},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
 };
 use ndarray::{Array, IxDyn};
 
@@ -10,7 +10,7 @@ use crate::gadgets::gadget::convert_to_u128;
 pub const RAND_START_IDX: i64 = i64::MIN;
 pub const NUM_RANDOMS: i64 = 20001;
 
-pub fn convert_pos_int<F: FieldExt>(x: Value<F>) -> i128 {
+pub fn convert_pos_int<F: PrimeField>(x: Value<F>) -> i128 {
   let bias = 1 << 60;
   let x_pos = x + Value::known(F::from(bias as u64));
   let mut outp: i128 = 0;
@@ -22,12 +22,12 @@ pub fn convert_pos_int<F: FieldExt>(x: Value<F>) -> i128 {
   return outp;
 }
 
-pub fn print_pos_int<F: FieldExt>(prefix: &str, x: Value<F>) {
+pub fn print_pos_int<F: PrimeField>(prefix: &str, x: Value<F>) {
   let tmp = convert_pos_int(x);
   println!("{} x: {}", prefix, tmp);
 }
 
-pub fn print_assigned_arr<F: FieldExt>(prefix: &str, arr: &Vec<&AssignedCell<F, F>>) {
+pub fn print_assigned_arr<F: PrimeField>(prefix: &str, arr: &Vec<&AssignedCell<F, F>>) {
   for (idx, x) in arr.iter().enumerate() {
     print_pos_int(
       &format!("{}[{}]", prefix, idx),

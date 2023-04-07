@@ -1,6 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 
-use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
+use halo2_proofs::{circuit::Layouter, halo2curves::ff::PrimeField, plonk::Error};
 
 use crate::{
   gadgets::{
@@ -13,11 +13,11 @@ use crate::{
 
 use super::commit::Commit;
 
-pub struct PITCommitChip<F: FieldExt> {
+pub struct PITCommitChip<F: PrimeField> {
   pub marker: PhantomData<F>,
 }
 
-impl<F: FieldExt> Commit<F> for PITCommitChip<F> {
+impl<F: PrimeField> Commit<F> for PITCommitChip<F> {
   fn commit(
     &self,
     mut layouter: impl Layouter<F>,
