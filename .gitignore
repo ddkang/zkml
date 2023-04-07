@@ -20,3 +20,4 @@ params_kzg
 params_ipa
 examples
 testing/data
+*.diff

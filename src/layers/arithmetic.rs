@@ -11,6 +11,7 @@ use crate::{gadgets::gadget::GadgetConfig, utils::helpers::broadcast};
 use super::layer::{AssignedTensor, CellRc};
 
 pub mod add;
+pub mod div_var;
 pub mod mul;
 pub mod sub;
 

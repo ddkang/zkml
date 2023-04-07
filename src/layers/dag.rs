@@ -5,9 +5,9 @@ use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
 use crate::{
   gadgets::gadget::GadgetConfig,
   layers::{
-    arithmetic::{add::AddChip, mul::MulChip, sub::SubChip},
+    arithmetic::{add::AddChip, div_var::DivVarChip, mul::MulChip, sub::SubChip},
     batch_mat_mul::BatchMatMulChip,
-    div::DivChip,
+    div_fixed::DivFixedChip,
     fully_connected::{FullyConnectedChip, FullyConnectedConfig},
     logistic::LogisticChip,
     max_pool_2d::MaxPool2DChip,
@@ -22,6 +22,7 @@ use crate::{
       transpose::TransposeChip,
     },
     softmax::SoftmaxChip,
+    sqrt::SqrtChip,
     square::SquareChip,
     squared_diff::SquaredDiffChip,
     tanh::TanhChip,
@@ -161,9 +162,19 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
             &layer_config,
           )?
         }
-        LayerType::Div => {
-          let add_chip = DivChip {};
-          add_chip.forward(
+        LayerType::DivFixed => {
+          let div_fixed_chip = DivFixedChip {};
+          div_fixed_chip.forward(
+            layouter.namespace(|| "dag div"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+            &layer_config,
+          )?
+        }
+        LayerType::DivVar => {
+          let div_var_chip = DivVarChip {};
+          div_var_chip.forward(
             layouter.namespace(|| "dag div"),
             &vec_inps,
             constants,
@@ -238,6 +249,16 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
           let rsqrt_chip = RsqrtChip {};
           rsqrt_chip.forward(
             layouter.namespace(|| "dag rsqrt"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+            &layer_config,
+          )?
+        }
+        LayerType::Sqrt => {
+          let sqrt_chip = SqrtChip {};
+          sqrt_chip.forward(
+            layouter.namespace(|| "dag sqrt"),
             &vec_inps,
             constants,
             gadget_config.clone(),

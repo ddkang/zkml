@@ -15,9 +15,9 @@ use crate::gadgets::{
 use super::layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig};
 
 #[derive(Clone, Debug)]
-pub struct DivChip {}
+pub struct DivFixedChip {}
 
-impl DivChip {
+impl DivFixedChip {
   fn get_div_val<F: FieldExt>(
     &self,
     mut layouter: impl Layouter<F>,
@@ -50,7 +50,7 @@ impl DivChip {
   }
 }
 
-impl<F: FieldExt> Layer<F> for DivChip {
+impl<F: FieldExt> Layer<F> for DivFixedChip {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
@@ -86,7 +86,7 @@ impl<F: FieldExt> Layer<F> for DivChip {
   }
 }
 
-impl GadgetConsumer for DivChip {
+impl GadgetConsumer for DivFixedChip {
   fn used_gadgets(&self, _layer_params: Vec<i64>) -> Vec<crate::gadgets::gadget::GadgetType> {
     vec![GadgetType::VarDivRound]
   }
