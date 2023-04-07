@@ -2,7 +2,7 @@ use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Region, Value},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::{ConstraintSystem, Error, Expression},
   poly::Rotation,
 };
@@ -15,12 +15,12 @@ type BiasDivRoundRelu6Config = GadgetConfig;
 
 const NUM_COLS_PER_OP: usize = 5;
 
-pub struct BiasDivRoundRelu6Chip<F: FieldExt> {
+pub struct BiasDivRoundRelu6Chip<F: PrimeField> {
   config: Rc<BiasDivRoundRelu6Config>,
   _marker: PhantomData<F>,
 }
 
-impl<F: FieldExt> BiasDivRoundRelu6Chip<F> {
+impl<F: PrimeField> BiasDivRoundRelu6Chip<F> {
   pub fn construct(config: Rc<BiasDivRoundRelu6Config>) -> Self {
     Self {
       config,
@@ -120,7 +120,7 @@ impl<F: FieldExt> BiasDivRoundRelu6Chip<F> {
   }
 }
 
-impl<F: FieldExt> Gadget<F> for BiasDivRoundRelu6Chip<F> {
+impl<F: PrimeField> Gadget<F> for BiasDivRoundRelu6Chip<F> {
   fn name(&self) -> String {
     "BiasDivRelu6".to_string()
   }

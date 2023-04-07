@@ -2,7 +2,7 @@ use std::{collections::HashMap, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Value},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::Error,
 };
 use ndarray::{Array, IxDyn};
@@ -19,7 +19,7 @@ use super::{
 
 pub struct AvgPool2DChip {}
 
-impl<F: FieldExt> Averager<F> for AvgPool2DChip {
+impl<F: PrimeField> Averager<F> for AvgPool2DChip {
   fn splat(&self, input: &AssignedTensor<F>, layer_config: &LayerConfig) -> Vec<Vec<CellRc<F>>> {
     assert_eq!(input.shape().len(), 4);
     // Don't support batch size > 1 yet
@@ -60,7 +60,7 @@ impl<F: FieldExt> Averager<F> for AvgPool2DChip {
   }
 }
 
-impl<F: FieldExt> Layer<F> for AvgPool2DChip {
+impl<F: PrimeField> Layer<F> for AvgPool2DChip {
   fn forward(
     &self,
     layouter: impl Layouter<F>,

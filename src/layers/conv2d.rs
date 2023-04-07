@@ -4,7 +4,7 @@ use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::Error,
 };
 use ndarray::{Array, IxDyn};
@@ -45,12 +45,12 @@ pub struct Conv2DConfig {
   pub stride: (usize, usize),
 }
 
-pub struct Conv2DChip<F: FieldExt> {
+pub struct Conv2DChip<F: PrimeField> {
   pub config: LayerConfig,
   pub _marker: PhantomData<F>,
 }
 
-impl<F: FieldExt> Conv2DChip<F> {
+impl<F: PrimeField> Conv2DChip<F> {
   // TODO: this is horrible. What's the best way to fix this?
   pub fn param_vec_to_config(layer_params: Vec<i64>) -> Conv2DConfig {
     let conv_type = match layer_params[0] {
@@ -283,7 +283,7 @@ impl<F: FieldExt> Conv2DChip<F> {
   }
 }
 
-impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
+impl<F: PrimeField> Layer<F> for Conv2DChip<F> {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
@@ -431,7 +431,7 @@ impl<F: FieldExt> Layer<F> for Conv2DChip<F> {
   }
 }
 
-impl<F: FieldExt> GadgetConsumer for Conv2DChip<F> {
+impl<F: PrimeField> GadgetConsumer for Conv2DChip<F> {
   fn used_gadgets(&self, layer_params: Vec<i64>) -> Vec<crate::gadgets::gadget::GadgetType> {
     let conv_config = &Self::param_vec_to_config(layer_params.clone());
     let mut outp = vec![

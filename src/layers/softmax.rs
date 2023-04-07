@@ -2,7 +2,7 @@ use std::{collections::HashMap, rc::Rc, vec};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::Error,
 };
 use ndarray::{s, Array, IxDyn};
@@ -22,7 +22,7 @@ use super::layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig};
 pub struct SoftmaxChip {}
 
 impl SoftmaxChip {
-  pub fn softmax_flat<F: FieldExt>(
+  pub fn softmax_flat<F: PrimeField>(
     mut layouter: impl Layouter<F>,
     constants: &HashMap<i64, CellRc<F>>,
     inp_flat: Vec<&AssignedCell<F, F>>,
@@ -115,7 +115,7 @@ impl SoftmaxChip {
   }
 }
 
-impl<F: FieldExt> Layer<F> for SoftmaxChip {
+impl<F: PrimeField> Layer<F> for SoftmaxChip {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,

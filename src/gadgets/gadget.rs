@@ -5,7 +5,7 @@ use std::{
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Region},
-  halo2curves::{group::ff::PrimeField, FieldExt},
+  halo2curves::group::ff::PrimeField,
   plonk::{Advice, Column, Error, Fixed, Instance, Selector, TableColumn},
 };
 use num_bigint::{BigUint, ToBigUint};
@@ -82,7 +82,7 @@ pub fn convert_to_u128<F: PrimeField>(x: &F) -> u128 {
   big.to_biguint().unwrap().to_u128().unwrap()
 }
 
-pub trait Gadget<F: FieldExt> {
+pub trait Gadget<F: PrimeField> {
   fn name(&self) -> String;
 
   fn num_cols_per_op(&self) -> usize;

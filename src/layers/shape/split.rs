@@ -1,6 +1,6 @@
 use std::{collections::HashMap, rc::Rc};
 
-use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
+use halo2_proofs::{circuit::Layouter, halo2curves::ff::PrimeField, plonk::Error};
 use ndarray::{Axis, Slice};
 
 use crate::{
@@ -12,7 +12,7 @@ use super::super::layer::{Layer, LayerConfig};
 
 pub struct SplitChip {}
 
-impl<F: FieldExt> Layer<F> for SplitChip {
+impl<F: PrimeField> Layer<F> for SplitChip {
   fn forward(
     &self,
     _layouter: impl Layouter<F>,

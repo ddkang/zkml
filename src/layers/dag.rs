@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fs::File, io::Write, marker::PhantomData, rc::Rc};
 
-use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
+use halo2_proofs::{circuit::Layouter, halo2curves::ff::PrimeField, plonk::Error};
 
 use crate::{
   gadgets::gadget::GadgetConfig,
@@ -45,12 +45,12 @@ pub struct DAGLayerConfig {
   pub final_out_idxes: Vec<usize>,
 }
 
-pub struct DAGLayerChip<F: FieldExt> {
+pub struct DAGLayerChip<F: PrimeField + Ord> {
   dag_config: DAGLayerConfig,
   _marker: PhantomData<F>,
 }
 
-impl<F: FieldExt> DAGLayerChip<F> {
+impl<F: PrimeField + Ord> DAGLayerChip<F> {
   pub fn construct(dag_config: DAGLayerConfig) -> Self {
     Self {
       dag_config,
@@ -60,7 +60,7 @@ impl<F: FieldExt> DAGLayerChip<F> {
 }
 
 // IMPORTANT: Assumes input tensors are in order. Output tensors can be in any order.
-impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
+impl<F: PrimeField + Ord> Layer<F> for DAGLayerChip<F> {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
@@ -470,7 +470,7 @@ impl<F: FieldExt> Layer<F> for DAGLayerChip<F> {
   }
 }
 
-impl<F: FieldExt> GadgetConsumer for DAGLayerChip<F> {
+impl<F: PrimeField + Ord> GadgetConsumer for DAGLayerChip<F> {
   // Special case: DAG doesn't do anything
   fn used_gadgets(&self, _layer_params: Vec<i64>) -> Vec<crate::gadgets::gadget::GadgetType> {
     vec![]

@@ -2,7 +2,7 @@ use std::{marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Region},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::{ConstraintSystem, Error},
   poly::Rotation,
 };
@@ -11,12 +11,12 @@ use super::gadget::{Gadget, GadgetConfig, GadgetType};
 
 type MulPairsConfig = GadgetConfig;
 
-pub struct MulPairsChip<F: FieldExt> {
+pub struct MulPairsChip<F: PrimeField> {
   config: Rc<MulPairsConfig>,
   _marker: PhantomData<F>,
 }
 
-impl<F: FieldExt> MulPairsChip<F> {
+impl<F: PrimeField> MulPairsChip<F> {
   pub fn construct(config: Rc<MulPairsConfig>) -> Self {
     Self {
       config,
@@ -59,7 +59,7 @@ impl<F: FieldExt> MulPairsChip<F> {
   }
 }
 
-impl<F: FieldExt> Gadget<F> for MulPairsChip<F> {
+impl<F: PrimeField> Gadget<F> for MulPairsChip<F> {
   fn name(&self) -> String {
     "MulPairs".to_string()
   }

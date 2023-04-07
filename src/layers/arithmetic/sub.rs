@@ -2,7 +2,7 @@ use std::{collections::HashMap, rc::Rc, vec};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::Error,
 };
 use ndarray::{Array, IxDyn};
@@ -23,7 +23,7 @@ use super::{
 #[derive(Clone, Debug)]
 pub struct SubChip {}
 
-impl<F: FieldExt> Arithmetic<F> for SubChip {
+impl<F: PrimeField> Arithmetic<F> for SubChip {
   fn gadget_forward(
     &self,
     mut layouter: impl Layouter<F>,
@@ -37,7 +37,7 @@ impl<F: FieldExt> Arithmetic<F> for SubChip {
   }
 }
 
-impl<F: FieldExt> Layer<F> for SubChip {
+impl<F: PrimeField> Layer<F> for SubChip {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,

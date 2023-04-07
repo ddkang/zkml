@@ -2,18 +2,18 @@ use std::{marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Region, Value},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::{ConstraintSystem, Error},
 };
 
 use super::gadget::{Gadget, GadgetConfig, GadgetType};
 
-pub struct InputLookupChip<F: FieldExt> {
+pub struct InputLookupChip<F: PrimeField> {
   config: Rc<GadgetConfig>,
   _marker: PhantomData<F>,
 }
 
-impl<F: FieldExt> InputLookupChip<F> {
+impl<F: PrimeField> InputLookupChip<F> {
   pub fn construct(config: Rc<GadgetConfig>) -> Self {
     Self {
       config,
@@ -33,7 +33,7 @@ impl<F: FieldExt> InputLookupChip<F> {
   }
 }
 
-impl<F: FieldExt> Gadget<F> for InputLookupChip<F> {
+impl<F: PrimeField> Gadget<F> for InputLookupChip<F> {
   fn load_lookups(&self, mut layouter: impl Layouter<F>) -> Result<(), Error> {
     let lookup = self.config.tables[&GadgetType::InputLookup][0];
 

@@ -2,7 +2,7 @@ use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Region},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::{ConstraintSystem, Error},
 };
 
@@ -11,12 +11,12 @@ use super::{
   non_linearity::NonLinearGadget,
 };
 
-pub struct SqrtGadgetChip<F: FieldExt> {
+pub struct SqrtGadgetChip<F: PrimeField> {
   config: Rc<GadgetConfig>,
   _marker: PhantomData<F>,
 }
 
-impl<F: FieldExt> SqrtGadgetChip<F> {
+impl<F: PrimeField> SqrtGadgetChip<F> {
   pub fn construct(config: Rc<GadgetConfig>) -> Self {
     Self {
       config,
@@ -29,7 +29,7 @@ impl<F: FieldExt> SqrtGadgetChip<F> {
   }
 }
 
-impl<F: FieldExt> NonLinearGadget<F> for SqrtGadgetChip<F> {
+impl<F: PrimeField> NonLinearGadget<F> for SqrtGadgetChip<F> {
   fn generate_map(scale_factor: u64, min_val: i64, num_rows: i64) -> HashMap<i64, i64> {
     let mut map = HashMap::new();
     for i in 0..num_rows {
@@ -51,7 +51,7 @@ impl<F: FieldExt> NonLinearGadget<F> for SqrtGadgetChip<F> {
   }
 }
 
-impl<F: FieldExt> Gadget<F> for SqrtGadgetChip<F> {
+impl<F: PrimeField> Gadget<F> for SqrtGadgetChip<F> {
   fn name(&self) -> String {
     "SqrtGadget".to_string()
   }

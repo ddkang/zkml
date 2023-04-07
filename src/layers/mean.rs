@@ -2,7 +2,7 @@ use std::{collections::HashMap, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Value},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::Error,
 };
 use ndarray::{Array, Axis, IxDyn};
@@ -52,7 +52,7 @@ impl MeanChip {
   }
 }
 
-impl<F: FieldExt> Averager<F> for MeanChip {
+impl<F: PrimeField> Averager<F> for MeanChip {
   fn splat(&self, input: &AssignedTensor<F>, layer_config: &LayerConfig) -> Vec<Vec<CellRc<F>>> {
     // Only support batch size = 1
     assert_eq!(input.shape()[0], 1);
@@ -107,7 +107,7 @@ impl<F: FieldExt> Averager<F> for MeanChip {
   }
 }
 
-impl<F: FieldExt> Layer<F> for MeanChip {
+impl<F: PrimeField> Layer<F> for MeanChip {
   fn forward(
     &self,
     layouter: impl Layouter<F>,

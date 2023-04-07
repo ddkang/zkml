@@ -2,7 +2,7 @@ use std::{collections::HashMap, rc::Rc, vec};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Value},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::Error,
 };
 use ndarray::{Array, IxDyn};
@@ -18,7 +18,7 @@ use super::layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig};
 pub struct DivFixedChip {}
 
 impl DivFixedChip {
-  fn get_div_val<F: FieldExt>(
+  fn get_div_val<F: PrimeField>(
     &self,
     mut layouter: impl Layouter<F>,
     _tensors: &Vec<AssignedTensor<F>>,
@@ -50,7 +50,7 @@ impl DivFixedChip {
   }
 }
 
-impl<F: FieldExt> Layer<F> for DivFixedChip {
+impl<F: PrimeField> Layer<F> for DivFixedChip {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,

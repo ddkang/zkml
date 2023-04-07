@@ -1,6 +1,6 @@
 use std::{collections::HashMap, rc::Rc};
 
-use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
+use halo2_proofs::{circuit::Layouter, halo2curves::ff::PrimeField, plonk::Error};
 use ndarray::{Array, IxDyn};
 
 use crate::{
@@ -13,7 +13,7 @@ use super::super::layer::{Layer, LayerConfig};
 pub struct ResizeNNChip {}
 
 // TODO: this does not work in general
-impl<F: FieldExt> Layer<F> for ResizeNNChip {
+impl<F: PrimeField> Layer<F> for ResizeNNChip {
   fn forward(
     &self,
     _layouter: impl Layouter<F>,

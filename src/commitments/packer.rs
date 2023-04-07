@@ -7,7 +7,7 @@ use std::{
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Value},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::{ConstraintSystem, Error, Expression},
   poly::Rotation,
 };
@@ -20,7 +20,7 @@ use crate::{
 
 const NUM_BITS_PER_FIELD_ELEM: usize = 254;
 
-pub struct PackerConfig<F: FieldExt> {
+pub struct PackerConfig<F: PrimeField> {
   pub num_bits_per_elem: usize,
   pub num_elem_per_packed: usize,
   pub num_packed_per_row: usize,
@@ -28,14 +28,14 @@ pub struct PackerConfig<F: FieldExt> {
   _marker: PhantomData<F>,
 }
 
-pub struct PackerChip<F: FieldExt> {
+pub struct PackerChip<F: PrimeField> {
   pub config: PackerConfig<F>,
 }
 
-impl<F: FieldExt> PackerChip<F> {
+impl<F: PrimeField> PackerChip<F> {
   pub fn get_exponents(num_bits_per_elem: usize, num_exponents: usize) -> Vec<F> {
     let mul_val = F::from(1 << num_bits_per_elem);
-    let mut exponents = vec![F::one()];
+    let mut exponents = vec![F::ONE];
     for _ in 1..num_exponents {
       exponents.push(exponents[exponents.len() - 1] * mul_val);
     }
@@ -107,7 +107,7 @@ impl<F: FieldExt> PackerChip<F> {
           .into_iter()
           .zip(exponents.iter())
           .map(|(inp, exp)| (inp + min_val_pos.clone()) * (*exp))
-          .fold(Expression::Constant(F::zero()), |acc, prod| acc + prod);
+          .fold(Expression::Constant(F::ZERO), |acc, prod| acc + prod);
         constraints.push(s.clone() * (res - outp));
         // constraints.push(s.clone() * Expression::Constant(F::zero()));
       }
@@ -193,7 +193,7 @@ impl<F: FieldExt> PackerChip<F> {
             values
               .iter()
               .zip(self.config.exponents.iter())
-              .fold(F::zero(), |acc, (inp, exp)| {
+              .fold(F::ZERO, |acc, (inp, exp)| {
                 let res = acc + (*inp + min_val_pos) * (*exp);
                 res
               });

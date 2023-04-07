@@ -1,6 +1,6 @@
 use std::{collections::HashMap, rc::Rc, vec};
 
-use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
+use halo2_proofs::{circuit::Layouter, halo2curves::ff::PrimeField, plonk::Error};
 use ndarray::{Array, IxDyn};
 
 use crate::{
@@ -17,7 +17,7 @@ use super::layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig};
 #[derive(Clone, Debug)]
 pub struct SquaredDiffChip {}
 
-impl<F: FieldExt> Layer<F> for SquaredDiffChip {
+impl<F: PrimeField> Layer<F> for SquaredDiffChip {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,

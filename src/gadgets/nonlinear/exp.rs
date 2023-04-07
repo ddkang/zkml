@@ -2,7 +2,7 @@ use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Region},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::{ConstraintSystem, Error},
 };
 
@@ -14,12 +14,12 @@ use super::{
 type ExpGadgetConfig = GadgetConfig;
 
 // IMPORTANT: this return exp(x) * SF
-pub struct ExpGadgetChip<F: FieldExt> {
+pub struct ExpGadgetChip<F: PrimeField> {
   config: Rc<ExpGadgetConfig>,
   _marker: PhantomData<F>,
 }
 
-impl<F: FieldExt> ExpGadgetChip<F> {
+impl<F: PrimeField> ExpGadgetChip<F> {
   pub fn construct(config: Rc<ExpGadgetConfig>) -> Self {
     Self {
       config,
@@ -32,7 +32,7 @@ impl<F: FieldExt> ExpGadgetChip<F> {
   }
 }
 
-impl<F: FieldExt> NonLinearGadget<F> for ExpGadgetChip<F> {
+impl<F: PrimeField> NonLinearGadget<F> for ExpGadgetChip<F> {
   fn generate_map(scale_factor: u64, min_val: i64, num_rows: i64) -> HashMap<i64, i64> {
     let mut map = HashMap::new();
     for i in 0..num_rows {
@@ -54,7 +54,7 @@ impl<F: FieldExt> NonLinearGadget<F> for ExpGadgetChip<F> {
   }
 }
 
-impl<F: FieldExt> Gadget<F> for ExpGadgetChip<F> {
+impl<F: PrimeField> Gadget<F> for ExpGadgetChip<F> {
   fn name(&self) -> String {
     "Exp".to_string()
   }

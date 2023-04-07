@@ -2,19 +2,19 @@ use std::{marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Region},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::{ConstraintSystem, Error},
   poly::Rotation,
 };
 
 use super::gadget::{Gadget, GadgetConfig, GadgetType};
 
-pub struct SquareGadgetChip<F: FieldExt> {
+pub struct SquareGadgetChip<F: PrimeField> {
   config: Rc<GadgetConfig>,
   _marker: PhantomData<F>,
 }
 
-impl<F: FieldExt> SquareGadgetChip<F> {
+impl<F: PrimeField> SquareGadgetChip<F> {
   pub fn construct(config: Rc<GadgetConfig>) -> Self {
     Self {
       config,
@@ -48,7 +48,7 @@ impl<F: FieldExt> SquareGadgetChip<F> {
   }
 }
 
-impl<F: FieldExt> Gadget<F> for SquareGadgetChip<F> {
+impl<F: PrimeField> Gadget<F> for SquareGadgetChip<F> {
   fn name(&self) -> String {
     "SquareChip".to_string()
   }

@@ -2,7 +2,7 @@ use std::{marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Region},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::{Advice, Column, ConstraintSystem, Error, Expression},
   poly::Rotation,
 };
@@ -13,12 +13,12 @@ use super::gadget::{Gadget, GadgetConfig, GadgetType};
 
 type DotProductConfig = GadgetConfig;
 
-pub struct DotProductChip<F: FieldExt> {
+pub struct DotProductChip<F: PrimeField> {
   config: Rc<DotProductConfig>,
   _marker: PhantomData<F>,
 }
 
-impl<F: FieldExt> DotProductChip<F> {
+impl<F: PrimeField> DotProductChip<F> {
   pub fn construct(config: Rc<DotProductConfig>) -> Self {
     Self {
       config,
@@ -56,7 +56,7 @@ impl<F: FieldExt> DotProductChip<F> {
         .iter()
         .zip(gate_weights)
         .map(|(a, b)| a.clone() * b.clone())
-        .fold(Expression::Constant(F::zero()), |a, b| a + b);
+        .fold(Expression::Constant(F::ZERO), |a, b| a + b);
 
       vec![s * (res - gate_output)]
     });
@@ -72,7 +72,7 @@ impl<F: FieldExt> DotProductChip<F> {
   }
 }
 
-impl<F: FieldExt> Gadget<F> for DotProductChip<F> {
+impl<F: PrimeField> Gadget<F> for DotProductChip<F> {
   fn name(&self) -> String {
     "dot product".to_string()
   }

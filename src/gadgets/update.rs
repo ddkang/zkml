@@ -1,8 +1,8 @@
 use std::marker::PhantomData;
 
 use halo2_proofs::{
-  arithmetic::FieldExt,
   circuit::{AssignedCell, Layouter, Region},
+  halo2curves::ff::PrimeField,
   plonk::{ConstraintSystem, Error, Expression},
   poly::Rotation,
 };
@@ -14,12 +14,12 @@ use super::gadget::{Gadget, GadgetType};
 type UpdateConfig = GadgetConfig;
 
 #[derive(Clone, Debug)]
-pub struct UpdateGadgetChip<F: FieldExt> {
+pub struct UpdateGadgetChip<F: PrimeField> {
   config: UpdateConfig,
   _marker: PhantomData<F>,
 }
 
-impl<F: FieldExt> UpdateGadgetChip<F> {
+impl<F: PrimeField> UpdateGadgetChip<F> {
   pub fn construct(config: UpdateConfig) -> Self {
     Self {
       config,
@@ -89,7 +89,7 @@ impl<F: FieldExt> UpdateGadgetChip<F> {
   }
 }
 
-impl<F: FieldExt> Gadget<F> for UpdateGadgetChip<F> {
+impl<F: PrimeField + Ord> Gadget<F> for UpdateGadgetChip<F> {
   fn name(&self) -> String {
     "updater chip".to_string()
   }
@@ -145,7 +145,7 @@ impl<F: FieldExt> Gadget<F> for UpdateGadgetChip<F> {
 
       let div_mod = out_scaled.map(|x| {
         let x_pos = x + div_inp_min_val_pos;
-        let x_pos = if x_pos > F::zero() {
+        let x_pos = if x_pos > F::ZERO {
           x_pos
         } else {
           x_pos + div_val_f

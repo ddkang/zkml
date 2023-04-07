@@ -2,7 +2,7 @@
 
 use std::{collections::HashMap, rc::Rc};
 
-use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
+use halo2_proofs::{circuit::Layouter, halo2curves::ff::PrimeField, plonk::Error};
 
 use crate::{
   gadgets::gadget::GadgetConfig,
@@ -22,7 +22,7 @@ pub struct RotateChip {}
 // output:
 // [4 3 2 1]
 // [8 7 6 5]
-impl<F: FieldExt> Layer<F> for RotateChip {
+impl<F: PrimeField> Layer<F> for RotateChip {
   fn forward(
     &self,
     _layouter: impl Layouter<F>,

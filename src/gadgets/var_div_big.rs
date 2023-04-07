@@ -2,7 +2,7 @@ use std::{marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Region},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::{ConstraintSystem, Error, Expression},
   poly::Rotation,
 };
@@ -10,12 +10,12 @@ use rounded_div::RoundedDiv;
 
 use super::gadget::{convert_to_u128, Gadget, GadgetConfig, GadgetType};
 
-pub struct VarDivRoundBigChip<F: FieldExt> {
+pub struct VarDivRoundBigChip<F: PrimeField> {
   config: Rc<GadgetConfig>,
   _marker: PhantomData<F>,
 }
 
-impl<F: FieldExt> VarDivRoundBigChip<F> {
+impl<F: PrimeField> VarDivRoundBigChip<F> {
   pub fn construct(config: Rc<GadgetConfig>) -> Self {
     Self {
       config,
@@ -113,7 +113,7 @@ impl<F: FieldExt> VarDivRoundBigChip<F> {
   }
 }
 
-impl<F: FieldExt> Gadget<F> for VarDivRoundBigChip<F> {
+impl<F: PrimeField> Gadget<F> for VarDivRoundBigChip<F> {
   fn name(&self) -> String {
     "VarDivBigRoundChip".to_string()
   }

@@ -2,7 +2,7 @@ use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Region},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::{ConstraintSystem, Error},
 };
 
@@ -11,12 +11,12 @@ use super::{
   non_linearity::NonLinearGadget,
 };
 
-pub struct LogisticGadgetChip<F: FieldExt> {
+pub struct LogisticGadgetChip<F: PrimeField> {
   config: Rc<GadgetConfig>,
   _marker: PhantomData<F>,
 }
 
-impl<F: FieldExt> LogisticGadgetChip<F> {
+impl<F: PrimeField> LogisticGadgetChip<F> {
   pub fn construct(config: Rc<GadgetConfig>) -> Self {
     Self {
       config,
@@ -33,7 +33,7 @@ impl<F: FieldExt> LogisticGadgetChip<F> {
   }
 }
 
-impl<F: FieldExt> NonLinearGadget<F> for LogisticGadgetChip<F> {
+impl<F: PrimeField> NonLinearGadget<F> for LogisticGadgetChip<F> {
   fn generate_map(scale_factor: u64, min_val: i64, num_rows: i64) -> HashMap<i64, i64> {
     let mut map = HashMap::new();
     for i in 0..num_rows {
@@ -56,7 +56,7 @@ impl<F: FieldExt> NonLinearGadget<F> for LogisticGadgetChip<F> {
   }
 }
 
-impl<F: FieldExt> Gadget<F> for LogisticGadgetChip<F> {
+impl<F: PrimeField> Gadget<F> for LogisticGadgetChip<F> {
   fn name(&self) -> String {
     "LogisticChip".to_string()
   }

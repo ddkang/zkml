@@ -1,6 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 
-use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
+use halo2_proofs::{circuit::Layouter, halo2curves::ff::PrimeField, plonk::Error};
 use ndarray::{Array, Axis, IxDyn};
 
 use crate::{
@@ -15,7 +15,7 @@ use super::{
 
 pub struct BatchMatMulChip {}
 
-impl<F: FieldExt> Layer<F> for BatchMatMulChip {
+impl<F: PrimeField> Layer<F> for BatchMatMulChip {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,

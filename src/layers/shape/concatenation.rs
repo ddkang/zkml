@@ -1,6 +1,6 @@
 use std::{collections::HashMap, rc::Rc};
 
-use halo2_proofs::{circuit::Layouter, halo2curves::FieldExt, plonk::Error};
+use halo2_proofs::{circuit::Layouter, halo2curves::ff::PrimeField, plonk::Error};
 use ndarray::{concatenate, Axis};
 
 use crate::{
@@ -12,7 +12,7 @@ use super::super::layer::{Layer, LayerConfig};
 
 pub struct ConcatenationChip {}
 
-impl<F: FieldExt> Layer<F> for ConcatenationChip {
+impl<F: PrimeField> Layer<F> for ConcatenationChip {
   fn forward(
     &self,
     _layouter: impl Layouter<F>,

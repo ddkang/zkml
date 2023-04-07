@@ -2,7 +2,7 @@ use std::{collections::HashMap, rc::Rc, vec};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::Error,
 };
 use ndarray::{Array, IxDyn};
@@ -21,7 +21,7 @@ use super::Arithmetic;
 pub struct DivVarChip {}
 
 // TODO: hack. Used for multiplying by the scale factor
-impl<F: FieldExt> Arithmetic<F> for DivVarChip {
+impl<F: PrimeField> Arithmetic<F> for DivVarChip {
   fn gadget_forward(
     &self,
     mut layouter: impl Layouter<F>,
@@ -40,7 +40,7 @@ impl<F: FieldExt> Arithmetic<F> for DivVarChip {
   }
 }
 
-impl<F: FieldExt> Layer<F> for DivVarChip {
+impl<F: PrimeField> Layer<F> for DivVarChip {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,

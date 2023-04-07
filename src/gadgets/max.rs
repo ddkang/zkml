@@ -2,7 +2,7 @@ use std::{marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Region},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::{ConstraintSystem, Error},
   poly::Rotation,
 };
@@ -11,12 +11,12 @@ use crate::gadgets::gadget::convert_to_u64;
 
 use super::gadget::{Gadget, GadgetConfig, GadgetType};
 
-pub struct MaxChip<F: FieldExt> {
+pub struct MaxChip<F: PrimeField> {
   config: Rc<GadgetConfig>,
   _marker: PhantomData<F>,
 }
 
-impl<F: FieldExt> MaxChip<F> {
+impl<F: PrimeField> MaxChip<F> {
   pub fn construct(config: Rc<GadgetConfig>) -> Self {
     Self {
       config,
@@ -80,7 +80,7 @@ impl<F: FieldExt> MaxChip<F> {
   }
 }
 
-impl<F: FieldExt> Gadget<F> for MaxChip<F> {
+impl<F: PrimeField> Gadget<F> for MaxChip<F> {
   fn name(&self) -> String {
     "max".to_string()
   }

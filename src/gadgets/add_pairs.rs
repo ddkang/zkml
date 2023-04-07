@@ -2,7 +2,7 @@ use std::{marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
   circuit::{AssignedCell, Layouter, Region},
-  halo2curves::FieldExt,
+  halo2curves::ff::PrimeField,
   plonk::{ConstraintSystem, Error},
   poly::Rotation,
 };
@@ -11,12 +11,12 @@ use super::gadget::{Gadget, GadgetConfig, GadgetType};
 
 type AddPairsConfig = GadgetConfig;
 
-pub struct AddPairsChip<F: FieldExt> {
+pub struct AddPairsChip<F: PrimeField> {
   config: Rc<AddPairsConfig>,
   _marker: PhantomData<F>,
 }
 
-impl<F: FieldExt> AddPairsChip<F> {
+impl<F: PrimeField> AddPairsChip<F> {
   pub fn construct(config: Rc<AddPairsConfig>) -> Self {
     Self {
       config,
@@ -59,7 +59,7 @@ impl<F: FieldExt> AddPairsChip<F> {
   }
 }
 
-impl<F: FieldExt> Gadget<F> for AddPairsChip<F> {
+impl<F: PrimeField> Gadget<F> for AddPairsChip<F> {
   fn name(&self) -> String {
     "add pairs chip".to_string()
   }
