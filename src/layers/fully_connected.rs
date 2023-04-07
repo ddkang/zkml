@@ -311,6 +311,7 @@ impl<F: FieldExt> GadgetConsumer for FullyConnectedChip<F> {
     let activation = self.get_activation(&layer_params);
     let mut outp = vec![
       GadgetType::Adder,
+      GadgetType::AddPairs,
       GadgetType::DotProduct,
       GadgetType::VarDivRound,
       GadgetType::InputLookup,
