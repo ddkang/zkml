@@ -155,9 +155,9 @@ impl<F: PrimeField> Layer<F> for FullyConnectedChip<F> {
 
     // Compute r1 * result
     let mut r1_res = vec![];
-    println!("r1_ref: {:?}", r1_ref.len());
-    println!("r2_ref: {:?}", r2_ref.len());
-    println!("mm_result: {:?}", mm_result.shape());
+    // println!("r1_ref: {:?}", r1_ref.len());
+    // println!("r2_ref: {:?}", r2_ref.len());
+    // println!("mm_result: {:?}", mm_result.shape());
     for i in 0..mm_result.shape()[1] {
       let tmp = mm_result.index_axis(Axis(1), i);
       let mm_ci = tmp.iter().collect::<Vec<_>>();
@@ -181,12 +181,12 @@ impl<F: PrimeField> Layer<F> for FullyConnectedChip<F> {
       )
       .unwrap();
     let r1_res_r2 = r1_res_r2[0].clone();
-    println!("r1_res_r2: {:?}", r1_res_r2);
+    // println!("r1_res_r2: {:?}", r1_res_r2);
 
     // Compute r1 * input
     let mut r1_input = vec![];
-    println!("input: {:?}", input.shape());
-    println!("r1_ref: {:?}", r1_ref.len());
+    // println!("input: {:?}", input.shape());
+    // println!("r1_ref: {:?}", r1_ref.len());
     for i in 0..input.shape()[1] {
       let tmp = input.index_axis(Axis(1), i);
       let input_ci = tmp.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
@@ -227,7 +227,7 @@ impl<F: PrimeField> Layer<F> for FullyConnectedChip<F> {
       .unwrap();
 
     let r1_inp_weight_r2 = r1_inp_weight_r2[0].clone();
-    println!("r1_inp_weight_r2: {:?}", r1_inp_weight_r2);
+    // println!("r1_inp_weight_r2: {:?}", r1_inp_weight_r2);
 
     layouter
       .assign_region(
