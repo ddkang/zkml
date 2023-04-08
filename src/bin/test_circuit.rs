@@ -1,7 +1,10 @@
 use halo2_proofs::{dev::MockProver, halo2curves::bn256::Fr};
 use zkml::{
   model::ModelCircuit,
-  utils::loader::{load_model_msgpack, ModelMsgpack},
+  utils::{
+    helpers::get_public_values,
+    loader::{load_model_msgpack, ModelMsgpack},
+  },
 };
 
 fn main() {
@@ -12,7 +15,9 @@ fn main() {
 
   let circuit = ModelCircuit::<Fr>::generate_from_file(&config_fname, &inp_fname);
 
-  let outp = vec![];
-  let prover = MockProver::run(config.k.try_into().unwrap(), &circuit, vec![outp.clone()]).unwrap();
+  let _prover = MockProver::run(config.k.try_into().unwrap(), &circuit, vec![vec![]]).unwrap();
+  let public_vals = get_public_values();
+
+  let prover = MockProver::run(config.k.try_into().unwrap(), &circuit, vec![public_vals]).unwrap();
   assert_eq!(prover.verify(), Ok(()));
 }

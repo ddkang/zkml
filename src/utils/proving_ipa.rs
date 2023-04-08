@@ -6,6 +6,7 @@ use std::{
 };
 
 use halo2_proofs::{
+  dev::MockProver,
   halo2curves::pasta::{EqAffine, Fp},
   plonk::{create_proof, keygen_pk, keygen_vk, verify_proof},
   poly::{
@@ -22,7 +23,7 @@ use halo2_proofs::{
   },
 };
 
-use crate::model::ModelCircuit;
+use crate::{model::ModelCircuit, utils::helpers::get_public_values};
 
 use super::loader::ModelMsgpack;
 
@@ -50,7 +51,8 @@ pub fn time_circuit_ipa(circuit: ModelCircuit<Fp>, config: ModelMsgpack) {
   let rng = rand::thread_rng();
   let start = Instant::now();
 
-  // TODO: generate empty circuits
+  let empty_circuit = circuit.clone();
+  let proof_circuit = circuit;
 
   let degree = config.k.try_into().unwrap();
   let params = get_ipa_params("./params_ipa", degree);
@@ -61,24 +63,25 @@ pub fn time_circuit_ipa(circuit: ModelCircuit<Fp>, config: ModelMsgpack) {
     circuit_duration
   );
 
-  let vk = keygen_vk(&params, &circuit).unwrap();
+  let vk = keygen_vk(&params, &empty_circuit).unwrap();
   let vk_duration = start.elapsed();
   println!(
     "Time elapsed in generating vkey: {:?}",
     vk_duration - circuit_duration
   );
 
-  let pk = keygen_pk(&params, vk, &circuit).unwrap();
+  let pk = keygen_pk(&params, vk, &empty_circuit).unwrap();
   let pk_duration = start.elapsed();
   println!(
     "Time elapsed in generating pkey: {:?}",
     pk_duration - vk_duration
   );
+  drop(empty_circuit);
 
   let fill_duration = start.elapsed();
-  // drop(empty_circuit);
-  // let proof_circuit = load_model();
-  let proof_circuit = circuit;
+  let _prover =
+    MockProver::run(config.k.try_into().unwrap(), &proof_circuit, vec![vec![]]).unwrap();
+  let public_vals = get_public_values();
   println!(
     "Time elapsed in filling circuit: {:?}",
     fill_duration - pk_duration
@@ -89,7 +92,7 @@ pub fn time_circuit_ipa(circuit: ModelCircuit<Fp>, config: ModelMsgpack) {
     &params,
     &pk,
     &[proof_circuit],
-    &[&[&[]]],
+    &[&[&public_vals]],
     rng,
     &mut transcript,
   )
@@ -100,7 +103,7 @@ pub fn time_circuit_ipa(circuit: ModelCircuit<Fp>, config: ModelMsgpack) {
 
   let proof_size = {
     let mut folder = std::path::PathBuf::new();
-    folder.push("proof_size_check");
+    folder.push("proof");
     let mut fd = std::fs::File::create(folder.as_path()).unwrap();
     folder.pop();
     fd.write_all(&proof).unwrap();
@@ -111,7 +114,14 @@ pub fn time_circuit_ipa(circuit: ModelCircuit<Fp>, config: ModelMsgpack) {
   let strategy = SingleStrategy::new(&params);
   let mut transcript = Blake2bRead::<_, _, Challenge255<_>>::init(&proof[..]);
   assert!(
-    verify_proof(&params, pk.get_vk(), strategy, &[&[&[]]], &mut transcript).is_ok(),
+    verify_proof(
+      &params,
+      pk.get_vk(),
+      strategy,
+      &[&[&public_vals]],
+      &mut transcript
+    )
+    .is_ok(),
     "proof did not verify"
   );
   let verify_duration = start.elapsed();

@@ -8,7 +8,7 @@ use std::{
 use halo2_proofs::{
   circuit::{Layouter, SimpleFloorPlanner, Value},
   halo2curves::ff::PrimeField,
-  plonk::{Advice, Circuit, Column, ConstraintSystem, Error},
+  plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance},
 };
 use lazy_static::lazy_static;
 use ndarray::{Array, IxDyn};
@@ -63,16 +63,17 @@ use crate::{
     update::UpdateChip,
   },
   utils::{
-    helpers::{NUM_RANDOMS, RAND_START_IDX},
+    helpers::{convert_pos_int, NUM_RANDOMS, RAND_START_IDX},
     loader::{load_model_msgpack, ModelMsgpack},
   },
 };
 
 lazy_static! {
   pub static ref GADGET_CONFIG: Mutex<GadgetConfig> = Mutex::new(GadgetConfig::default());
+  pub static ref PUBLIC_VALS: Mutex<Vec<i128>> = Mutex::new(vec![]);
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct ModelCircuit<F: PrimeField> {
   pub used_gadgets: Arc<HashSet<GadgetType>>,
   pub dag_config: DAGLayerConfig,
@@ -86,6 +87,7 @@ pub struct ModelCircuit<F: PrimeField> {
 #[derive(Clone, Debug)]
 pub struct ModelConfig<F: PrimeField> {
   pub gadget_config: Rc<GadgetConfig>,
+  pub public_col: Column<Instance>,
   pub _marker: PhantomData<F>,
 }
 
@@ -533,8 +535,8 @@ impl<F: PrimeField + Ord> Circuit<F> for ModelCircuit<F> {
     }
     gadget_config.columns = columns;
 
-    gadget_config.public_columns = vec![meta.instance_column()];
-    meta.enable_equality(gadget_config.public_columns[0]);
+    let public_col = meta.instance_column();
+    meta.enable_equality(public_col);
 
     gadget_config.fixed_columns = vec![meta.fixed_column()];
     meta.enable_equality(gadget_config.fixed_columns[0]);
@@ -579,6 +581,7 @@ impl<F: PrimeField + Ord> Circuit<F> for ModelCircuit<F> {
 
     ModelConfig {
       gadget_config: gadget_config.into(),
+      public_col,
       _marker: PhantomData,
     }
   }
@@ -683,13 +686,28 @@ impl<F: PrimeField + Ord> Circuit<F> for ModelCircuit<F> {
 
     // Perform the dag
     let dag_chip = DAGLayerChip::<F>::construct(self.dag_config.clone());
-    let _result = dag_chip.forward(
+    let result = dag_chip.forward(
       layouter.namespace(|| "dag"),
       &tensors,
       &constants,
-      config.gadget_config,
+      config.gadget_config.clone(),
       &LayerConfig::default(),
     )?;
+
+    let mut pub_layouter = layouter.namespace(|| "public");
+    let mut total_idx = 0;
+    let mut new_public_vals = vec![];
+    for tensor in result {
+      for cell in tensor.iter() {
+        pub_layouter
+          .constrain_instance(cell.as_ref().cell(), config.public_col, total_idx)
+          .unwrap();
+        let val = convert_pos_int(cell.value().map(|x| x.to_owned()));
+        new_public_vals.push(val);
+        total_idx += 1;
+      }
+    }
+    *PUBLIC_VALS.lock().unwrap() = new_public_vals;
 
     Ok(())
   }

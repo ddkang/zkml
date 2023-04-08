@@ -4,12 +4,13 @@ use halo2_proofs::{
 };
 use ndarray::{Array, IxDyn};
 
-use crate::gadgets::gadget::convert_to_u128;
+use crate::{gadgets::gadget::convert_to_u128, model::PUBLIC_VALS};
 
 // TODO: this is very bad
 pub const RAND_START_IDX: i64 = i64::MIN;
 pub const NUM_RANDOMS: i64 = 20001;
 
+// Conversion / printing functions
 pub fn convert_pos_int<F: PrimeField>(x: Value<F>) -> i128 {
   let bias = 1 << 60;
   let x_pos = x + Value::known(F::from(bias as u64));
@@ -36,6 +37,19 @@ pub fn print_assigned_arr<F: PrimeField>(prefix: &str, arr: &Vec<&AssignedCell<F
   }
 }
 
+// Get the public values
+pub fn get_public_values<F: PrimeField>() -> Vec<F> {
+  let mut public_vals = vec![];
+  let bias = 1_i128 << 60;
+  let bias_fr = F::from_u128(bias as u128);
+  for (_, val) in PUBLIC_VALS.lock().unwrap().iter().enumerate() {
+    let val = F::from((val + bias) as u64) - bias_fr;
+    public_vals.push(val);
+  }
+  public_vals
+}
+
+// Broadcast
 fn shape_dominates(s1: &[usize], s2: &[usize]) -> bool {
   if s1.len() != s2.len() {
     return false;
@@ -100,10 +114,10 @@ pub fn broadcast<G: Clone>(
   let tmp1 = tmp1.broadcast(s.clone()).unwrap().into_owned();
   let tmp1 = tmp1.broadcast(final_shape.as_slice()).unwrap().into_owned();
   let tmp2 = tmp2.broadcast(final_shape.as_slice()).unwrap().into_owned();
-  println!("x1: {:?} x2: {:?}", x1.shape(), x2.shape());
-  println!("s1: {:?} s2: {:?} s: {:?}", s1, s2, s);
-  println!("tmp1 shape: {:?}", tmp1.shape());
-  println!("tmp2 shape: {:?}", tmp2.shape());
+  // println!("x1: {:?} x2: {:?}", x1.shape(), x2.shape());
+  // println!("s1: {:?} s2: {:?} s: {:?}", s1, s2, s);
+  // println!("tmp1 shape: {:?}", tmp1.shape());
+  // println!("tmp2 shape: {:?}", tmp2.shape());
 
   if x1.ndim() < x2.ndim() {
     return (tmp1, tmp2);

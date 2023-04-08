@@ -3,8 +3,8 @@ use zkml::{
   model::ModelCircuit,
   utils::{
     loader::{load_model_msgpack, ModelMsgpack},
-    proving::time_circuit_kzg,
     proving_ipa::time_circuit_ipa,
+    proving_kzg::time_circuit_kzg,
   },
 };
 
