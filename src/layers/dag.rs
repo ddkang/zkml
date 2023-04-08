@@ -37,7 +37,7 @@ use super::{
   layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig, LayerType},
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct DAGLayerConfig {
   pub ops: Vec<LayerConfig>,
   pub inp_idxes: Vec<Vec<usize>>,
