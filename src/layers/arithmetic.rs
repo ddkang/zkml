@@ -32,7 +32,7 @@ pub trait Arithmetic<F: PrimeField> {
     gadget_config: Rc<GadgetConfig>,
   ) -> Result<(Vec<CellRc<F>>, Vec<usize>), Error> {
     assert_eq!(tensors.len(), 2);
-    println!("tensors: {:?} {:?}", tensors[0].shape(), tensors[1].shape());
+    // println!("tensors: {:?} {:?}", tensors[0].shape(), tensors[1].shape());
     let (inp1, inp2) = broadcast(&tensors[0], &tensors[1]);
     let out_shape = inp1.shape().clone();
     assert_eq!(inp1.shape(), inp2.shape());
