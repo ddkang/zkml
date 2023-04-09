@@ -25,8 +25,6 @@ use halo2_proofs::{
 
 use crate::{model::ModelCircuit, utils::helpers::get_public_values};
 
-use super::loader::ModelMsgpack;
-
 pub fn get_ipa_params(params_dir: &str, degree: u32) -> ParamsIPA<EqAffine> {
   let path = format!("{}/{}.params", params_dir, degree);
   let params_path = Path::new(&path);
@@ -47,14 +45,14 @@ pub fn get_ipa_params(params_dir: &str, degree: u32) -> ParamsIPA<EqAffine> {
   params
 }
 
-pub fn time_circuit_ipa(circuit: ModelCircuit<Fp>, config: ModelMsgpack) {
+pub fn time_circuit_ipa(circuit: ModelCircuit<Fp>) {
   let rng = rand::thread_rng();
   let start = Instant::now();
 
+  let degree = circuit.k as u32;
   let empty_circuit = circuit.clone();
   let proof_circuit = circuit;
 
-  let degree = config.k.try_into().unwrap();
   let params = get_ipa_params("./params_ipa", degree);
 
   let circuit_duration = start.elapsed();
@@ -79,8 +77,7 @@ pub fn time_circuit_ipa(circuit: ModelCircuit<Fp>, config: ModelMsgpack) {
   drop(empty_circuit);
 
   let fill_duration = start.elapsed();
-  let _prover =
-    MockProver::run(config.k.try_into().unwrap(), &proof_circuit, vec![vec![]]).unwrap();
+  let _prover = MockProver::run(degree, &proof_circuit, vec![vec![]]).unwrap();
   let public_vals = get_public_values();
   println!(
     "Time elapsed in filling circuit: {:?}",

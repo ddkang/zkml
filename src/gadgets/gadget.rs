@@ -1,5 +1,5 @@
 use std::{
-  collections::{HashMap, HashSet},
+  collections::{BTreeSet, HashMap},
   sync::Arc,
 };
 
@@ -11,7 +11,7 @@ use halo2_proofs::{
 use num_bigint::{BigUint, ToBigUint};
 use num_traits::cast::ToPrimitive;
 
-#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub enum GadgetType {
   AddPairs,
   Adder,
@@ -41,7 +41,7 @@ pub enum GadgetType {
 
 #[derive(Clone, Debug, Default)]
 pub struct GadgetConfig {
-  pub used_gadgets: Arc<HashSet<GadgetType>>,
+  pub used_gadgets: Arc<BTreeSet<GadgetType>>,
   pub columns: Vec<Column<Advice>>,
   pub fixed_columns: Vec<Column<Fixed>>,
   pub selectors: HashMap<GadgetType, Vec<Selector>>,

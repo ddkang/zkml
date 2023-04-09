@@ -1,5 +1,5 @@
 use std::{
-  collections::{BTreeMap, HashMap, HashSet},
+  collections::{BTreeMap, BTreeSet, HashMap},
   marker::PhantomData,
   rc::Rc,
   sync::{Arc, Mutex},
@@ -75,7 +75,7 @@ lazy_static! {
 
 #[derive(Clone, Debug, Default)]
 pub struct ModelCircuit<F: PrimeField> {
-  pub used_gadgets: Arc<HashSet<GadgetType>>,
+  pub used_gadgets: Arc<BTreeSet<GadgetType>>,
   pub dag_config: DAGLayerConfig,
   pub tensors: BTreeMap<i64, Array<F, IxDyn>>,
   pub commit: bool,
@@ -302,7 +302,7 @@ impl<F: PrimeField> ModelCircuit<F> {
 
     let i64_to_usize = |x: &Vec<i64>| x.iter().map(|x| *x as usize).collect::<Vec<_>>();
 
-    let mut used_gadgets = HashSet::new();
+    let mut used_gadgets = BTreeSet::new();
 
     let dag_config = {
       let ops = config
