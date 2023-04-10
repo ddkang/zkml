@@ -33,12 +33,17 @@ pub struct ModelMsgpack {
   pub commit: Option<bool>, // TODO: allow for different kinds of commitments
 }
 
-pub fn load_model_msgpack(config_path: &str, inp_path: &str) -> ModelMsgpack {
-  let mut model: ModelMsgpack = {
+pub fn load_config_msgpack(config_path: &str) -> ModelMsgpack {
+  let model: ModelMsgpack = {
     let file = File::open(config_path).unwrap();
     let mut reader = BufReader::new(file);
     rmp_serde::from_read(&mut reader).unwrap()
   };
+  model
+}
+
+pub fn load_model_msgpack(config_path: &str, inp_path: &str) -> ModelMsgpack {
+  let mut model = load_config_msgpack(config_path);
   let inp: Vec<TensorMsgpack> = {
     let file = File::open(inp_path).unwrap();
     let mut reader = BufReader::new(file);
