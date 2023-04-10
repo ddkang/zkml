@@ -247,8 +247,11 @@ impl<F: PrimeField> ModelCircuit<F> {
   }
 
   pub fn generate_from_file(config_file: &str, inp_file: &str) -> ModelCircuit<F> {
-    let config: ModelMsgpack = load_model_msgpack(config_file, inp_file);
+    let config = load_model_msgpack(config_file, inp_file);
+    Self::generate_from_msgpack(config, true)
+  }
 
+  pub fn generate_from_msgpack(config: ModelMsgpack, panic_empty_tensor: bool) -> ModelCircuit<F> {
     let to_field = |x: i64| {
       let bias = 1 << 31;
       let x_pos = x + bias;
@@ -296,6 +299,15 @@ impl<F: PrimeField> ModelCircuit<F> {
     for flat in config.tensors {
       let value_flat = flat.data.iter().map(|x| to_field(*x)).collect::<Vec<_>>();
       let shape = flat.shape.iter().map(|x| *x as usize).collect::<Vec<_>>();
+      let num_el: usize = shape.iter().product();
+      if panic_empty_tensor && num_el != value_flat.len() {
+        panic!("tensor shape and data length mismatch");
+      }
+      let value_flat = if num_el == value_flat.len() {
+        value_flat
+      } else {
+        vec![F::ZERO; num_el]
+      };
       let tensor = Array::from_shape_vec(IxDyn(&shape), value_flat).unwrap();
       tensors.insert(flat.idx, tensor);
     }
