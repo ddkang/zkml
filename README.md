@@ -31,8 +31,8 @@ mkdir params_ipa
 ./target/release/time_circuit examples/mnist/model.msgpack examples/mnist/inp.msgpack kzg
 ```
 
-This will prove an MNIST circuit! It will require around 5GB of memory and take
-around 16 seconds to run.
+This will prove an MNIST circuit! It will require around 2GB of memory and take
+around 8 seconds to run.
 
 ## Contact us
 
