@@ -23,16 +23,22 @@ pub fn convert_pos_int<F: PrimeField>(x: Value<F>) -> i128 {
   return outp;
 }
 
-pub fn print_pos_int<F: PrimeField>(prefix: &str, x: Value<F>) {
+pub fn print_pos_int<F: PrimeField>(prefix: &str, x: Value<F>, scale_factor: u64) {
   let tmp = convert_pos_int(x);
-  println!("{} x: {}", prefix, tmp);
+  let tmp_float = tmp as f64 / scale_factor as f64;
+  println!("{} x: {} ({})", prefix, tmp, tmp_float);
 }
 
-pub fn print_assigned_arr<F: PrimeField>(prefix: &str, arr: &Vec<&AssignedCell<F, F>>) {
+pub fn print_assigned_arr<F: PrimeField>(
+  prefix: &str,
+  arr: &Vec<&AssignedCell<F, F>>,
+  scale_factor: u64,
+) {
   for (idx, x) in arr.iter().enumerate() {
     print_pos_int(
       &format!("{}[{}]", prefix, idx),
       x.value().map(|x: &F| x.to_owned()),
+      scale_factor,
     );
   }
 }

@@ -193,5 +193,7 @@ pub fn verify_circuit_kzg(
 
   let strategy = SingleStrategy::new(&params);
   let transcript = Blake2bRead::<_, _, Challenge255<_>>::init(&proof[..]);
-  verify_kzg(&params, &vk, strategy, &public_vals, transcript)
+  verify_kzg(&params, &vk, strategy, &public_vals, transcript);
+
+  println!("Proof verified!")
 }
