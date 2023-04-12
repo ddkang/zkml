@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs::File, io::Write, io::BufWriter, marker::PhantomData, rc::Rc};
+use std::{collections::HashMap, fs::File, io::BufWriter, marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{circuit::Layouter, halo2curves::ff::PrimeField, plonk::Error};
 
@@ -28,7 +28,7 @@ use crate::{
     tanh::TanhChip,
     update::UpdateChip,
   },
-  utils::helpers::{convert_pos_int, print_assigned_arr},
+  utils::helpers::print_assigned_arr,
 };
 
 use super::{
@@ -466,7 +466,6 @@ impl<F: PrimeField + Ord> Layer<F> for DAGLayerChip<F> {
       let f = File::create(out_fname).unwrap();
       let mut buf = BufWriter::new(f);
       rmp_serde::encode::write_named(&mut buf, &x).unwrap();
-      panic!();
     }
 
     Ok(final_out)
