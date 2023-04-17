@@ -18,6 +18,7 @@ fn main() {
   if kzg_or_ipa == "kzg" {
     let config = load_config_msgpack(&config_fname);
     let circuit = ModelCircuit::<Fr>::generate_from_msgpack(config, false);
+    println!("Loaded configuration");
     verify_circuit_kzg(circuit, &vkey_fname, &proof_fname, &public_vals_fname);
   } else {
     // Serialization of the verification key doesn't seem to be supported for IPA

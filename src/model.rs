@@ -303,13 +303,12 @@ impl<F: PrimeField> ModelCircuit<F> {
       if panic_empty_tensor && num_el != value_flat.len() {
         panic!("tensor shape and data length mismatch");
       }
-      let value_flat = if num_el == value_flat.len() {
-        value_flat
+      if num_el == value_flat.len() {
+        let tensor = Array::from_shape_vec(IxDyn(&shape), value_flat).unwrap();
+        tensors.insert(flat.idx, tensor);
       } else {
-        vec![F::ZERO; num_el]
+        // Do nothing here since we're loading the config
       };
-      let tensor = Array::from_shape_vec(IxDyn(&shape), value_flat).unwrap();
-      tensors.insert(flat.idx, tensor);
     }
 
     let i64_to_usize = |x: &Vec<i64>| x.iter().map(|x| *x as usize).collect::<Vec<_>>();
