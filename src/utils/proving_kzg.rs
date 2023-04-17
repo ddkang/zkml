@@ -176,12 +176,14 @@ pub fn verify_circuit_kzg(
 ) {
   let degree = circuit.k as u32;
   let params = get_kzg_params("./params_kzg", degree);
+  println!("Loaded the parameters");
 
   let vk = VerifyingKey::read::<BufReader<File>, ModelCircuit<Fr>>(
     &mut BufReader::new(File::open(vkey_fname).unwrap()),
     SerdeFormat::RawBytes,
   )
   .unwrap();
+  println!("Loaded vkey");
 
   let proof = std::fs::read(proof_fname).unwrap();
 
@@ -193,7 +195,11 @@ pub fn verify_circuit_kzg(
 
   let strategy = SingleStrategy::new(&params);
   let transcript = Blake2bRead::<_, _, Challenge255<_>>::init(&proof[..]);
-  verify_kzg(&params, &vk, strategy, &public_vals, transcript);
 
+  let start = Instant::now();
+  let verify_start = start.elapsed();
+  verify_kzg(&params, &vk, strategy, &public_vals, transcript);
+  let verify_duration = start.elapsed();
+  println!("Verifying time: {:?}", verify_duration - verify_start);
   println!("Proof verified!")
 }
