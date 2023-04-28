@@ -181,6 +181,7 @@ pub fn verify_circuit_kzg(
   let vk = VerifyingKey::read::<BufReader<File>, ModelCircuit<Fr>>(
     &mut BufReader::new(File::open(vkey_fname).unwrap()),
     SerdeFormat::RawBytes,
+    (),
   )
   .unwrap();
   println!("Loaded vkey");

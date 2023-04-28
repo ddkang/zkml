@@ -531,6 +531,7 @@ impl<F: PrimeField> ModelCircuit<F> {
 impl<F: PrimeField + Ord> Circuit<F> for ModelCircuit<F> {
   type Config = ModelConfig<F>;
   type FloorPlanner = SimpleFloorPlanner;
+  type Params = ();
 
   fn without_witnesses(&self) -> Self {
     todo!()
