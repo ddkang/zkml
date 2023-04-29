@@ -57,7 +57,8 @@ pub struct GadgetConfig {
   pub max_val: i64,
   pub div_outp_min_val: i64,
   pub use_selectors: bool,
-  pub commit: bool,
+  pub commit_before: Vec<Vec<i64>>,
+  pub commit_after: Vec<Vec<i64>>,
 }
 
 // TODO: refactor

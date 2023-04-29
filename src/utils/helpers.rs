@@ -3,6 +3,7 @@ use halo2_proofs::{
   halo2curves::ff::PrimeField,
 };
 use ndarray::{Array, IxDyn};
+use num_bigint::BigUint;
 
 use crate::{gadgets::gadget::convert_to_u128, model::PUBLIC_VALS};
 
@@ -11,6 +12,14 @@ pub const RAND_START_IDX: i64 = i64::MIN;
 pub const NUM_RANDOMS: i64 = 20001;
 
 // Conversion / printing functions
+pub fn convert_to_bigint<F: PrimeField>(x: Value<F>) -> BigUint {
+  let mut big = Default::default();
+  x.map(|x| {
+    big = BigUint::from_bytes_le(x.to_repr().as_ref());
+  });
+  big
+}
+
 pub fn convert_pos_int<F: PrimeField>(x: Value<F>) -> i128 {
   let bias = 1 << 60;
   let x_pos = x + Value::known(F::from(bias as u64));
@@ -46,11 +55,9 @@ pub fn print_assigned_arr<F: PrimeField>(
 // Get the public values
 pub fn get_public_values<F: PrimeField>() -> Vec<F> {
   let mut public_vals = vec![];
-  let bias = 1_i128 << 60;
-  let bias_fr = F::from_u128(bias as u128);
-  for (_, val) in PUBLIC_VALS.lock().unwrap().iter().enumerate() {
-    let val = F::from((val + bias) as u64) - bias_fr;
-    public_vals.push(val);
+  for val in PUBLIC_VALS.lock().unwrap().iter() {
+    let val = F::from_str_vartime(&val.to_str_radix(10));
+    public_vals.push(val.unwrap());
   }
   public_vals
 }

@@ -69,12 +69,6 @@ impl<F: PrimeField + Ord> Layer<F> for DAGLayerChip<F> {
     gadget_config: Rc<GadgetConfig>,
     _layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
-    // Reveal/commit to weights
-    // TODO
-
-    // Reveal/commit to inputs
-    // TODO
-
     // Tensor map
     let mut tensor_map = HashMap::new();
     for (idx, tensor) in tensors.iter().enumerate() {
