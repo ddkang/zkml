@@ -30,7 +30,8 @@ pub struct ModelMsgpack {
   pub tensors: Vec<TensorMsgpack>,
   pub layers: Vec<LayerMsgpack>,
   pub use_selectors: Option<bool>,
-  pub commit: Option<bool>, // TODO: allow for different kinds of commitments
+  pub commit_before: Option<Vec<Vec<i64>>>,
+  pub commit_after: Option<Vec<Vec<i64>>>,
 }
 
 pub fn load_config_msgpack(config_path: &str) -> ModelMsgpack {
@@ -57,8 +58,11 @@ pub fn load_model_msgpack(config_path: &str, inp_path: &str) -> ModelMsgpack {
   if model.use_selectors.is_none() {
     model.use_selectors = Some(true)
   };
-  if model.commit.is_none() {
-    model.commit = Some(true)
+  if model.commit_before.is_none() {
+    model.commit_before = Some(vec![])
+  };
+  if model.commit_after.is_none() {
+    model.commit_after = Some(vec![])
   };
 
   model

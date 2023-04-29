@@ -460,6 +460,12 @@ class Converter:
       # print(tensor_idx, tensor.Type(), tensor.Name(), tensors[-1]['shape'])
       # print(np.abs(tensor_data).max())
 
+    commit_before = []
+    if self.commit:
+      input_tensors = [inp['index'] for inp in input_details]
+      weight_tensors = [tensor['idx'] for tensor in tensors if tensor['idx'] not in input_tensors]
+      commit_before = [weight_tensors, input_tensors]
+
     d = {
       'global_sf': self.scale_factor,
       'k': self.k,
@@ -470,7 +476,8 @@ class Converter:
       'layers': layers,
       'tensors': tensors,
       'use_selectors': self.use_selectors,
-      'commit': self.commit,
+      'commit_before': commit_before,
+      'commit_after': [] # TODO
     }
     print()
     print(d['layers'][-1])

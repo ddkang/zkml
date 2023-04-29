@@ -7,14 +7,19 @@ use std::{
 
 use halo2_proofs::{
   circuit::{Layouter, SimpleFloorPlanner, Value},
-  halo2curves::ff::PrimeField,
+  halo2curves::ff::{FromUniformBytes, PrimeField},
   plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance},
 };
 use lazy_static::lazy_static;
 use ndarray::{Array, IxDyn};
+use num_bigint::BigUint;
 
 use crate::{
-  commitments::{commit::Commit, packer::PackerChip, pit_commit::PITCommitChip},
+  commitments::{
+    commit::Commit,
+    packer::PackerChip,
+    poseidon_commit::{PoseidonCommitChip, L, RATE, WIDTH},
+  },
   gadgets::{
     add_pairs::AddPairsChip,
     adder::AdderChip,
@@ -63,14 +68,14 @@ use crate::{
     update::UpdateChip,
   },
   utils::{
-    helpers::{convert_pos_int, NUM_RANDOMS, RAND_START_IDX},
+    helpers::{convert_to_bigint, NUM_RANDOMS, RAND_START_IDX},
     loader::{load_model_msgpack, ModelMsgpack},
   },
 };
 
 lazy_static! {
   pub static ref GADGET_CONFIG: Mutex<GadgetConfig> = Mutex::new(GadgetConfig::default());
-  pub static ref PUBLIC_VALS: Mutex<Vec<i128>> = Mutex::new(vec![]);
+  pub static ref PUBLIC_VALS: Mutex<Vec<BigUint>> = Mutex::new(vec![]);
 }
 
 #[derive(Clone, Debug, Default)]
@@ -78,34 +83,35 @@ pub struct ModelCircuit<F: PrimeField> {
   pub used_gadgets: Arc<BTreeSet<GadgetType>>,
   pub dag_config: DAGLayerConfig,
   pub tensors: BTreeMap<i64, Array<F, IxDyn>>,
-  pub commit: bool,
+  pub commit_before: Vec<Vec<i64>>,
+  pub commit_after: Vec<Vec<i64>>,
   pub k: usize,
   pub inp_idxes: Vec<i64>,
   pub _marker: PhantomData<F>,
 }
 
 #[derive(Clone, Debug)]
-pub struct ModelConfig<F: PrimeField> {
+pub struct ModelConfig<F: PrimeField + Ord + FromUniformBytes<64>> {
   pub gadget_config: Rc<GadgetConfig>,
   pub public_col: Column<Instance>,
+  pub hasher: Option<PoseidonCommitChip<F, WIDTH, RATE, L>>,
   pub _marker: PhantomData<F>,
 }
 
-impl<F: PrimeField> ModelCircuit<F> {
-  pub fn assign_tensors(
+impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
+  pub fn assign_tensors_map(
     &self,
     mut layouter: impl Layouter<F>,
     columns: &Vec<Column<Advice>>,
     tensors: &BTreeMap<i64, Array<F, IxDyn>>,
-  ) -> Result<Vec<AssignedTensor<F>>, Error> {
+  ) -> Result<BTreeMap<i64, AssignedTensor<F>>, Error> {
     let tensors = layouter.assign_region(
       || "asssignment",
       |mut region| {
         let mut cell_idx = 0;
-        let mut assigned_tensors = vec![];
+        let mut assigned_tensors = BTreeMap::new();
 
         for (tensor_idx, tensor) in tensors.iter() {
-          let tensor_idx = *tensor_idx as usize;
           let mut flat = vec![];
           for val in tensor.iter() {
             let row_idx = cell_idx / columns.len();
@@ -122,11 +128,7 @@ impl<F: PrimeField> ModelCircuit<F> {
             cell_idx += 1;
           }
           let tensor = Array::from_shape_vec(tensor.shape(), flat).unwrap();
-          // TODO: is there a non-stupid way to do this?
-          while assigned_tensors.len() <= tensor_idx {
-            assigned_tensors.push(tensor.clone());
-          }
-          assigned_tensors[tensor_idx] = tensor;
+          assigned_tensors.insert(*tensor_idx, tensor);
         }
 
         Ok(assigned_tensors)
@@ -134,6 +136,46 @@ impl<F: PrimeField> ModelCircuit<F> {
     )?;
 
     Ok(tensors)
+  }
+
+  pub fn tensor_map_to_vec(
+    &self,
+    tensor_map: &BTreeMap<i64, Array<CellRc<F>, IxDyn>>,
+  ) -> Result<Vec<AssignedTensor<F>>, Error> {
+    let smallest_tensor = tensor_map
+      .iter()
+      .min_by_key(|(_, tensor)| tensor.len())
+      .unwrap()
+      .1;
+    let max_tensor_key = tensor_map
+      .iter()
+      .max_by_key(|(key, _)| *key)
+      .unwrap()
+      .0
+      .clone();
+    let mut tensors = vec![];
+    for i in 0..max_tensor_key + 1 {
+      let tensor = tensor_map.get(&i).unwrap_or(smallest_tensor);
+      tensors.push(tensor.clone());
+    }
+
+    Ok(tensors)
+  }
+
+  pub fn assign_tensors_vec(
+    &self,
+    mut layouter: impl Layouter<F>,
+    columns: &Vec<Column<Advice>>,
+    tensors: &BTreeMap<i64, Array<F, IxDyn>>,
+  ) -> Result<Vec<AssignedTensor<F>>, Error> {
+    let tensor_map = self
+      .assign_tensors_map(
+        layouter.namespace(|| "assign_tensors_map"),
+        columns,
+        tensors,
+      )
+      .unwrap();
+    self.tensor_map_to_vec(&tensor_map)
   }
 
   pub fn assign_constants(
@@ -164,7 +206,7 @@ impl<F: PrimeField> ModelCircuit<F> {
         }
 
         // TODO: I've made some very bad life decisions
-        // TOOD: read this from the config
+        // TOOD: this needs to be a random oracle
         let r_base = F::from(0x123456789abcdef);
         let mut r = r_base.clone();
         for i in 0..NUM_RANDOMS {
@@ -219,7 +261,7 @@ impl<F: PrimeField> ModelCircuit<F> {
         }
 
         // TODO: I've made some very bad life decisions
-        // TOOD: read this from the config
+        // TOOD: this needs to be a random oracle
         let r_base = F::from(0x123456789abcdef);
         let mut r = r_base.clone();
         for i in 0..NUM_RANDOMS {
@@ -416,7 +458,8 @@ impl<F: PrimeField> ModelCircuit<F> {
       num_rows: (1 << config.k) - 10 + 1,
       num_cols: config.num_cols as usize,
       used_gadgets: used_gadgets.clone(),
-      commit: config.commit.unwrap_or(true),
+      commit_before: config.commit_before.clone().unwrap_or(vec![]),
+      commit_after: config.commit_after.clone().unwrap_or(vec![]),
       use_selectors: config.use_selectors.unwrap_or(true),
       ..cloned_gadget
     };
@@ -428,7 +471,8 @@ impl<F: PrimeField> ModelCircuit<F> {
       used_gadgets,
       k: config.k as usize,
       inp_idxes: config.inp_idxes.clone(),
-      commit: config.commit.unwrap_or(true),
+      commit_after: config.commit_after.unwrap_or(vec![]),
+      commit_before: config.commit_before.unwrap_or(vec![]),
     }
   }
 
@@ -437,8 +481,10 @@ impl<F: PrimeField> ModelCircuit<F> {
     mut layouter: impl Layouter<F>,
     constants: &HashMap<i64, CellRc<F>>,
     config: &ModelConfig<F>,
-  ) -> Result<Vec<AssignedTensor<F>>, Error> {
+    tensors: &BTreeMap<i64, Array<F, IxDyn>>,
+  ) -> (BTreeMap<i64, AssignedTensor<F>>, CellRc<F>) {
     // TODO: sometimes it can be less than k, but k is a good upper bound
+    // TODO: read from config
     let num_bits = self.k;
     let packer_config = PackerChip::<F>::construct(num_bits, config.gadget_config.as_ref());
     let packer_chip = PackerChip::<F> {
@@ -449,86 +495,29 @@ impl<F: PrimeField> ModelCircuit<F> {
         layouter.namespace(|| "packer"),
         config.gadget_config.clone(),
         constants,
-        &self.tensors,
+        tensors,
       )
       .unwrap();
-    let mut inp_packed = vec![];
-    let mut weight_packed = vec![];
-    // This is sorted
-    for (key, _) in tensor_map.iter() {
-      if self.inp_idxes.contains(key) {
-        inp_packed.push(packed[*key as usize].clone());
-      } else {
-        weight_packed.push(packed[*key as usize].clone());
-      }
-    }
-
-    let smallest_tensor = tensor_map
-      .iter()
-      .min_by_key(|(_, tensor)| tensor.len())
-      .unwrap()
-      .1;
-    let max_tensor_key = tensor_map
-      .iter()
-      .max_by_key(|(key, _)| *key)
-      .unwrap()
-      .0
-      .clone();
-    let mut tensors = vec![];
-    for i in 0..max_tensor_key + 1 {
-      let tensor = tensor_map.get(&i).unwrap_or(smallest_tensor);
-      tensors.push(tensor.clone());
-    }
-
-    let pit_commit_chip = PITCommitChip::<F> {
-      marker: PhantomData,
-    };
 
     let zero = constants.get(&0).unwrap().clone();
-    // TODO: commitments must be made public
-    // TODO: the commitment is done twice to verify the Reed Solomon Fingerprint. Need to do it with the random transcript the second time.
-    let _input_commitments1 = pit_commit_chip
-      .commit(
-        layouter.namespace(|| "commit"),
-        config.gadget_config.clone(),
-        constants,
-        &inp_packed,
-        zero.clone(),
-      )
-      .unwrap();
-    let _input_commitments2 = pit_commit_chip
-      .commit(
-        layouter.namespace(|| "commit"),
-        config.gadget_config.clone(),
-        constants,
-        &inp_packed,
-        zero.clone(),
-      )
-      .unwrap();
-    let _weight_commitments1 = pit_commit_chip
-      .commit(
-        layouter.namespace(|| "commit"),
-        config.gadget_config.clone(),
-        constants,
-        &weight_packed,
-        zero.clone(),
-      )
-      .unwrap();
-    let _weight_commitments2 = pit_commit_chip
-      .commit(
-        layouter.namespace(|| "commit"),
-        config.gadget_config.clone(),
-        constants,
-        &weight_packed,
-        zero,
-      )
-      .unwrap();
+    let commit_chip = config.hasher.clone().unwrap();
 
-    Ok(tensors)
+    let commitments = commit_chip
+      .commit(
+        layouter.namespace(|| "commit"),
+        config.gadget_config.clone(),
+        constants,
+        &packed,
+        zero.clone(),
+      )
+      .unwrap();
+    assert_eq!(commitments.len(), 1);
+
+    (tensor_map, commitments[0].clone())
   }
 }
 
-impl<F: PrimeField + Ord> Circuit<F> for ModelCircuit<F> {
+impl<F: PrimeField + Ord + FromUniformBytes<64>> Circuit<F> for ModelCircuit<F> {
   type Config = ModelConfig<F>;
   type FloorPlanner = SimpleFloorPlanner;
   type Params = ();
@@ -586,14 +575,28 @@ impl<F: PrimeField + Ord> Circuit<F> for ModelCircuit<F> {
       };
     }
 
-    if gadget_config.commit {
+    let hasher = if gadget_config.commit_before.len() + gadget_config.commit_after.len() > 0 {
       let packer_config = PackerChip::<F>::construct(gadget_config.k, &gadget_config);
       gadget_config = PackerChip::<F>::configure(meta, packer_config, gadget_config);
-    }
+
+      // TODO
+      let input = gadget_config.columns[0..L].try_into().unwrap();
+      let state = gadget_config.columns[L..L + WIDTH].try_into().unwrap();
+      let partial_sbox = gadget_config.columns[L + WIDTH].into();
+      Some(PoseidonCommitChip::<F, WIDTH, RATE, L>::configure(
+        meta,
+        input,
+        state,
+        partial_sbox,
+      ))
+    } else {
+      None
+    };
 
     ModelConfig {
       gadget_config: gadget_config.into(),
       public_col,
+      hasher,
       _marker: PhantomData,
     }
   }
@@ -684,16 +687,57 @@ impl<F: PrimeField + Ord> Circuit<F> for ModelCircuit<F> {
       )
       .unwrap();
 
-    let tensors = if self.commit {
-      self
-        .commit(layouter.namespace(|| "commit"), &constants, &config)
-        .unwrap()
+    let mut commitments = vec![];
+    let tensors = if self.commit_before.len() > 0 {
+      // Commit to the tensors before the DAG
+      let mut tensor_map = BTreeMap::new();
+      let mut ignore_idxes: Vec<i64> = vec![];
+      for commit_idxes in self.commit_before.iter() {
+        let to_commit = BTreeMap::from_iter(
+          commit_idxes
+            .iter()
+            .map(|idx| (*idx, self.tensors.get(idx).unwrap().clone())),
+        );
+        let (mut committed_tensors, commitment) = self.commit(
+          layouter.namespace(|| "commit"),
+          &constants,
+          &config,
+          &to_commit,
+        );
+        commitments.push(commitment);
+        tensor_map.append(&mut committed_tensors);
+        ignore_idxes.extend(commit_idxes.iter());
+      }
+
+      // Assign the remainder of the tensors
+      let mut assign_map = BTreeMap::new();
+      for (idx, tensor) in self.tensors.iter() {
+        if ignore_idxes.contains(idx) {
+          continue;
+        }
+        assign_map.insert(*idx, tensor.clone());
+      }
+      let mut remainder_tensor_map = self
+        .assign_tensors_map(
+          layouter.namespace(|| "assignment"),
+          &config.gadget_config.columns,
+          &assign_map,
+        )
+        .unwrap();
+
+      // Merge the two maps
+      tensor_map.append(&mut remainder_tensor_map);
+
+      // Return the tensors
+      self.tensor_map_to_vec(&tensor_map).unwrap()
     } else {
-      self.assign_tensors(
-        layouter.namespace(|| "assignment"),
-        &config.gadget_config.columns,
-        &self.tensors,
-      )?
+      self
+        .assign_tensors_vec(
+          layouter.namespace(|| "assignment"),
+          &config.gadget_config.columns,
+          &self.tensors,
+        )
+        .unwrap()
     };
 
     // Perform the dag
@@ -706,15 +750,26 @@ impl<F: PrimeField + Ord> Circuit<F> for ModelCircuit<F> {
       &LayerConfig::default(),
     )?;
 
+    // TODO: Commit to output
+    // TODO: need to implement packing from assigned cells
+
     let mut pub_layouter = layouter.namespace(|| "public");
     let mut total_idx = 0;
     let mut new_public_vals = vec![];
+    for cell in commitments.iter() {
+      pub_layouter
+        .constrain_instance(cell.as_ref().cell(), config.public_col, total_idx)
+        .unwrap();
+      let val = convert_to_bigint(cell.value().map(|x| x.to_owned()));
+      new_public_vals.push(val);
+      total_idx += 1;
+    }
     for tensor in result {
       for cell in tensor.iter() {
         pub_layouter
           .constrain_instance(cell.as_ref().cell(), config.public_col, total_idx)
           .unwrap();
-        let val = convert_pos_int(cell.value().map(|x| x.to_owned()));
+        let val = convert_to_bigint(cell.value().map(|x| x.to_owned()));
         new_public_vals.push(val);
         total_idx += 1;
       }

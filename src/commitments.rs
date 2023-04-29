@@ -1,3 +1,3 @@
 pub mod commit;
 pub mod packer;
-pub mod pit_commit;
+pub mod poseidon_commit;
