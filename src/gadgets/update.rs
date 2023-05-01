@@ -33,11 +33,7 @@ impl<F: PrimeField> UpdateGadgetChip<F> {
 
   pub fn configure(meta: &mut ConstraintSystem<F>, gadget_config: GadgetConfig) -> UpdateConfig {
     let tables = &gadget_config.tables;
-    let mod_lookup = if tables.contains_key(&GadgetType::BiasDivRoundRelu6) {
-      tables.get(&GadgetType::BiasDivRoundRelu6).unwrap()[0]
-    } else {
-      panic!("Table uninitialized");
-    };
+    let mod_lookup = tables.get(&GadgetType::InputLookup).unwrap()[0];
 
     let columns = gadget_config.columns;
     let selector = meta.complex_selector();
@@ -161,7 +157,7 @@ impl<F: PrimeField + Ord> Gadget<F> for UpdateGadgetChip<F> {
         .assign_advice(
           || "div_res",
           self.config.columns[offset + 2],
-          0,
+          row_offset,
           || {
             div_mod.map(|(x, _): (i64, i64)| {
               F::from((x - div_outp_min_val as i64) as u64) - F::from(-div_outp_min_val as u64)
@@ -174,7 +170,7 @@ impl<F: PrimeField + Ord> Gadget<F> for UpdateGadgetChip<F> {
         .assign_advice(
           || "mod_res",
           self.config.columns[offset + 3],
-          0,
+          row_offset,
           || div_mod.map(|(_, x): (i64, i64)| F::from(x as u64)),
         )
         .unwrap();
