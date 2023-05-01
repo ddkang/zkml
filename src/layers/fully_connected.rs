@@ -104,7 +104,7 @@ impl<F: PrimeField> FullyConnectedChip<F> {
     match activation {
       0 => ActivationType::None,
       1 => ActivationType::Relu,
-      _ => panic!("Unsupported activation type for add"),
+      _ => panic!("Unsupported activation type for fully connected"),
     }
   }
 }
