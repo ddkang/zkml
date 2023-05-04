@@ -57,18 +57,16 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
       _marker: PhantomData,
     }
   }
-}
 
-// IMPORTANT: Assumes input tensors are in order. Output tensors can be in any order.
-impl<F: PrimeField + Ord> Layer<F> for DAGLayerChip<F> {
-  fn forward(
+  // IMPORTANT: Assumes input tensors are in order. Output tensors can be in any order.
+  pub fn forward(
     &self,
     mut layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, CellRc<F>>,
     gadget_config: Rc<GadgetConfig>,
     _layer_config: &LayerConfig,
-  ) -> Result<Vec<AssignedTensor<F>>, Error> {
+  ) -> Result<(HashMap<usize, AssignedTensor<F>>, Vec<AssignedTensor<F>>), Error> {
     // Tensor map
     let mut tensor_map = HashMap::new();
     for (idx, tensor) in tensors.iter().enumerate() {
@@ -442,12 +440,20 @@ impl<F: PrimeField + Ord> Layer<F> for DAGLayerChip<F> {
       final_out.push(tensor_map.get(idx).unwrap().clone());
     }
 
-    let tmp = final_out[0].iter().map(|x| x.as_ref()).collect::<Vec<_>>();
+    let print_arr = if final_out.len() > 0 {
+      &final_out[0]
+    } else {
+      let last_layer_idx = self.dag_config.ops.len() - 1;
+      let out_idx = self.dag_config.out_idxes[last_layer_idx][0];
+      tensor_map.get(&out_idx).unwrap()
+    };
+
+    let tmp = print_arr.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
     print_assigned_arr("final out", &tmp.to_vec(), gadget_config.scale_factor);
     println!("final out idxes: {:?}", self.dag_config.final_out_idxes);
 
     let mut x = vec![];
-    for cell in final_out[0].iter() {
+    for cell in print_arr.iter() {
       cell.value().map(|v| {
         let bias = 1 << 60 as i64;
         let v_pos = *v + F::from(bias as u64);
@@ -462,7 +468,7 @@ impl<F: PrimeField + Ord> Layer<F> for DAGLayerChip<F> {
       rmp_serde::encode::write_named(&mut buf, &x).unwrap();
     }
 
-    Ok(final_out)
+    Ok((tensor_map, final_out))
   }
 }
 

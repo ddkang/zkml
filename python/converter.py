@@ -98,7 +98,7 @@ class Converter:
       raise RuntimeError('Graph is None')
 
     input_details = interpreter.get_input_details()
-    # output_details = interpreter.get_output_details()
+    output_details = interpreter.get_output_details()
 
     for inp_detail in input_details:
       inp = np.zeros(inp_detail['shape'], dtype=inp_detail['dtype'])
@@ -461,10 +461,14 @@ class Converter:
       # print(np.abs(tensor_data).max())
 
     commit_before = []
+    commit_after = []
     if self.commit:
       input_tensors = [inp['index'] for inp in input_details]
       weight_tensors = [tensor['idx'] for tensor in tensors if tensor['idx'] not in input_tensors]
       commit_before = [weight_tensors, input_tensors]
+
+      output_tensors = [out['index'] for out in output_details]
+      commit_after = [output_tensors]
 
     d = {
       'global_sf': self.scale_factor,
@@ -477,7 +481,7 @@ class Converter:
       'tensors': tensors,
       'use_selectors': self.use_selectors,
       'commit_before': commit_before,
-      'commit_after': [] # TODO
+      'commit_after': commit_after,
     }
     print()
     print(d['layers'][-1])

@@ -47,7 +47,7 @@ use crate::{
     conv2d::Conv2DChip,
     dag::{DAGLayerChip, DAGLayerConfig},
     fully_connected::{FullyConnectedChip, FullyConnectedConfig},
-    layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig, LayerType},
+    layer::{AssignedTensor, CellRc, GadgetConsumer, LayerConfig, LayerType},
     logistic::LogisticChip,
     max_pool_2d::MaxPool2DChip,
     mean::MeanChip,
@@ -477,7 +477,7 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
     }
   }
 
-  pub fn commit(
+  pub fn assign_and_commit(
     &self,
     mut layouter: impl Layouter<F>,
     constants: &HashMap<i64, CellRc<F>>,
@@ -515,6 +515,46 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
     assert_eq!(commitments.len(), 1);
 
     (tensor_map, commitments[0].clone())
+  }
+
+  pub fn copy_and_commit(
+    &self,
+    mut layouter: impl Layouter<F>,
+    constants: &HashMap<i64, CellRc<F>>,
+    config: &ModelConfig<F>,
+    tensors: &BTreeMap<i64, AssignedTensor<F>>,
+  ) -> CellRc<F> {
+    // TODO: sometimes it can be less than k, but k is a good upper bound
+    // TODO: read from config
+    let num_bits = self.k;
+    let packer_config = PackerChip::<F>::construct(num_bits, config.gadget_config.as_ref());
+    let packer_chip = PackerChip::<F> {
+      config: packer_config,
+    };
+    let packed = packer_chip
+      .copy_and_pack(
+        layouter.namespace(|| "packer"),
+        config.gadget_config.clone(),
+        constants,
+        tensors,
+      )
+      .unwrap();
+
+    let zero = constants.get(&0).unwrap().clone();
+    let commit_chip = config.hasher.clone().unwrap();
+
+    let commitments = commit_chip
+      .commit(
+        layouter.namespace(|| "commit"),
+        config.gadget_config.clone(),
+        constants,
+        &packed,
+        zero.clone(),
+      )
+      .unwrap();
+    assert_eq!(commitments.len(), 1);
+
+    commitments[0].clone()
   }
 }
 
@@ -699,7 +739,7 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> Circuit<F> for ModelCircuit<F> 
             .iter()
             .map(|idx| (*idx, self.tensors.get(idx).unwrap().clone())),
         );
-        let (mut committed_tensors, commitment) = self.commit(
+        let (mut committed_tensors, commitment) = self.assign_and_commit(
           layouter.namespace(|| "commit"),
           &constants,
           &config,
@@ -743,7 +783,7 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> Circuit<F> for ModelCircuit<F> 
 
     // Perform the dag
     let dag_chip = DAGLayerChip::<F>::construct(self.dag_config.clone());
-    let result = dag_chip.forward(
+    let (final_tensor_map, result) = dag_chip.forward(
       layouter.namespace(|| "dag"),
       &tensors,
       &constants,
@@ -751,8 +791,23 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> Circuit<F> for ModelCircuit<F> 
       &LayerConfig::default(),
     )?;
 
-    // TODO: Commit to output
-    // TODO: need to implement packing from assigned cells
+    if self.commit_after.len() > 0 {
+      for commit_idxes in self.commit_after.iter() {
+        let to_commit = BTreeMap::from_iter(commit_idxes.iter().map(|idx| {
+          (
+            *idx,
+            final_tensor_map.get(&(*idx as usize)).unwrap().clone(),
+          )
+        }));
+        let commitment = self.copy_and_commit(
+          layouter.namespace(|| "commit"),
+          &constants,
+          &config,
+          &to_commit,
+        );
+        commitments.push(commitment);
+      }
+    }
 
     let mut pub_layouter = layouter.namespace(|| "public");
     let mut total_idx = 0;
