@@ -86,8 +86,8 @@ pub struct ModelCircuit<F: PrimeField> {
   pub commit_before: Vec<Vec<i64>>,
   pub commit_after: Vec<Vec<i64>>,
   pub k: usize,
+  pub bits_per_elem: usize,
   pub inp_idxes: Vec<i64>,
-  pub _marker: PhantomData<F>,
 }
 
 #[derive(Clone, Debug)]
@@ -466,10 +466,10 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
 
     ModelCircuit {
       tensors,
-      _marker: PhantomData,
       dag_config,
       used_gadgets,
       k: config.k as usize,
+      bits_per_elem: config.bits_per_elem.unwrap_or(config.k) as usize,
       inp_idxes: config.inp_idxes.clone(),
       commit_after: config.commit_after.unwrap_or(vec![]),
       commit_before: config.commit_before.unwrap_or(vec![]),
@@ -483,9 +483,7 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
     config: &ModelConfig<F>,
     tensors: &BTreeMap<i64, Array<F, IxDyn>>,
   ) -> (BTreeMap<i64, AssignedTensor<F>>, CellRc<F>) {
-    // TODO: sometimes it can be less than k, but k is a good upper bound
-    // TODO: read from config
-    let num_bits = self.k;
+    let num_bits = self.bits_per_elem;
     let packer_config = PackerChip::<F>::construct(num_bits, config.gadget_config.as_ref());
     let packer_chip = PackerChip::<F> {
       config: packer_config,
@@ -523,9 +521,7 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
     config: &ModelConfig<F>,
     tensors: &BTreeMap<i64, AssignedTensor<F>>,
   ) -> CellRc<F> {
-    // TODO: sometimes it can be less than k, but k is a good upper bound
-    // TODO: read from config
-    let num_bits = self.k;
+    let num_bits = self.bits_per_elem;
     let packer_config = PackerChip::<F>::construct(num_bits, config.gadget_config.as_ref());
     let packer_chip = PackerChip::<F> {
       config: packer_config,

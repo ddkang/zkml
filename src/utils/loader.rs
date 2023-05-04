@@ -32,6 +32,7 @@ pub struct ModelMsgpack {
   pub use_selectors: Option<bool>,
   pub commit_before: Option<Vec<Vec<i64>>>,
   pub commit_after: Option<Vec<Vec<i64>>>,
+  pub bits_per_elem: Option<i64>, // Specifically for packing for the commitments
 }
 
 pub fn load_config_msgpack(config_path: &str) -> ModelMsgpack {
@@ -63,6 +64,9 @@ pub fn load_model_msgpack(config_path: &str, inp_path: &str) -> ModelMsgpack {
   };
   if model.commit_after.is_none() {
     model.commit_after = Some(vec![])
+  };
+  if model.bits_per_elem.is_none() {
+    model.bits_per_elem = Some(model.k)
   };
 
   model
