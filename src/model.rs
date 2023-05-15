@@ -68,7 +68,7 @@ use crate::{
     update::UpdateChip,
   },
   utils::{
-    helpers::{convert_to_bigint, NUM_RANDOMS, RAND_START_IDX},
+    helpers::{convert_to_bigint, RAND_START_IDX},
     loader::{load_model_msgpack, ModelMsgpack},
   },
 };
@@ -88,6 +88,7 @@ pub struct ModelCircuit<F: PrimeField> {
   pub k: usize,
   pub bits_per_elem: usize,
   pub inp_idxes: Vec<i64>,
+  pub num_random: i64,
 }
 
 #[derive(Clone, Debug)]
@@ -209,7 +210,7 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
         // TOOD: this needs to be a random oracle
         let r_base = F::from(0x123456789abcdef);
         let mut r = r_base.clone();
-        for i in 0..NUM_RANDOMS {
+        for i in 0..self.num_random {
           let rand = region.assign_fixed(
             || format!("rand_{}", i),
             gadget_config.fixed_columns[0],
@@ -264,7 +265,7 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
         // TOOD: this needs to be a random oracle
         let r_base = F::from(0x123456789abcdef);
         let mut r = r_base.clone();
-        for i in 0..NUM_RANDOMS {
+        for i in 0..self.num_random {
           let assignment_idx = constants.len();
           let row_idx = assignment_idx / gadget_config.columns.len();
           let col_idx = assignment_idx % gadget_config.columns.len();
@@ -473,6 +474,7 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
       inp_idxes: config.inp_idxes.clone(),
       commit_after: config.commit_after.unwrap_or(vec![]),
       commit_before: config.commit_before.unwrap_or(vec![]),
+      num_random: config.num_random.unwrap_or(0),
     }
   }
 

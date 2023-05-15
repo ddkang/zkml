@@ -16,7 +16,7 @@ use crate::{
     var_div::VarDivRoundChip,
   },
   layers::layer::ActivationType,
-  utils::helpers::{NUM_RANDOMS, RAND_START_IDX},
+  utils::helpers::RAND_START_IDX,
 };
 
 use super::layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig};
@@ -86,12 +86,12 @@ impl<F: PrimeField> FullyConnectedChip<F> {
     constants: &HashMap<i64, CellRc<F>>,
     size: usize,
   ) -> Result<Vec<CellRc<F>>, Error> {
-    if size > NUM_RANDOMS as usize {
-      panic!("random vector size too large: {}", size);
-    }
     let mut outp = vec![];
     for idx in 0..size {
       let idx = RAND_START_IDX + (idx as i64);
+      if !constants.contains_key(&idx) {
+        println!("Random vector is too small: {:?}", size);
+      }
       let cell = constants.get(&idx).unwrap().clone();
       outp.push(cell);
     }
