@@ -33,6 +33,7 @@ pub struct ModelMsgpack {
   pub commit_before: Option<Vec<Vec<i64>>>,
   pub commit_after: Option<Vec<Vec<i64>>>,
   pub bits_per_elem: Option<i64>, // Specifically for packing for the commitments
+  pub num_random: Option<i64>,
 }
 
 pub fn load_config_msgpack(config_path: &str) -> ModelMsgpack {
@@ -67,6 +68,9 @@ pub fn load_model_msgpack(config_path: &str, inp_path: &str) -> ModelMsgpack {
   };
   if model.bits_per_elem.is_none() {
     model.bits_per_elem = Some(model.k)
+  };
+  if model.num_random.is_none() {
+    model.num_random = Some(20001)
   };
 
   model
