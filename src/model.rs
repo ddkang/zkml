@@ -463,6 +463,7 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
       commit_before: config.commit_before.clone().unwrap_or(vec![]),
       commit_after: config.commit_after.clone().unwrap_or(vec![]),
       use_selectors: config.use_selectors.unwrap_or(true),
+      num_bits_per_elem: config.bits_per_elem.unwrap_or(config.k),
       ..cloned_gadget
     };
 
@@ -615,7 +616,8 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> Circuit<F> for ModelCircuit<F> 
     }
 
     let hasher = if gadget_config.commit_before.len() + gadget_config.commit_after.len() > 0 {
-      let packer_config = PackerChip::<F>::construct(gadget_config.k, &gadget_config);
+      let packer_config =
+        PackerChip::<F>::construct(gadget_config.num_bits_per_elem as usize, &gadget_config);
       gadget_config = PackerChip::<F>::configure(meta, packer_config, gadget_config);
 
       // TODO
