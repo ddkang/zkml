@@ -24,11 +24,12 @@ def get_inputs(op: tflite.Operator):
   return idxes
 
 class Converter:
-  def __init__(self, model_path, scale_factor, k, num_cols, use_selectors, commit):
+  def __init__(self, model_path, scale_factor, k, num_cols, num_randoms, use_selectors, commit):
     self.model_path = model_path
     self.scale_factor = scale_factor
     self.k = k
     self.num_cols = num_cols
+    self.num_randoms = num_randoms
     self.use_selectors = use_selectors
     self.commit = commit
 
@@ -474,6 +475,7 @@ class Converter:
       'global_sf': self.scale_factor,
       'k': self.k,
       'num_cols': self.num_cols,
+      'num_random': self.num_randoms,
       'inp_idxes': [inp['index'] for inp in input_details],
       # 'out_idxes': [out['index'] for out in output_details],
       'out_idxes': layers[-1]['out_idxes'],
@@ -507,6 +509,7 @@ def main():
   parser.add_argument('--commit', action=argparse.BooleanOptionalAction, required=False, default=False)
   parser.add_argument('--start_layer', type=int, default=0)
   parser.add_argument('--end_layer', type=int, default=10000)
+  parser.add_argument('--num_randoms', type=int, default=20001)
   args = parser.parse_args()
 
   converter = Converter(
@@ -514,6 +517,7 @@ def main():
     args.scale_factor,
     args.k,
     args.num_cols,
+    args.num_randoms,
     args.use_selectors,
     args.commit,
   )
