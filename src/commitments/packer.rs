@@ -165,7 +165,7 @@ impl<F: PrimeField> PackerChip<F> {
           let val_offset = i * self.config.num_elem_per_packed;
           let col_offset = i * (self.config.num_elem_per_packed + 1);
 
-          let vals = cells
+          let mut vals = cells
             [val_offset..min(val_offset + self.config.num_elem_per_packed, cells.len())]
             .iter()
             .enumerate()
@@ -176,28 +176,23 @@ impl<F: PrimeField> PackerChip<F> {
             })
             .collect::<Vec<_>>();
 
-          let _zero = (cells.len()..self.config.num_elem_per_packed)
+          let zero_copied = (cells.len()..self.config.num_elem_per_packed)
             .map(|i| {
               zero
                 .copy_advice(|| "", &mut region, columns[col_offset + i], 0)
-                .unwrap()
+                .unwrap();
+              zero.value().copied()
             })
             .collect::<Vec<_>>();
+          vals.extend(zero_copied);
 
-          let zshift = Value::known(shift_val)
-            * Value::known(F::from(
-              (self.config.num_elem_per_packed - cells.len())
-                .try_into()
-                .unwrap(),
-            ));
-          let res =
-            vals
-              .iter()
-              .zip(self.config.exponents.iter())
-              .fold(zshift, |acc, (inp, exp)| {
-                let res = acc + (*inp + Value::known(shift_val)) * Value::known(*exp);
-                res
-              });
+          let res = vals.iter().zip(self.config.exponents.iter()).fold(
+            Value::known(F::ZERO),
+            |acc, (inp, exp)| {
+              let res = acc + (*inp + Value::known(shift_val)) * Value::known(*exp);
+              res
+            },
+          );
 
           let outp = region.assign_advice(
             || "",
@@ -242,7 +237,7 @@ impl<F: PrimeField> PackerChip<F> {
           let val_offset = i * self.config.num_elem_per_packed;
           let col_offset = i * (self.config.num_elem_per_packed + 1);
 
-          let values = values
+          let mut values = values
             [val_offset..min(val_offset + self.config.num_elem_per_packed, values.len())]
             .iter()
             .map(|x| **x)
@@ -257,27 +252,23 @@ impl<F: PrimeField> PackerChip<F> {
               Rc::new(tmp)
             })
             .collect::<Vec<_>>();
-          let zshift = shift_val
-            * F::from(
-              (self.config.num_elem_per_packed - values.len())
-                .try_into()
-                .unwrap(),
-            );
           assigned.extend(vals);
 
-          let _zero = (values.len()..self.config.num_elem_per_packed)
+          let zero_vals = (values.len()..self.config.num_elem_per_packed)
             .map(|i| {
               zero
                 .copy_advice(|| "", &mut region, columns[col_offset + i], 0)
-                .unwrap()
+                .unwrap();
+              F::ZERO
             })
             .collect::<Vec<_>>();
+          values.extend(zero_vals);
 
           let res =
             values
               .iter()
               .zip(self.config.exponents.iter())
-              .fold(zshift, |acc, (inp, exp)| {
+              .fold(F::ZERO, |acc, (inp, exp)| {
                 let res = acc + (*inp + shift_val) * (*exp);
                 res
               });
