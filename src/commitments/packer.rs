@@ -184,13 +184,20 @@ impl<F: PrimeField> PackerChip<F> {
             })
             .collect::<Vec<_>>();
 
-          let res = vals.iter().zip(self.config.exponents.iter()).fold(
-            Value::known(F::ZERO),
-            |acc, (inp, exp)| {
-              let res = acc + (*inp + Value::known(shift_val)) * Value::known(*exp);
-              res
-            },
-          );
+          let zshift = Value::known(shift_val)
+            * Value::known(F::from(
+              (self.config.num_elem_per_packed - cells.len())
+                .try_into()
+                .unwrap(),
+            ));
+          let res =
+            vals
+              .iter()
+              .zip(self.config.exponents.iter())
+              .fold(zshift, |acc, (inp, exp)| {
+                let res = acc + (*inp + Value::known(shift_val)) * Value::known(*exp);
+                res
+              });
 
           let outp = region.assign_advice(
             || "",
@@ -250,6 +257,12 @@ impl<F: PrimeField> PackerChip<F> {
               Rc::new(tmp)
             })
             .collect::<Vec<_>>();
+          let zshift = shift_val
+            * F::from(
+              (self.config.num_elem_per_packed - values.len())
+                .try_into()
+                .unwrap(),
+            );
           assigned.extend(vals);
 
           let _zero = (values.len()..self.config.num_elem_per_packed)
@@ -264,7 +277,7 @@ impl<F: PrimeField> PackerChip<F> {
             values
               .iter()
               .zip(self.config.exponents.iter())
-              .fold(F::ZERO, |acc, (inp, exp)| {
+              .fold(zshift, |acc, (inp, exp)| {
                 let res = acc + (*inp + shift_val) * (*exp);
                 res
               });
