@@ -85,8 +85,9 @@ impl<F: PrimeField> PackerChip<F> {
 
     let exponents = &packer_config.exponents;
 
-    let min_val_pos = -gadget_config.min_val;
-    let min_val_pos = Expression::Constant(F::from(min_val_pos as u64));
+    let num_bits_per_elem = packer_config.num_bits_per_elem;
+    let shift_val = 1 << (num_bits_per_elem - 1);
+    let shift_val = Expression::Constant(F::from(shift_val as u64));
 
     meta.create_gate("packer", |meta| {
       let s = meta.query_selector(selector);
@@ -106,7 +107,7 @@ impl<F: PrimeField> PackerChip<F> {
         let res = inps
           .into_iter()
           .zip(exponents.iter())
-          .map(|(inp, exp)| (inp + min_val_pos.clone()) * (*exp))
+          .map(|(inp, exp)| (inp + shift_val.clone()) * (*exp))
           .fold(Expression::Constant(F::ZERO), |acc, prod| acc + prod);
         constraints.push(s.clone() * (res - outp));
         // constraints.push(s.clone() * Expression::Constant(F::zero()));
@@ -123,7 +124,7 @@ impl<F: PrimeField> PackerChip<F> {
           let s = meta.query_selector(selector);
           let inp = meta.query_advice(columns[offset + j], Rotation::cur());
 
-          vec![(s * (inp + min_val_pos.clone()), lookup)]
+          vec![(s * (inp + shift_val.clone()), lookup)]
         });
       }
     }
@@ -148,8 +149,9 @@ impl<F: PrimeField> PackerChip<F> {
     let columns = &gadget_config.columns;
     let selector = gadget_config.selectors.get(&GadgetType::Packer).unwrap()[0];
 
-    let min_val_pos = -gadget_config.min_val;
-    let min_val_pos = F::from(min_val_pos as u64);
+    let num_bits_per_elem = gadget_config.num_bits_per_elem;
+    let shift_val = 1 << (num_bits_per_elem - 1);
+    let shift_val = F::from(shift_val as u64);
 
     let outp = layouter.assign_region(
       || "pack row",
@@ -185,7 +187,7 @@ impl<F: PrimeField> PackerChip<F> {
           let res = vals.iter().zip(self.config.exponents.iter()).fold(
             Value::known(F::ZERO),
             |acc, (inp, exp)| {
-              let res = acc + (*inp + Value::known(min_val_pos)) * Value::known(*exp);
+              let res = acc + (*inp + Value::known(shift_val)) * Value::known(*exp);
               res
             },
           );
@@ -216,8 +218,9 @@ impl<F: PrimeField> PackerChip<F> {
     let columns = &gadget_config.columns;
     let selector = gadget_config.selectors.get(&GadgetType::Packer).unwrap()[0];
 
-    let min_val_pos = -gadget_config.min_val;
-    let min_val_pos = F::from(min_val_pos as u64);
+    let num_bits_per_elem = gadget_config.num_bits_per_elem;
+    let shift_val = 1 << (num_bits_per_elem - 1);
+    let shift_val = F::from(shift_val as u64);
 
     let outp = layouter.assign_region(
       || "pack row",
@@ -262,7 +265,7 @@ impl<F: PrimeField> PackerChip<F> {
               .iter()
               .zip(self.config.exponents.iter())
               .fold(F::ZERO, |acc, (inp, exp)| {
-                let res = acc + (*inp + min_val_pos) * (*exp);
+                let res = acc + (*inp + shift_val) * (*exp);
                 res
               });
 
