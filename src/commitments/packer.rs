@@ -144,7 +144,7 @@ impl<F: PrimeField> PackerChip<F> {
     mut layouter: impl Layouter<F>,
     gadget_config: Rc<GadgetConfig>,
     cells: Vec<CellRc<F>>,
-    min_val: &AssignedCell<F, F>,
+    zero: &AssignedCell<F, F>,
   ) -> Result<Vec<CellRc<F>>, Error> {
     let columns = &gadget_config.columns;
     let selector = gadget_config.selectors.get(&GadgetType::Packer).unwrap()[0];
@@ -178,7 +178,7 @@ impl<F: PrimeField> PackerChip<F> {
 
           let _zero = (cells.len()..self.config.num_elem_per_packed)
             .map(|i| {
-              min_val
+              zero
                 .copy_advice(|| "", &mut region, columns[col_offset + i], 0)
                 .unwrap()
             })
@@ -213,7 +213,7 @@ impl<F: PrimeField> PackerChip<F> {
     mut layouter: impl Layouter<F>,
     gadget_config: Rc<GadgetConfig>,
     values: Vec<&F>,
-    min_val: &AssignedCell<F, F>,
+    zero: &AssignedCell<F, F>,
   ) -> Result<(Vec<CellRc<F>>, Vec<CellRc<F>>), Error> {
     let columns = &gadget_config.columns;
     let selector = gadget_config.selectors.get(&GadgetType::Packer).unwrap()[0];
@@ -254,7 +254,7 @@ impl<F: PrimeField> PackerChip<F> {
 
           let _zero = (values.len()..self.config.num_elem_per_packed)
             .map(|i| {
-              min_val
+              zero
                 .copy_advice(|| "", &mut region, columns[col_offset + i], 0)
                 .unwrap()
             })
@@ -301,7 +301,7 @@ impl<F: PrimeField> PackerChip<F> {
 
     let mut packed = vec![];
     let mut assigned = vec![];
-    let min_val = constants.get(&gadget_config.min_val).unwrap().clone();
+    let zero = constants.get(&0).unwrap().clone();
 
     let num_elems_per_row = self.config.num_packed_per_row * self.config.num_elem_per_packed;
     for i in 0..(values.len().div_ceil(num_elems_per_row)) {
@@ -312,7 +312,7 @@ impl<F: PrimeField> PackerChip<F> {
           layouter.namespace(|| "pack row"),
           gadget_config.clone(),
           row,
-          min_val.as_ref(),
+          zero.as_ref(),
         )
         .unwrap();
       packed.extend(row_packed);
@@ -347,7 +347,7 @@ impl<F: PrimeField> PackerChip<F> {
     }
 
     let mut packed = vec![];
-    let min_val = constants.get(&gadget_config.min_val).unwrap().clone();
+    let zero = constants.get(&0).unwrap().clone();
 
     let num_elems_per_row = self.config.num_packed_per_row * self.config.num_elem_per_packed;
     for i in 0..(values.len().div_ceil(num_elems_per_row)) {
@@ -358,7 +358,7 @@ impl<F: PrimeField> PackerChip<F> {
           layouter.namespace(|| "pack row"),
           gadget_config.clone(),
           row,
-          min_val.as_ref(),
+          zero.as_ref(),
         )
         .unwrap();
       packed.extend(row_packed);
