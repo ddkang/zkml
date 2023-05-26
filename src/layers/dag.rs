@@ -443,9 +443,13 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
     let print_arr = if final_out.len() > 0 {
       &final_out[0]
     } else {
-      let last_layer_idx = self.dag_config.ops.len() - 1;
-      let out_idx = self.dag_config.out_idxes[last_layer_idx][0];
-      tensor_map.get(&out_idx).unwrap()
+      if self.dag_config.ops.len() > 0 {
+        let last_layer_idx = self.dag_config.ops.len() - 1;
+        let out_idx = self.dag_config.out_idxes[last_layer_idx][0];
+        tensor_map.get(&out_idx).unwrap()
+      } else {
+        tensor_map.get(&0).unwrap()
+      }
     };
 
     let tmp = print_arr.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
