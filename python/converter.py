@@ -494,13 +494,17 @@ class Converter:
 
   def to_msgpack(self, start_layer, end_layer, use_selectors=True):
     d = self.to_dict(start_layer, end_layer)
-    return msgpack.packb(d, use_bin_type=True)
+    model_packed = msgpack.packb(d, use_bin_type=True)
+    del d['tensors']
+    config_packed = msgpack.packb(d, use_bin_type=True)
+    return model_packed, config_packed
 
 
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--model', type=str, required=True)
-  parser.add_argument('--output', type=str, required=True)
+  parser.add_argument('--model_output', type=str, required=True)
+  parser.add_argument('--config_output', type=str, required=True)
   parser.add_argument('--scale_factor', type=int, default=2**16)
   parser.add_argument('--k', type=int, default=19)
   parser.add_argument('--eta', type=float, default=0.001)
@@ -522,15 +526,17 @@ def main():
     args.commit,
   )
 
-  packed = converter.to_msgpack(
+  model_packed, config_packed = converter.to_msgpack(
     start_layer=args.start_layer,
     end_layer=args.end_layer,
   )
-  if packed is None:
+  if model_packed is None:
     raise Exception('Failed to convert model')
 
-  with open(args.output, 'wb') as f:
-    f.write(packed)
+  with open(args.model_output, 'wb') as f:
+    f.write(model_packed)
+  with open(args.config_output, 'wb') as f:
+    f.write(config_packed)
 
 if __name__ == '__main__':
   main()
