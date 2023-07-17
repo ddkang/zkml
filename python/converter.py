@@ -495,7 +495,7 @@ class Converter:
   def to_msgpack(self, start_layer, end_layer, use_selectors=True):
     d = self.to_dict(start_layer, end_layer)
     model_packed = msgpack.packb(d, use_bin_type=True)
-    del d['tensors']
+    d['tensors'] = []
     config_packed = msgpack.packb(d, use_bin_type=True)
     return model_packed, config_packed
 
