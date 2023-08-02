@@ -24,7 +24,10 @@ def get_inputs(op: tflite.Operator):
   return idxes
 
 class Converter:
-  def __init__(self, model_path, scale_factor, k, num_cols, num_randoms, use_selectors, commit):
+  def __init__(
+      self, model_path, scale_factor, k, num_cols, num_randoms, use_selectors, commit,
+      expose_output
+    ):
     self.model_path = model_path
     self.scale_factor = scale_factor
     self.k = k
@@ -32,6 +35,7 @@ class Converter:
     self.num_randoms = num_randoms
     self.use_selectors = use_selectors
     self.commit = commit
+    self.expose_output = expose_output
 
     self.interpreter = tf.lite.Interpreter(
       model_path=self.model_path,
@@ -471,6 +475,7 @@ class Converter:
       output_tensors = [out['index'] for out in output_details]
       commit_after = [output_tensors]
 
+    out_idxes = layers[-1]['out_idxes'] if self.expose_output else []
     d = {
       'global_sf': self.scale_factor,
       'k': self.k,
@@ -478,7 +483,7 @@ class Converter:
       'num_random': self.num_randoms,
       'inp_idxes': [inp['index'] for inp in input_details],
       # 'out_idxes': [out['index'] for out in output_details],
-      'out_idxes': layers[-1]['out_idxes'],
+      'out_idxes': out_idxes,
       'layers': layers,
       'tensors': tensors,
       'use_selectors': self.use_selectors,
@@ -511,6 +516,7 @@ def main():
   parser.add_argument('--num_cols', type=int, default=6)
   parser.add_argument('--use_selectors', action=argparse.BooleanOptionalAction, required=False, default=True)
   parser.add_argument('--commit', action=argparse.BooleanOptionalAction, required=False, default=False)
+  parser.add_argument('--expose_output', action=argparse.BooleanOptionalAction, required=False, default=True)
   parser.add_argument('--start_layer', type=int, default=0)
   parser.add_argument('--end_layer', type=int, default=10000)
   parser.add_argument('--num_randoms', type=int, default=20001)
@@ -524,6 +530,7 @@ def main():
     args.num_randoms,
     args.use_selectors,
     args.commit,
+    args.expose_output,
   )
 
   model_packed, config_packed = converter.to_msgpack(
