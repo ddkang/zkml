@@ -62,10 +62,16 @@ python data_to_npy.py
 
 5. You will then need to convert the input to the model:
 ```bash
-python ../../python/input_converter.py --model_config converted_model.msgpack --inputs 7.npy --output inp.msgpack
+python ../../python/input_converter.py --model_config converted_model.msgpack --inputs 7.npy --output example_inp.msgpack
 ```
 
-6. Once you've converted the model and input, you can run the model as above!
+6. Once you've converted the model and input, you can run the model as above! However, we generally
+   recommend testing the model before proving (you will need to build zkml before running the next
+   line):
+```bash
+cd ../../
+./target/release/test_circuit examples/mnist/converted_model.msgpack examples/mnist/example_inp.msgpack
+```
 
 
 ## Contact us
