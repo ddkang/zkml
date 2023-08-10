@@ -87,15 +87,15 @@ impl<F: PrimeField> Conv2DChip<F> {
     cj: usize,
   ) -> ((usize, usize), (usize, usize)) {
     let ph = if h % si == 0 {
-      (ci - sj).max(0)
+      (ci as i64 - sj as i64).max(0)
     } else {
-      (ci - (h % si)).max(0)
-    };
+      (ci as i64 - (h % si) as i64).max(0)
+    } as usize;
     let pw = if w % sj == 0 {
-      (cj - sj).max(0)
+      (cj as i64 - sj as i64).max(0)
     } else {
-      (cj - (w % sj)).max(0)
-    };
+      (cj as i64 - (w % sj) as i64).max(0)
+    } as usize;
     ((ph / 2, ph - ph / 2), (pw / 2, pw - pw / 2))
   }
 
