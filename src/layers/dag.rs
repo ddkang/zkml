@@ -26,7 +26,8 @@ use crate::{
     square::SquareChip,
     squared_diff::SquaredDiffChip,
     tanh::TanhChip,
-    update::UpdateChip, relu::ReluLayerChip,
+    update::UpdateChip, 
+    relu::ReluLayerChip,
   },
   utils::helpers::print_assigned_arr,
 };
@@ -83,12 +84,10 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
         layer_idx, layer_type, inp_idxes, out_idxes, layer_config.layer_params
       );
      
-
       let vec_inps = inp_idxes
         .iter()
         .map(|idx| tensor_map.get(idx).unwrap().clone())
         .collect::<Vec<_>>();
-      // println!("vec_inps: {:?}", vec_inps);
       let out = match layer_type {
         LayerType::Add => {
           let add_chip = AddChip {};

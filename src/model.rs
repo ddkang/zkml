@@ -346,7 +346,6 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
       let shape = flat.shape.iter().map(|x| *x as usize).collect::<Vec<_>>();
       let num_el: usize = shape.iter().product();
       if panic_empty_tensor && num_el != value_flat.len() {
-      // println!("Shape: {:?}", shape);
         panic!("tensor shape and data length mismatch");
       }
       if num_el == value_flat.len() {

@@ -299,7 +299,6 @@ impl<F: PrimeField> Layer<F> for Conv2DChip<F> {
 
     let inp = &tensors[0];
     let weights = &tensors[1];
-    println!("wt shape: {:?}", weights.shape());
     let (oh, ow) = Self::out_hw(
       inp.shape()[1],
       inp.shape()[2],

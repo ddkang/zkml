@@ -267,9 +267,6 @@ impl<F: PrimeField> Layer<F> for FullyConnectedChip<F> {
         .unwrap();
 
       let mm_div = if tensors.len() == 3 {
-        println!("shape vec: {:?}", shape);
-       println!("tensors shape: {:?}", tensors[2].shape());
-
         let bias = tensors[2].broadcast(shape.clone()).unwrap();
         let bias = bias.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
         let mm_div = mm_div.iter().collect::<Vec<_>>();
