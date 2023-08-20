@@ -53,7 +53,8 @@ pub fn load_model_msgpack(config_path: &str, inp_path: &str) -> ModelMsgpack {
     rmp_serde::from_read(&mut reader).unwrap()
   };
   for tensor in inp {
-    model.tensors.push(tensor);
+    model.tensors.push(tensor.clone());
+    // println!("tensor: {:?}", tensor);
   }
 
   // Default to using selectors, commit if use_selectors is not specified

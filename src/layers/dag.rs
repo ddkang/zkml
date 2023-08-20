@@ -26,7 +26,7 @@ use crate::{
     square::SquareChip,
     squared_diff::SquaredDiffChip,
     tanh::TanhChip,
-    update::UpdateChip,
+    update::UpdateChip, relu::ReluLayerChip,
   },
   utils::helpers::print_assigned_arr,
 };
@@ -82,11 +82,13 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
         "Processing layer {}, type: {:?}, inp_idxes: {:?}, out_idxes: {:?}, layer_params: {:?}",
         layer_idx, layer_type, inp_idxes, out_idxes, layer_config.layer_params
       );
+     
+
       let vec_inps = inp_idxes
         .iter()
         .map(|idx| tensor_map.get(idx).unwrap().clone())
         .collect::<Vec<_>>();
-
+      // println!("vec_inps: {:?}", vec_inps);
       let out = match layer_type {
         LayerType::Add => {
           let add_chip = AddChip {};
@@ -280,6 +282,16 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
           let tanh_chip = TanhChip {};
           tanh_chip.forward(
             layouter.namespace(|| "dag tanh"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+            &layer_config,
+          )?
+        }
+        LayerType::Relu => {
+          let relu_chip = ReluLayerChip {};
+          relu_chip.forward(
+            layouter.namespace(|| "dag relu"),
             &vec_inps,
             constants,
             gadget_config.clone(),

@@ -44,6 +44,9 @@ impl<F: PrimeField> FullyConnectedChip<F> {
   ) -> Array<Value<F>, IxDyn> {
     assert_eq!(input.ndim(), 2);
     assert_eq!(weight.ndim(), 2);
+    println!("input shape: {:?}", input.shape());
+    println!("weight shape: {:?}", weight.shape());
+  
     assert_eq!(input.shape()[1], weight.shape()[0]);
 
     let mut outp = vec![];
@@ -264,6 +267,9 @@ impl<F: PrimeField> Layer<F> for FullyConnectedChip<F> {
         .unwrap();
 
       let mm_div = if tensors.len() == 3 {
+        println!("shape vec: {:?}", shape);
+       println!("tensors shape: {:?}", tensors[2].shape());
+
         let bias = tensors[2].broadcast(shape.clone()).unwrap();
         let bias = bias.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
         let mm_div = mm_div.iter().collect::<Vec<_>>();
