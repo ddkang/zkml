@@ -31,6 +31,7 @@ pub enum LayerType {
   Pad,
   Pow,
   Permute,
+  Relu,
   Reshape,
   ResizeNN,
   Rotate,

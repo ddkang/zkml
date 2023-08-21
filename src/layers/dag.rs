@@ -14,6 +14,7 @@ use crate::{
     mean::MeanChip,
     noop::NoopChip,
     pow::PowChip,
+    relu::ReluLayerChip,
     rsqrt::RsqrtChip,
     shape::{
       broadcast::BroadcastChip, concatenation::ConcatenationChip, mask_neg_inf::MaskNegInfChip,
@@ -86,7 +87,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
         .iter()
         .map(|idx| tensor_map.get(idx).unwrap().clone())
         .collect::<Vec<_>>();
-
+      
       let out = match layer_type {
         LayerType::Add => {
           let add_chip = AddChip {};
@@ -280,6 +281,16 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
           let tanh_chip = TanhChip {};
           tanh_chip.forward(
             layouter.namespace(|| "dag tanh"),
+            &vec_inps,
+            constants,
+            gadget_config.clone(),
+            &layer_config,
+          )?
+        }
+        LayerType::Relu => {
+          let relu_chip = ReluLayerChip {};
+          relu_chip.forward(
+            layouter.namespace(|| "dag relu"),
             &vec_inps,
             constants,
             gadget_config.clone(),

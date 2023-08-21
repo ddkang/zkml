@@ -15,6 +15,7 @@ pub mod max_pool_2d;
 pub mod mean;
 pub mod noop;
 pub mod pow;
+pub mod relu;
 pub mod rsqrt;
 pub mod softmax;
 pub mod sqrt;

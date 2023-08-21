@@ -53,6 +53,7 @@ use crate::{
     mean::MeanChip,
     noop::NoopChip,
     pow::PowChip,
+    relu::ReluLayerChip,
     rsqrt::RsqrtChip,
     shape::{
       broadcast::BroadcastChip, concatenation::ConcatenationChip, mask_neg_inf::MaskNegInfChip,
@@ -333,6 +334,7 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
       "SquaredDifference" => LayerType::SquaredDifference,
       "Sub" => LayerType::Sub,
       "Tanh" => LayerType::Tanh,
+      "ReLU" => LayerType::Relu,
       "Transpose" => LayerType::Transpose,
       "Update" => LayerType::Update,
       _ => panic!("unknown op: {}", x),
@@ -404,6 +406,7 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
             LayerType::SquaredDifference => Box::new(SquaredDiffChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Sub => Box::new(SubChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Tanh => Box::new(TanhChip {}) as Box<dyn GadgetConsumer>,
+            LayerType::Relu => Box::new(ReluLayerChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Transpose => Box::new(TransposeChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Update => Box::new(UpdateChip {}) as Box<dyn GadgetConsumer>,
           }
@@ -685,6 +688,10 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> Circuit<F> for ModelCircuit<F> 
         GadgetType::Tanh => {
           let chip = TanhGadgetChip::<F>::construct(gadget_rc.clone());
           chip.load_lookups(layouter.namespace(|| "tanh lookup"))?;
+        }
+        GadgetType::Relu => {
+          let chip = ReluChip::<F>::construct(gadget_rc.clone());
+          chip.load_lookups(layouter.namespace(|| "relu lookup"))?;
         }
         GadgetType::Exp => {
           let chip = ExpGadgetChip::<F>::construct(gadget_rc.clone());
