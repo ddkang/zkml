@@ -14,6 +14,7 @@ use crate::{
     mean::MeanChip,
     noop::NoopChip,
     pow::PowChip,
+    relu::ReluLayerChip,
     rsqrt::RsqrtChip,
     shape::{
       broadcast::BroadcastChip, concatenation::ConcatenationChip, mask_neg_inf::MaskNegInfChip,
@@ -26,8 +27,7 @@ use crate::{
     square::SquareChip,
     squared_diff::SquaredDiffChip,
     tanh::TanhChip,
-    update::UpdateChip, 
-    relu::ReluLayerChip,
+    update::UpdateChip,
   },
   utils::helpers::print_assigned_arr,
 };
@@ -83,7 +83,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
         "Processing layer {}, type: {:?}, inp_idxes: {:?}, out_idxes: {:?}, layer_params: {:?}",
         layer_idx, layer_type, inp_idxes, out_idxes, layer_config.layer_params
       );
-     
+
       let vec_inps = inp_idxes
         .iter()
         .map(|idx| tensor_map.get(idx).unwrap().clone())

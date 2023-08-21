@@ -44,9 +44,6 @@ impl<F: PrimeField> FullyConnectedChip<F> {
   ) -> Array<Value<F>, IxDyn> {
     assert_eq!(input.ndim(), 2);
     assert_eq!(weight.ndim(), 2);
-    println!("input shape: {:?}", input.shape());
-    println!("weight shape: {:?}", weight.shape());
-  
     assert_eq!(input.shape()[1], weight.shape()[0]);
 
     let mut outp = vec![];

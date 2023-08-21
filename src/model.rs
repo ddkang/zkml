@@ -53,6 +53,7 @@ use crate::{
     mean::MeanChip,
     noop::NoopChip,
     pow::PowChip,
+    relu::ReluLayerChip,
     rsqrt::RsqrtChip,
     shape::{
       broadcast::BroadcastChip, concatenation::ConcatenationChip, mask_neg_inf::MaskNegInfChip,
@@ -66,7 +67,6 @@ use crate::{
     squared_diff::SquaredDiffChip,
     tanh::TanhChip,
     update::UpdateChip,
-    relu::ReluLayerChip
   },
   utils::{
     helpers::{convert_to_bigint, RAND_START_IDX},
@@ -334,7 +334,7 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
       "SquaredDifference" => LayerType::SquaredDifference,
       "Sub" => LayerType::Sub,
       "Tanh" => LayerType::Tanh,
-      "ReLUONNX" => LayerType::Relu,
+      "ReLU" => LayerType::Relu,
       "Transpose" => LayerType::Transpose,
       "Update" => LayerType::Update,
       _ => panic!("unknown op: {}", x),
@@ -608,7 +608,6 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> Circuit<F> for ModelCircuit<F> 
         GadgetType::SquaredDiff => SquaredDiffGadgetChip::<F>::configure(meta, gadget_config),
         GadgetType::SubPairs => SubPairsChip::<F>::configure(meta, gadget_config),
         GadgetType::Tanh => TanhGadgetChip::<F>::configure(meta, gadget_config),
-        GadgetType::Relu => ReluChip::<F>::configure(meta, gadget_config),
         GadgetType::VarDivRound => VarDivRoundChip::<F>::configure(meta, gadget_config),
         GadgetType::VarDivRoundBig => VarDivRoundBigChip::<F>::configure(meta, gadget_config),
         GadgetType::VarDivRoundBig3 => VarDivRoundBig3Chip::<F>::configure(meta, gadget_config),

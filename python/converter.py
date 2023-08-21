@@ -5,8 +5,6 @@ import tensorflow as tf
 import numpy as np
 import tflite
 import msgpack
-import onnxmltools
-import os
 
 def get_shape(interpreter: tf.lite.Interpreter, tensor_idx):
   if tensor_idx == -1:
@@ -30,14 +28,6 @@ class Converter:
       self, model_path, scale_factor, k, num_cols, num_randoms, use_selectors, commit,
       expose_output
     ):
-    
-    if model_path[-6:] != "tflite":  # In the case of a non-tflite input model. 
-      if model_path[-4:] == "onnx":
-        output_path = os.getcwd() + "/"
-        cmd = "onnx2tf -i" + model_path + " -o " + output_path
-        os.system(cmd)
-      model_path = model_path[:-5] + "_float32.tflite"
-    
     self.model_path = model_path
     self.scale_factor = scale_factor
     self.k = k
@@ -52,8 +42,6 @@ class Converter:
       experimental_preserve_all_tensors=True
     )
     self.interpreter.allocate_tensors()
-
-    
 
     with open(self.model_path, 'rb') as f:
       buf = f.read()
@@ -533,8 +521,6 @@ def main():
   parser.add_argument('--end_layer', type=int, default=10000)
   parser.add_argument('--num_randoms', type=int, default=20001)
   args = parser.parse_args()
-
-  print(args.model)
 
   converter = Converter(
     args.model,

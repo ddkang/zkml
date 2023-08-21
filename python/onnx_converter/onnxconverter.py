@@ -126,7 +126,7 @@ class Converter():
         params = [kernel[0], kernel[1], stride[0], stride[1]]
 
       elif node.op_type == "Relu":
-        layer_type = "ReLUONNX"
+        layer_type = "ReLU"
         inp_idxes = []
         inp_idxes.append(init_id)
         for i in range(init_id+1,init_id+len(node.input)):
@@ -200,10 +200,10 @@ class Converter():
         continue
       layer = {
         "layer_type": layer_type,
-        "params": params, ## Change params HELP HELP HELP HELP
+        "params": params,
         "inp_shapes": inputs_dim,
-        "inp_idxes": inp_idxes, ### RANDOM COME BACK HERE HELP HELP HELP HELP
-        "out_idxes": out_idxes, ### RANDOM COME BACK HERE HELP HELP HELP HELP
+        "inp_idxes": inp_idxes, 
+        "out_idxes": out_idxes, 
         "out_shapes": [output_dim],
         "mask": []
       }
@@ -224,7 +224,7 @@ class Converter():
         for i in range(1,len(fullc_wb_ids),2):
           if wb_ids[init_ct] == fullc_wb_ids[i]:
             shape = [shape[0]]
-        raw_data = numpy_helper.to_array(init).ravel().tolist()  ## Orientation of ravel ?????
+        raw_data = numpy_helper.to_array(init).ravel().tolist()  ## Orientation of ravel ?
         data = []
         for i in raw_data:
           if isinstance(i, float):

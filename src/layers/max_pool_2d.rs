@@ -52,7 +52,6 @@ impl<F: PrimeField> MaxPool2DChip<F> {
     let (sx, sy) = (sx as usize, sy as usize);
 
     // Only support batch size 1 for now
-
     assert_eq!(inp.shape()[0], 1);
 
     let out_shape = Self::shape(inp, layer_config);

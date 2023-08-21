@@ -31,6 +31,7 @@ pub enum LayerType {
   Pad,
   Pow,
   Permute,
+  Relu,
   Reshape,
   ResizeNN,
   Rotate,
@@ -45,8 +46,6 @@ pub enum LayerType {
   Tanh,
   Transpose,
   Update,
-
-  Relu
 }
 
 // NOTE: This is the same order as the TFLite schema
