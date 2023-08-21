@@ -83,11 +83,11 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
         "Processing layer {}, type: {:?}, inp_idxes: {:?}, out_idxes: {:?}, layer_params: {:?}",
         layer_idx, layer_type, inp_idxes, out_idxes, layer_config.layer_params
       );
-
       let vec_inps = inp_idxes
         .iter()
         .map(|idx| tensor_map.get(idx).unwrap().clone())
         .collect::<Vec<_>>();
+      
       let out = match layer_type {
         LayerType::Add => {
           let add_chip = AddChip {};
