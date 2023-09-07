@@ -5,3 +5,6 @@ pub mod gadgets;
 pub mod layers;
 pub mod model;
 pub mod utils;
+
+#[cfg(test)]
+pub mod tests;
