@@ -103,6 +103,7 @@ impl<F: PrimeField> Gadget<F> for DotProductChip<F> {
     let weights = &vec_inputs[1];
     assert_eq!(inp.len(), weights.len());
     assert_eq!(inp.len(), self.num_inputs_per_row());
+    // println!("Weight: {:?}", weights);
 
     let zero = &single_inputs[0];
 

@@ -113,6 +113,7 @@ impl<F: PrimeField> Layer<F> for MeanChip {
     layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, CellRc<F>>,
+    _rand_vector: &HashMap<i64, CellRc<F>>,
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {

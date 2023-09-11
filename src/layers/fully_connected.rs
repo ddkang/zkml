@@ -75,6 +75,7 @@ impl<F: PrimeField> FullyConnectedChip<F> {
       let cell = region
         .assign_advice(|| "assign array", columns[col_idx], row_idx, || *val)
         .unwrap();
+      // println!("Error: {:?}", cell);
       outp.push(cell);
     }
 
@@ -82,13 +83,30 @@ impl<F: PrimeField> FullyConnectedChip<F> {
     Ok(Array::from_shape_vec(IxDyn(out_shape.as_slice()), outp).unwrap())
   }
 
+  // pub fn random_vector(
+  //   constants: &HashMap<i64, CellRc<F>>,
+  //   size: usize,
+  // ) -> Result<Vec<CellRc<F>>, Error> {
+  //   let mut outp = vec![];
+  //   for idx in 0..size {
+  //     let idx = RAND_START_IDX + (idx as i64);
+  //     if !constants.contains_key(&idx) {
+  //       println!("Random vector is too small: {:?}", size);
+  //     }
+  //     let cell = constants.get(&idx).unwrap().clone();
+  //     outp.push(cell);
+  //   }
+
+  //   Ok(outp)
+  // }
+
   pub fn random_vector(
     constants: &HashMap<i64, CellRc<F>>,
     size: usize,
   ) -> Result<Vec<CellRc<F>>, Error> {
     let mut outp = vec![];
     for idx in 0..size {
-      let idx = RAND_START_IDX + (idx as i64);
+      let idx = idx as i64;
       if !constants.contains_key(&idx) {
         println!("Random vector is too small: {:?}", size);
       }
@@ -107,6 +125,8 @@ impl<F: PrimeField> FullyConnectedChip<F> {
       _ => panic!("Unsupported activation type for fully connected"),
     }
   }
+
+  
 }
 
 impl<F: PrimeField> Layer<F> for FullyConnectedChip<F> {
@@ -115,6 +135,7 @@ impl<F: PrimeField> Layer<F> for FullyConnectedChip<F> {
     mut layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, CellRc<F>>,
+    rand_vector: &HashMap<i64, CellRc<F>>,
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
@@ -146,8 +167,9 @@ impl<F: PrimeField> Layer<F> for FullyConnectedChip<F> {
       .unwrap();
 
     // Generate random vectors
-    let r1 = Self::random_vector(constants, mm_result.shape()[0]).unwrap();
-    let r2 = Self::random_vector(constants, mm_result.shape()[1]).unwrap();
+    
+    let r1 = Self::random_vector(rand_vector, mm_result.shape()[0]).unwrap();
+    let r2 = Self::random_vector(rand_vector, mm_result.shape()[1]).unwrap();
 
     let dot_prod_chip = DotProductChip::<F>::construct(gadget_config.clone());
     let r1_ref = r1.iter().map(|x| x.as_ref()).collect::<Vec<_>>();

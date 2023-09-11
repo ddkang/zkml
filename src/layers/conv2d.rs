@@ -22,7 +22,7 @@ use crate::{
   },
 };
 
-use super::layer::{ActivationType, AssignedTensor, GadgetConsumer, Layer, LayerConfig};
+use super::layer::{ActivationType, AssignedTensor, GadgetConsumer, Layer, LayerConfig, CellRc};
 
 #[derive(Default, Clone, Copy, Eq, PartialEq)]
 pub enum PaddingEnum {
@@ -291,6 +291,7 @@ impl<F: PrimeField> Layer<F> for Conv2DChip<F> {
     mut layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, Rc<AssignedCell<F, F>>>,
+    rand_vector: &HashMap<i64, CellRc<F>>,
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
@@ -342,6 +343,7 @@ impl<F: PrimeField> Layer<F> for Conv2DChip<F> {
             layouter.namespace(|| ""),
             &vec![weights_array, inp_array],
             constants,
+            rand_vector,
             gadget_config.clone(),
             layer_config,
           )

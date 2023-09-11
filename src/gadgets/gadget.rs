@@ -43,6 +43,7 @@ pub enum GadgetType {
 pub struct GadgetConfig {
   pub used_gadgets: Arc<BTreeSet<GadgetType>>,
   pub columns: Vec<Column<Advice>>,
+  pub witness_columns: Vec<Column<Advice>>,
   pub fixed_columns: Vec<Column<Fixed>>,
   pub selectors: HashMap<GadgetType, Vec<Selector>>,
   pub tables: HashMap<GadgetType, Vec<TableColumn>>,

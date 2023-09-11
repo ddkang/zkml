@@ -9,7 +9,7 @@ use ndarray::{Array, Axis, IxDyn, Slice};
 
 use crate::{
   gadgets::gadget::GadgetConfig,
-  layers::layer::{AssignedTensor, GadgetConsumer},
+  layers::layer::{AssignedTensor, GadgetConsumer, CellRc},
 };
 
 use super::super::layer::{Layer, LayerConfig};
@@ -75,6 +75,7 @@ impl<F: PrimeField> Layer<F> for PadChip {
     _layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, Rc<AssignedCell<F, F>>>,
+    _rand_vector: &HashMap<i64, CellRc<F>>,
     _gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {

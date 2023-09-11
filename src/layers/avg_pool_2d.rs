@@ -66,6 +66,7 @@ impl<F: PrimeField> Layer<F> for AvgPool2DChip {
     layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, CellRc<F>>,
+    _rand_vector: &HashMap<i64, CellRc<F>>,
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
@@ -77,7 +78,7 @@ impl<F: PrimeField> Layer<F> for AvgPool2DChip {
     // TODO: refactor this
     let out_xy = MaxPool2DChip::shape(inp, layer_config);
     let out_shape = vec![1, out_xy.0, out_xy.1, inp.shape()[3]];
-    println!("out_shape: {:?}", out_shape);
+    // println!("out_shape: {:?}", out_shape);
 
     let out = Array::from_shape_vec(IxDyn(&out_shape), dived).unwrap();
     Ok(vec![out])

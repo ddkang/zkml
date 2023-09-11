@@ -4,11 +4,11 @@ use std::{
   rc::Rc,
   sync::{Arc, Mutex},
 };
-
+// use blake2b_simd::{Params as Blake2bParams, State as Blake2bState};
 use halo2_proofs::{
   circuit::{Layouter, SimpleFloorPlanner, Value},
   halo2curves::ff::{FromUniformBytes, PrimeField},
-  plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance},
+  plonk::{Advice, Circuit, Column, ConstraintSystem, Error, FirstPhase, Instance, Challenge, SecondPhase},
 };
 use lazy_static::lazy_static;
 use ndarray::{Array, IxDyn};
@@ -96,6 +96,8 @@ pub struct ModelConfig<F: PrimeField + Ord + FromUniformBytes<64>> {
   pub gadget_config: Rc<GadgetConfig>,
   pub public_col: Column<Instance>,
   pub hasher: Option<PoseidonCommitChip<F, WIDTH, RATE, L>>,
+  pub challenge: Challenge,
+  pub rand_vector: Column<Advice>,
   pub _marker: PhantomData<F>,
 }
 
@@ -107,7 +109,7 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
     tensors: &BTreeMap<i64, Array<F, IxDyn>>,
   ) -> Result<BTreeMap<i64, AssignedTensor<F>>, Error> {
     let tensors = layouter.assign_region(
-      || "asssignment",
+      || "assignment",
       |mut region| {
         let mut cell_idx = 0;
         let mut assigned_tensors = BTreeMap::new();
@@ -208,18 +210,21 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
 
         // TODO: I've made some very bad life decisions
         // TOOD: this needs to be a random oracle
-        let r_base = F::from(0x123456789abcdef);
-        let mut r = r_base.clone();
-        for i in 0..self.num_random {
-          let rand = region.assign_fixed(
-            || format!("rand_{}", i),
-            gadget_config.fixed_columns[0],
-            constants.len(),
-            || Value::known(r),
-          )?;
-          r = r * r_base;
-          constants.insert(RAND_START_IDX + (i as i64), Rc::new(rand));
-        }
+        // let r_base = F::from(0x123456789abcdef);
+        // let r_base = layouter.get_challenge();
+
+        // let mut r = challenge;
+        
+        // for i in 0..self.num_random {
+        //   let rand = region.assign_fixed(
+        //     || format!("rand_{}", i),
+        //     gadget_config.fixed_columns[0],
+        //     constants.len(),
+        //     || r,
+        //   )?;
+        //   r = r * challenge;
+        //   constants.insert(RAND_START_IDX + (i as i64), Rc::new(rand));
+        // }
 
         Ok(constants)
       },
@@ -263,21 +268,23 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
 
         // TODO: I've made some very bad life decisions
         // TOOD: this needs to be a random oracle
-        let r_base = F::from(0x123456789abcdef);
-        let mut r = r_base.clone();
-        for i in 0..self.num_random {
-          let assignment_idx = constants.len();
-          let row_idx = assignment_idx / gadget_config.columns.len();
-          let col_idx = assignment_idx % gadget_config.columns.len();
-          let rand = region.assign_advice(
-            || format!("rand_{}", i),
-            gadget_config.columns[col_idx],
-            row_idx,
-            || Value::known(r),
-          )?;
-          r = r * r_base;
-          constants.insert(RAND_START_IDX + (i as i64), Rc::new(rand));
-        }
+        // let r_base = F::from(0x123456789abcdef);
+        // let r_base = c.assign().unwrap_or(F::from(0x123456789abcdef));
+        // let mut r = challenge;
+
+        // for i in 0..self.num_random {
+        //   let assignment_idx = constants.len();
+        //   let row_idx = assignment_idx / gadget_config.columns.len();
+        //   let col_idx = assignment_idx % gadget_config.columns.len();
+        //   let rand = region.assign_advice(
+        //     || format!("rand_{}", i),
+        //     gadget_config.columns[col_idx],
+        //     row_idx,
+        //     || r,
+        //   )?;
+        //   r = r * challenge;
+        //   constants.insert(RAND_START_IDX + (i as i64), Rc::new(rand));
+        // }
 
         for (k, v) in fixed_constants.iter() {
           let v2 = constants.get(k).unwrap();
@@ -287,6 +294,34 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
       },
     )?;
     Ok(constants)
+  }
+
+  fn fill_random_vectors(
+    &self, 
+    mut layouter: impl Layouter<F>,
+    challenge: Challenge,
+    rand_vector: Column<Advice>,
+  ) -> Result<HashMap<i64, CellRc<F>>, Error> {
+    let c_base = layouter.get_challenge(challenge);
+    let mut c = c_base;
+    let rand_vec = layouter.assign_region(
+      || "random vector",
+      |mut region| {
+        let mut rand_vec: HashMap<i64, CellRc<F>> = HashMap::new();
+        for i in 0..self.num_random {
+          let rand = region.assign_advice(
+            || format!("rand_vec_{}", i),
+            rand_vector,
+            i.try_into().unwrap(),
+            || c,
+          )?;
+          c = c * c_base;
+          rand_vec.insert(i as i64, Rc::new(rand));
+        }
+        Ok(rand_vec)
+      }
+    )?;
+    Ok(rand_vec)
   }
 
   pub fn generate_from_file(config_file: &str, inp_file: &str) -> ModelCircuit<F> {
@@ -567,12 +602,25 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> Circuit<F> for ModelCircuit<F> 
 
   fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
     let mut gadget_config = crate::model::GADGET_CONFIG.lock().unwrap().clone();
-    let columns = (0..gadget_config.num_cols)
+    // TODO: Allocate less columns
+    let witness_columns = (0..gadget_config.num_cols)
       .map(|_| meta.advice_column())
       .collect::<Vec<_>>();
-    for col in columns.iter() {
-      meta.enable_equality(*col);
+    let c = meta.challenge_usable_after(FirstPhase);
+    let columns = (0..gadget_config.num_cols)
+      .map(|_| meta.advice_column_in(SecondPhase))
+      .collect::<Vec<_>>();
+    let rand_vector = meta.advice_column_in(SecondPhase);
+
+    for i in 0..gadget_config.num_cols {
+      meta.enable_equality(witness_columns[i]);
+      meta.enable_equality(columns[i]);
     }
+    
+    
+    meta.enable_equality(rand_vector);
+
+    gadget_config.witness_columns = witness_columns;
     gadget_config.columns = columns;
 
     let public_col = meta.instance_column();
@@ -637,11 +685,14 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> Circuit<F> for ModelCircuit<F> 
       gadget_config: gadget_config.into(),
       public_col,
       hasher,
+      challenge: c,
+      rand_vector,
       _marker: PhantomData,
     }
   }
 
   fn synthesize(&self, config: Self::Config, mut layouter: impl Layouter<F>) -> Result<(), Error> {
+
     // Assign tables
     let gadget_rc: Rc<GadgetConfig> = config.gadget_config.clone().into();
     for gadget in self.used_gadgets.iter() {
@@ -711,6 +762,15 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> Circuit<F> for ModelCircuit<F> 
       }
     }
 
+    // Assign extra space for challenge generation
+    self
+    .assign_tensors_vec(
+      layouter.namespace(|| "challenge generation"),
+      &config.gadget_config.witness_columns,
+      &self.tensors,
+    )
+    .unwrap();
+
     // Assign weights and constants
     let constants_base = self
       .assign_constants(
@@ -718,6 +778,7 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> Circuit<F> for ModelCircuit<F> 
         config.gadget_config.clone(),
       )
       .unwrap();
+
     // Some halo2 cancer
     let constants = self
       .assign_constants2(
@@ -780,12 +841,20 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> Circuit<F> for ModelCircuit<F> 
         .unwrap()
     };
 
+    // Create Randomness Vector
+    let rand_vector = self.fill_random_vectors(
+      layouter.namespace(|| "randomness"), 
+      config.challenge, 
+      config.rand_vector
+    )?;
+
     // Perform the dag
     let dag_chip = DAGLayerChip::<F>::construct(self.dag_config.clone());
     let (final_tensor_map, result) = dag_chip.forward(
       layouter.namespace(|| "dag"),
       &tensors,
       &constants,
+      &rand_vector,
       config.gadget_config.clone(),
       &LayerConfig::default(),
     )?;

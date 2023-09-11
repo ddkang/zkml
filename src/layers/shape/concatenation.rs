@@ -18,6 +18,7 @@ impl<F: PrimeField> Layer<F> for ConcatenationChip {
     _layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,
     _constants: &HashMap<i64, CellRc<F>>,
+    _rand_vector: &HashMap<i64, CellRc<F>>,
     _gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {

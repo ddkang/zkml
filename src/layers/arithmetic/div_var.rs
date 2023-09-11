@@ -46,6 +46,7 @@ impl<F: PrimeField> Layer<F> for DivVarChip {
     mut layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, CellRc<F>>,
+    _rand_vector: &HashMap<i64, CellRc<F>>,
     gadget_config: Rc<GadgetConfig>,
     _layer_config: &crate::layers::layer::LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
