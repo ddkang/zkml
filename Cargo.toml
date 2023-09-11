@@ -30,7 +30,6 @@ ndarray = "0.15.6"
 num-bigint = "0.4.3"
 num-traits = "0.2.15"
 once_cell = "1.15.0"
-plonkish_backend = { path="../plonkish/plonkish_backend", features=["benchmark"]}
 rand = "0.8.5"
 rmp-serde = "1.1.1"
 rounded-div = "0.1.2"
