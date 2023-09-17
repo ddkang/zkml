@@ -1,7 +1,7 @@
 use std::{marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
-  circuit::{AssignedCell, Layouter, Region},
+  circuit::{AssignedCell, Layouter, Region, Value},
   halo2curves::ff::PrimeField,
   plonk::{Advice, Column, ConstraintSystem, Error, Expression},
   poly::Rotation,
@@ -144,8 +144,8 @@ impl<F: PrimeField> Gadget<F> for DotProductChip<F> {
     let e = inp
       .iter()
       .zip(weights.iter())
-      .map(|(a, b)| (a.0.value().map(|x: &F| *x) * b.0.value(), a.1 * b.1))
-      .reduce(|a, b| (a.0 + b.0, a.1 + b.1))
+      .map(|(a, b)|  a.1 * b.1)
+      .reduce(|a, b| a + b)
       .unwrap();
 
     let res = region
@@ -153,11 +153,11 @@ impl<F: PrimeField> Gadget<F> for DotProductChip<F> {
         || "",
         self.config.columns[self.config.columns.len() - 1],
         row_offset,
-        || e.0,
+        || Value::known(e),
       )
       .unwrap();
 
-    Ok(vec![(res, e.1)])
+    Ok(vec![(res, e)])
   }
 
   fn forward(
