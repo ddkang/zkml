@@ -20,7 +20,7 @@ use super::{
 pub struct AvgPool2DChip {}
 
 impl<F: PrimeField> Averager<F> for AvgPool2DChip {
-  fn splat(&self, input: &AssignedTensor<F>, layer_config: &LayerConfig) -> Vec<Vec<CellRc<F>>> {
+  fn splat(&self, input: &AssignedTensor<F>, layer_config: &LayerConfig) -> Vec<Vec<(CellRc<F>,F)>> {
     assert_eq!(input.shape().len(), 4);
     // Don't support batch size > 1 yet
     assert_eq!(input.shape()[0], 1);
@@ -35,11 +35,11 @@ impl<F: PrimeField> Averager<F> for AvgPool2DChip {
     _tensors: &Vec<AssignedTensor<F>>,
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
-  ) -> Result<AssignedCell<F, F>, Error> {
+  ) -> Result<(AssignedCell<F, F>,F), Error> {
     // FIXME: this needs to be revealed
     let div = layer_config.layer_params[0] * layer_config.layer_params[1];
     let div = F::from(div as u64);
-    let div = layouter
+    let divc = layouter
       .assign_region(
         || "avg pool 2d div",
         |mut region| {
@@ -53,10 +53,9 @@ impl<F: PrimeField> Averager<F> for AvgPool2DChip {
             .unwrap();
           Ok(div)
         },
-      )
-      .unwrap();
+      )?;
 
-    Ok(div)
+    Ok((divc, div))
   }
 }
 

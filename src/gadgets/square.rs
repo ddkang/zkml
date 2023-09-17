@@ -1,7 +1,7 @@
 use std::{marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
-  circuit::{AssignedCell, Region},
+  circuit::{AssignedCell, Region, Value},
   halo2curves::ff::PrimeField,
   plonk::{ConstraintSystem, Error},
   poly::Rotation,
@@ -69,9 +69,9 @@ impl<F: PrimeField> Gadget<F> for SquareGadgetChip<F> {
     &self,
     region: &mut Region<F>,
     row_offset: usize,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    _single_inputs: &Vec<&AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    _single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     assert_eq!(vec_inputs.len(), 1);
 
     if self.config.use_selectors {
@@ -83,15 +83,15 @@ impl<F: PrimeField> Gadget<F> for SquareGadgetChip<F> {
     let mut outp = vec![];
     for (i, inp) in inps.iter().enumerate() {
       let offset = i * self.num_cols_per_op();
-      inp.copy_advice(|| "", region, self.config.columns[offset], row_offset)?;
-      let outp_val = inp.value().map(|x: &F| x.to_owned() * x.to_owned());
+      inp.0.copy_advice(|| "", region, self.config.columns[offset], row_offset)?;
+      let outp_val = inp.1 * inp.1;
       let outp_cell = region.assign_advice(
         || "square output",
         self.config.columns[offset + 1],
         row_offset,
-        || outp_val,
+        || Value::known(outp_val),
       )?;
-      outp.push(outp_cell);
+      outp.push((outp_cell, outp_val));
     }
 
     Ok(outp)
@@ -100,15 +100,15 @@ impl<F: PrimeField> Gadget<F> for SquareGadgetChip<F> {
   fn forward(
     &self,
     mut layouter: impl halo2_proofs::circuit::Layouter<F>,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    single_inputs: &Vec<&AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     let zero = &single_inputs[0];
 
     let mut inp = vec_inputs[0].clone();
     let initial_len = inp.len();
     while inp.len() % self.num_inputs_per_row() != 0 {
-      inp.push(zero);
+      inp.push(*zero);
     }
 
     let vec_inputs = vec![inp];

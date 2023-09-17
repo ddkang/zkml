@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use halo2_proofs::{
-  circuit::{AssignedCell, Layouter, Region},
+  circuit::{AssignedCell, Layouter, Region, Value},
   halo2curves::ff::PrimeField,
   plonk::{ConstraintSystem, Error, Expression},
   poly::Rotation,
@@ -106,9 +106,9 @@ impl<F: PrimeField + Ord> Gadget<F> for UpdateGadgetChip<F> {
     &self,
     region: &mut Region<F>,
     row_offset: usize,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    _single_inputs: &Vec<&AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    _single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     let div_val = self.config.scale_factor as i64;
     let div_val_f = F::from(div_val as u64);
     let eta = div_val / 1000;
@@ -132,15 +132,15 @@ impl<F: PrimeField + Ord> Gadget<F> for UpdateGadgetChip<F> {
 
     for i in 0..w.len() {
       let offset = i * self.num_cols_per_op();
-      let _w_cell = w[i].copy_advice(|| "", region, columns[offset + 0], row_offset)?;
-      let _dw_cell = dw[i].copy_advice(|| "", region, columns[offset + 1], row_offset)?;
+      let _w_cell = w[i].0.copy_advice(|| "", region, columns[offset + 0], row_offset)?;
+      let _dw_cell = dw[i].0.copy_advice(|| "", region, columns[offset + 1], row_offset)?;
 
-      let w_val = w[i].value().map(|x: &F| x.to_owned());
-      let dw_val = dw[i].value().map(|x: &F| x.to_owned());
-      let out_scaled = w_val.zip(dw_val).map(|(w, dw)| w * div_val_f - dw * eta);
+      let w_val = w[i].1;
+      let dw_val = dw[i].1;
+      let out_scaled = w_val * div_val_f - dw_val * eta;
 
-      let div_mod = out_scaled.map(|x| {
-        let x_pos = x + div_inp_min_val_pos;
+      let div_mod =  {
+        let x_pos = out_scaled + div_inp_min_val_pos;
         let x_pos = if x_pos > F::ZERO {
           x_pos
         } else {
@@ -151,7 +151,7 @@ impl<F: PrimeField + Ord> Gadget<F> for UpdateGadgetChip<F> {
         let div_res = inp as i64 / div_val - (div_inp_min_val_pos_i64 as i64 / div_val);
         let mod_res = inp as i64 % div_val;
         (div_res, mod_res)
-      });
+      };
 
       let div_res_cell = region
         .assign_advice(
@@ -159,9 +159,9 @@ impl<F: PrimeField + Ord> Gadget<F> for UpdateGadgetChip<F> {
           self.config.columns[offset + 2],
           row_offset,
           || {
-            div_mod.map(|(x, _): (i64, i64)| {
-              F::from((x - div_outp_min_val as i64) as u64) - F::from(-div_outp_min_val as u64)
-            })
+              Value::known(
+                F::from((div_mod.0 - div_outp_min_val as i64) as u64) - F::from(-div_outp_min_val as u64)
+              )
           },
         )
         .unwrap();
@@ -171,11 +171,14 @@ impl<F: PrimeField + Ord> Gadget<F> for UpdateGadgetChip<F> {
           || "mod_res",
           self.config.columns[offset + 3],
           row_offset,
-          || div_mod.map(|(_, x): (i64, i64)| F::from(x as u64)),
+          || Value::known(F::from(div_mod.1 as u64)),
         )
         .unwrap();
 
-      output_cells.push(div_res_cell);
+      output_cells.push((
+        div_res_cell,
+        F::from((div_mod.0 - div_outp_min_val as i64) as u64) - F::from(-div_outp_min_val as u64)
+      ));
     }
     Ok(output_cells)
   }
@@ -183,19 +186,19 @@ impl<F: PrimeField + Ord> Gadget<F> for UpdateGadgetChip<F> {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    single_inputs: &Vec<&AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     let zero = &single_inputs[0];
     let mut w = vec_inputs[0].clone();
     let mut dw = vec_inputs[1].clone();
 
     let initial_len = w.len();
     while !w.len() % self.num_cols_per_op() == 0 {
-      w.push(zero);
+      w.push(*zero);
     }
     while !dw.len() % self.num_cols_per_op() == 0 {
-      dw.push(zero);
+      dw.push(*zero);
     }
 
     let res = self.op_aligned_rows(

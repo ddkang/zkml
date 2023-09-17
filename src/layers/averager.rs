@@ -12,7 +12,7 @@ use crate::gadgets::{adder::AdderChip, gadget::GadgetConfig, var_div::VarDivRoun
 use super::layer::{AssignedTensor, CellRc, LayerConfig};
 
 pub trait Averager<F: PrimeField> {
-  fn splat(&self, input: &AssignedTensor<F>, layer_config: &LayerConfig) -> Vec<Vec<CellRc<F>>>;
+  fn splat(&self, input: &AssignedTensor<F>, layer_config: &LayerConfig) -> Vec<Vec<(CellRc<F>, F)>>;
 
   fn get_div_val(
     &self,
@@ -20,7 +20,7 @@ pub trait Averager<F: PrimeField> {
     tensors: &Vec<AssignedTensor<F>>,
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
-  ) -> Result<AssignedCell<F, F>, Error>;
+  ) -> Result<(AssignedCell<F, F>, F), Error>;
 
   fn avg_forward(
     &self,
@@ -29,7 +29,7 @@ pub trait Averager<F: PrimeField> {
     constants: &HashMap<i64, CellRc<F>>,
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
-  ) -> Result<Vec<CellRc<F>>, Error> {
+  ) -> Result<Vec<(CellRc<F>, F)>, Error> {
     // Due to Mean BS
     // assert_eq!(tensors.len(), 1);
     let zero = constants.get(&0).unwrap().as_ref();
@@ -38,10 +38,10 @@ pub trait Averager<F: PrimeField> {
     let splat_inp = self.splat(inp, layer_config);
 
     let adder_chip = AdderChip::<F>::construct(gadget_config.clone());
-    let single_inputs = vec![zero];
+    let single_inputs = vec![(zero, F::ZERO)];
     let mut added = vec![];
     for i in 0..splat_inp.len() {
-      let tmp = splat_inp[i].iter().map(|x| x.as_ref()).collect::<Vec<_>>();
+      let tmp = splat_inp[i].iter().map(|x| (x.0.as_ref(), x.1)).collect::<Vec<_>>();
       let tmp = adder_chip.forward(
         layouter.namespace(|| format!("average {}", i)),
         &vec![tmp],
@@ -56,16 +56,18 @@ pub trait Averager<F: PrimeField> {
       gadget_config.clone(),
       layer_config,
     )?;
+    let div = (&div.0, div.1);
+
     let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
 
-    let single_inputs = vec![zero, &div];
-    let added = added.iter().map(|x| x).collect::<Vec<_>>();
+    let single_inputs = vec![(zero, F::ZERO), div];
+    let added = added.iter().map(|x| (&x.0, x.1)).collect::<Vec<_>>();
     let dived = var_div_chip.forward(
       layouter.namespace(|| "average div"),
       &vec![added],
       &single_inputs,
     )?;
-    let dived = dived.into_iter().map(|x| Rc::new(x)).collect::<Vec<_>>();
+    let dived = dived.into_iter().map(|x| (Rc::new(x.0), x.1)).collect::<Vec<_>>();
 
     Ok(dived)
   }

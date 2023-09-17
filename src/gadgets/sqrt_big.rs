@@ -1,7 +1,7 @@
 use std::{marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
-  circuit::{AssignedCell, Layouter, Region},
+  circuit::{AssignedCell, Layouter, Region, Value},
   halo2curves::ff::PrimeField,
   plonk::{ConstraintSystem, Error, Expression},
   poly::Rotation,
@@ -116,9 +116,9 @@ impl<F: PrimeField> Gadget<F> for SqrtBigChip<F> {
     &self,
     region: &mut Region<F>,
     row_offset: usize,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    _single_inputs: &Vec<&AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    _single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     let inps = &vec_inputs[0];
 
     if self.config.use_selectors {
@@ -129,26 +129,26 @@ impl<F: PrimeField> Gadget<F> for SqrtBigChip<F> {
     let mut outp_cells = vec![];
     for (i, inp) in inps.iter().enumerate() {
       let offset = i * self.num_cols_per_op();
-      inp.copy_advice(
+      inp.0.copy_advice(
         || "sqrt_big",
         region,
         self.config.columns[offset],
         row_offset,
       )?;
 
-      let outp = inp.value().map(|x: &F| {
-        let inp_val = convert_to_u64(x) as i64;
+      let outp = {
+        let inp_val = convert_to_u64(&inp.1) as i64;
         let fsqrt = (inp_val as f64).sqrt();
         let sqrt = fsqrt.round() as i64;
         let rem = inp_val - sqrt * sqrt;
         (sqrt, rem)
-      });
+      };
 
       let sqrt_cell = region.assign_advice(
         || "sqrt_big",
         self.config.columns[offset + 1],
         row_offset,
-        || outp.map(|x| F::from(x.0 as u64)),
+        || Value::known(F::from(outp.0 as u64)),
       )?;
 
       let _rem_cell = region.assign_advice(
@@ -156,13 +156,14 @@ impl<F: PrimeField> Gadget<F> for SqrtBigChip<F> {
         self.config.columns[offset + 2],
         row_offset,
         || {
-          outp.map(|x| {
-            let rem_pos = x.1 + x.0;
-            F::from(rem_pos as u64) - F::from(x.0 as u64)
-          })
+          let tmp = {
+            let rem_pos = outp.1 + outp.0;
+            F::from(rem_pos as u64) - F::from(outp.0 as u64)
+          };
+          Value::known(tmp)
         },
       )?;
-      outp_cells.push(sqrt_cell);
+      outp_cells.push((sqrt_cell, F::from(outp.0 as u64)));
     }
 
     Ok(outp_cells)
@@ -171,15 +172,15 @@ impl<F: PrimeField> Gadget<F> for SqrtBigChip<F> {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    single_inputs: &Vec<&AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     let zero = &single_inputs[0];
 
     let mut inp = vec_inputs[0].clone();
     let inp_len = inp.len();
     while inp.len() % self.num_inputs_per_row() != 0 {
-      inp.push(zero);
+      inp.push(*zero);
     }
 
     let vec_inputs = vec![inp];

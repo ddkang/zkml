@@ -15,11 +15,11 @@ use crate::{
 use super::super::layer::{Layer, LayerConfig};
 
 // TODO: figure out where to put this
-pub fn pad<G: Clone>(
-  input: &Array<Rc<G>, IxDyn>,
+pub fn pad<G: Clone, F: PrimeField>(
+  input: &Array<(Rc<G>, F), IxDyn>,
   padding: Vec<[usize; 2]>,
-  pad_val: &Rc<G>,
-) -> Array<Rc<G>, IxDyn> {
+  pad_val: &(Rc<G>, F),
+) -> Array<(Rc<G>, F), IxDyn> {
   let tmp = input.iter().collect();
   let input = Array::from_shape_vec(input.raw_dim(), tmp).unwrap();
   assert_eq!(input.ndim(), padding.len());
@@ -85,7 +85,7 @@ impl<F: PrimeField> Layer<F> for PadChip {
 
     let zero = constants.get(&0).unwrap().clone();
     let padding = PadChip::param_vec_to_config(layer_config.layer_params.clone());
-    let padded = pad(input, padding.padding, &zero);
+    let padded = pad(input, padding.padding, &(zero, F::ZERO));
 
     Ok(vec![padded])
   }

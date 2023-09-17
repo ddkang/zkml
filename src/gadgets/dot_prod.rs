@@ -94,9 +94,9 @@ impl<F: PrimeField> Gadget<F> for DotProductChip<F> {
     &self,
     region: &mut Region<F>,
     row_offset: usize,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    single_inputs: &Vec<&AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>,F)>>,
+    single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     assert_eq!(vec_inputs.len(), 2);
 
     let inp = &vec_inputs[0];
@@ -116,7 +116,7 @@ impl<F: PrimeField> Gadget<F> for DotProductChip<F> {
     inp
       .iter()
       .enumerate()
-      .map(|(i, cell)| cell.copy_advice(|| "", region, inp_cols[i], row_offset))
+      .map(|(i, cell)| cell.0.copy_advice(|| "", region, inp_cols[i], row_offset))
       .collect::<Result<Vec<_>, _>>()
       .unwrap();
 
@@ -124,13 +124,14 @@ impl<F: PrimeField> Gadget<F> for DotProductChip<F> {
     weights
       .iter()
       .enumerate()
-      .map(|(i, cell)| cell.copy_advice(|| "", region, weight_cols[i], row_offset))
+      .map(|(i, cell)| cell.0.copy_advice(|| "", region, weight_cols[i], row_offset))
       .collect::<Result<Vec<_>, _>>()
       .unwrap();
 
     // All columns need to be assigned
     if self.config.columns.len() % 2 == 0 {
       zero
+        .0
         .copy_advice(
           || "",
           region,
@@ -143,8 +144,8 @@ impl<F: PrimeField> Gadget<F> for DotProductChip<F> {
     let e = inp
       .iter()
       .zip(weights.iter())
-      .map(|(a, b)| a.value().map(|x: &F| *x) * b.value())
-      .reduce(|a, b| a + b)
+      .map(|(a, b)| (a.0.value().map(|x: &F| *x) * b.0.value(), a.1 * b.1))
+      .reduce(|a, b| (a.0 + b.0, a.1 + b.1))
       .unwrap();
 
     let res = region
@@ -152,19 +153,19 @@ impl<F: PrimeField> Gadget<F> for DotProductChip<F> {
         || "",
         self.config.columns[self.config.columns.len() - 1],
         row_offset,
-        || e,
+        || e.0,
       )
       .unwrap();
 
-    Ok(vec![res])
+    Ok(vec![(res, e.1)])
   }
 
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    single_inputs: &Vec<&AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     assert_eq!(vec_inputs.len(), 2);
     assert_eq!(single_inputs.len(), 1);
     let zero = &single_inputs[0];
@@ -172,8 +173,8 @@ impl<F: PrimeField> Gadget<F> for DotProductChip<F> {
     let mut inputs = vec_inputs[0].clone();
     let mut weights = vec_inputs[1].clone();
     while inputs.len() % self.num_inputs_per_row() != 0 {
-      inputs.push(&zero);
-      weights.push(&zero);
+      inputs.push(*zero);
+      weights.push(*zero);
     }
 
     let outputs = layouter
@@ -197,7 +198,7 @@ impl<F: PrimeField> Gadget<F> for DotProductChip<F> {
       .unwrap();
 
     let adder_chip = AdderChip::<F>::construct(self.config.clone());
-    let tmp = outputs.iter().map(|x| x).collect::<Vec<_>>();
+    let tmp = outputs.iter().map(|x| (&x.0, x.1)).collect::<Vec<_>>();
     Ok(
       adder_chip
         .forward(

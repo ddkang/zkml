@@ -36,10 +36,10 @@ impl<F: PrimeField> Layer<F> for SquaredDiffChip {
     let zero = constants.get(&0).unwrap().as_ref();
 
     let sq_diff_chip = SquaredDiffGadgetChip::<F>::construct(gadget_config.clone());
-    let inp1_vec = inp1.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
-    let inp2_vec = inp2.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
+    let inp1_vec = inp1.iter().map(|x| (x.0.as_ref(), x.1)).collect::<Vec<_>>();
+    let inp2_vec = inp2.iter().map(|x| (x.0.as_ref(), x.1)).collect::<Vec<_>>();
     let vec_inputs = vec![inp1_vec, inp2_vec];
-    let tmp_constants = vec![zero];
+    let tmp_constants = vec![(zero, F::ZERO)];
     let out = sq_diff_chip.forward(
       layouter.namespace(|| "sq diff chip"),
       &vec_inputs,
@@ -52,15 +52,19 @@ impl<F: PrimeField> Layer<F> for SquaredDiffChip {
       .unwrap()
       .as_ref();
 
-    let single_inputs = vec![zero, div];
-    let out = out.iter().map(|x| x).collect::<Vec<_>>();
+    // TOCHECK
+    let single_inputs = vec![
+      (zero, F::ZERO), 
+      (div, div.value().cloned().assign().unwrap())
+    ];
+    let out = out.iter().map(|x| (&x.0, x.1)).collect::<Vec<_>>();
     let out = var_div_chip.forward(
       layouter.namespace(|| "sq diff div"),
       &vec![out],
       &single_inputs,
     )?;
 
-    let out = out.into_iter().map(|x| Rc::new(x)).collect::<Vec<_>>();
+    let out = out.into_iter().map(|x| (Rc::new(x.0), x.1)).collect::<Vec<_>>();
     let out = Array::from_shape_vec(IxDyn(inp1.shape()), out).unwrap();
 
     Ok(vec![out])

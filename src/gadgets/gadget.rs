@@ -101,17 +101,17 @@ pub trait Gadget<F: PrimeField> {
     &self,
     region: &mut Region<F>,
     row_offset: usize,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    single_inputs: &Vec<&AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error>;
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
+  ) -> Result<Vec<(AssignedCell<F, F>,F)>, Error>;
 
   // The caller is required to ensure that the inputs are of the correct length.
   fn op_aligned_rows(
     &self,
     mut layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    single_inputs: &Vec<&AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     // Sanity check inputs
     for inp in vec_inputs.iter() {
       assert_eq!(inp.len() % self.num_inputs_per_row(), 0);
@@ -142,9 +142,9 @@ pub trait Gadget<F: PrimeField> {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    single_inputs: &Vec<&AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     self.op_aligned_rows(
       layouter.namespace(|| format!("forward row {}", self.name())),
       vec_inputs,

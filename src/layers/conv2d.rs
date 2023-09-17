@@ -125,9 +125,9 @@ impl<F: PrimeField> Conv2DChip<F> {
 
   pub fn splat<G: Clone>(
     &self,
-    tensors: &Vec<Array<Rc<G>, IxDyn>>,
+    tensors: &Vec<Array<(Rc<G>, F), IxDyn>>,
     zero: Rc<G>,
-  ) -> (Vec<Vec<Rc<G>>>, Vec<Vec<Rc<G>>>, Vec<Rc<G>>) {
+  ) -> (Vec<Vec<(Rc<G>, F)>>, Vec<Vec<(Rc<G>, F)>>, Vec<(Rc<G>, F)>) {
     // assert_eq!(tensors.len(), 3);
     assert!(tensors.len() <= 3);
 
@@ -135,7 +135,7 @@ impl<F: PrimeField> Conv2DChip<F> {
 
     let inp = &tensors[0];
     let weights = &tensors[1];
-    let zero_arr = Array::from_elem(IxDyn(&vec![1]), zero.clone());
+    let zero_arr = Array::from_elem(IxDyn(&vec![1]), (zero.clone(), F::ZERO));
     let biases = if tensors.len() == 3 {
       &tensors[2]
     } else {
@@ -161,7 +161,7 @@ impl<F: PrimeField> Conv2DChip<F> {
     // println!("Padding: {:?}", (ph, pw));
     let padding = vec![[0, 0], [ph.0, ph.1], [pw.0, pw.1], [0, 0]];
 
-    let inp_pad = pad(&inp, padding, &zero);
+    let inp_pad = pad(&inp, padding, &(zero.clone(), F::ZERO));
 
     let (oh, ow) = Self::out_hw(h, w, si, sj, ch, cw, conv_config.padding);
 
@@ -210,7 +210,7 @@ impl<F: PrimeField> Conv2DChip<F> {
             if tensors.len() == 3 {
               biases_cells.push(biases[chan_out].clone());
             } else {
-              biases_cells.push(zero.clone());
+              biases_cells.push((zero.clone(), F::ZERO));
             }
           }
         }
@@ -222,9 +222,9 @@ impl<F: PrimeField> Conv2DChip<F> {
 
   pub fn splat_depthwise<G: Clone>(
     &self,
-    tensors: &Vec<Array<Rc<G>, IxDyn>>,
+    tensors: &Vec<Array<(Rc<G>, F), IxDyn>>,
     zero: Rc<G>,
-  ) -> (Vec<Vec<Rc<G>>>, Vec<Vec<Rc<G>>>, Vec<Rc<G>>) {
+  ) -> (Vec<Vec<(Rc<G>, F)>>, Vec<Vec<(Rc<G>, F)>>, Vec<(Rc<G>, F)>) {
     let input = &tensors[0];
     let weights = &tensors[1];
     let biases = &tensors[2];
@@ -252,7 +252,7 @@ impl<F: PrimeField> Conv2DChip<F> {
 
     let padding = vec![[0, 0], [ph.0, ph.1], [pw.0, pw.1], [0, 0]];
 
-    let inp_pad = pad(&input, padding, &zero);
+    let inp_pad = pad(&input, padding, &(zero, F::ZERO));
 
     let mut inp_cells = vec![];
     let mut weight_cells = vec![];
@@ -317,7 +317,7 @@ impl<F: PrimeField> Layer<F> for Conv2DChip<F> {
       ConvLayerEnum::DepthwiseConv2D => self.splat_depthwise(tensors, zero.clone()),
     };
 
-    let outp_flat: Vec<AssignedCell<F, F>> = match conv_config.conv_type {
+    let outp_flat: Vec<(AssignedCell<F, F>, F)> = match conv_config.conv_type {
       ConvLayerEnum::Conv2D => {
         let fc_chip = FullyConnectedChip::<F> {
           _marker: PhantomData,
@@ -352,7 +352,7 @@ impl<F: PrimeField> Layer<F> for Conv2DChip<F> {
         let outp_flat = outp_slice[0]
           .t()
           .into_iter()
-          .map(|x| (**x).clone())
+          .map(|x| (x.0.as_ref().clone(), x.1).clone())
           .collect::<Vec<_>>();
         outp_flat
       }
@@ -361,10 +361,10 @@ impl<F: PrimeField> Layer<F> for Conv2DChip<F> {
         let dot_prod_chip = DotProductChip::<F>::construct(gadget_config.clone());
         let mut outp_flat = vec![];
         for (inp_vec, weight_vec) in splat_inp.iter().zip(splat_weights.iter()) {
-          let inp_vec = inp_vec.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
-          let weight_vec = weight_vec.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
+          let inp_vec = inp_vec.iter().map(|x| (x.0.as_ref(), x.1)).collect::<Vec<_>>();
+          let weight_vec = weight_vec.iter().map(|x| (x.0.as_ref(), x.1)).collect::<Vec<_>>();
           let vec_inputs = vec![inp_vec, weight_vec];
-          let constants = vec![zero.as_ref()];
+          let constants = vec![(zero.as_ref(), F::ZERO)];
           let outp = dot_prod_chip
             .forward(layouter.namespace(|| "dot_prod"), &vec_inputs, &constants)
             .unwrap();
@@ -378,13 +378,13 @@ impl<F: PrimeField> Layer<F> for Conv2DChip<F> {
 
     let mut biases = vec![];
     for bias in splat_biases.iter() {
-      biases.push(bias.as_ref());
+      biases.push((bias.0.as_ref(), bias.1));
     }
 
     // Compute the bias + div + relu
     let bdr_chip = BiasDivRoundRelu6Chip::<F>::construct(gadget_config.clone());
-    let tmp = vec![zero.as_ref()];
-    let outp_flat = outp_flat.iter().map(|x| x).collect::<Vec<_>>();
+    let tmp = vec![(zero.as_ref(), F::ZERO)];
+    let outp_flat = outp_flat.iter().map(|x| (&x.0, x.1)).collect::<Vec<_>>();
     let outp = bdr_chip
       .forward(
         layouter.namespace(|| "bias_div_relu"),
@@ -399,24 +399,24 @@ impl<F: PrimeField> Layer<F> for Conv2DChip<F> {
       outp
         .into_iter()
         .step_by(2)
-        .map(|x| Rc::new(x))
+        .map(|x| (Rc::new(x.0), x.1))
         .collect::<Vec<_>>()
     } else if conv_config.activation == ActivationType::None {
       outp
         .into_iter()
         .skip(1)
         .step_by(2)
-        .map(|x| Rc::new(x))
+        .map(|x| (Rc::new(x.0), x.1))
         .collect::<Vec<_>>()
     } else if conv_config.activation == ActivationType::Relu {
-      let dived = outp.iter().skip(1).step_by(2).collect::<Vec<_>>();
+      let dived = outp.iter().skip(1).step_by(2).map(|x| (&x.0, x.1)).collect::<Vec<_>>();
       let relu_chip = ReluChip::<F>::construct(gadget_config.clone());
       let relu_outp = relu_chip
         .forward(layouter.namespace(|| "relu"), &vec![dived], &tmp)
         .unwrap();
       let relu_outp = relu_outp
         .into_iter()
-        .map(|x| Rc::new(x))
+        .map(|x| (Rc::new(x.0), x.1))
         .collect::<Vec<_>>();
       relu_outp
     } else {

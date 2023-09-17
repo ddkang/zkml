@@ -76,9 +76,9 @@ impl<F: PrimeField> Gadget<F> for AdderChip<F> {
     &self,
     region: &mut Region<F>,
     row_offset: usize,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    _single_inputs: &Vec<&AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    _single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     assert_eq!(vec_inputs.len(), 1);
     let inp = &vec_inputs[0];
 
@@ -90,35 +90,35 @@ impl<F: PrimeField> Gadget<F> for AdderChip<F> {
     inp
       .iter()
       .enumerate()
-      .map(|(i, cell)| cell.copy_advice(|| "", region, self.config.columns[i], row_offset))
+      .map(|(i, cell)| cell.0.copy_advice(|| "", region, self.config.columns[i], row_offset))
       .collect::<Result<Vec<_>, _>>()?;
 
-    let e = inp.iter().fold(Value::known(F::ZERO), |a, b| {
-      a + b.value().map(|x: &F| x.to_owned())
+    let e = inp.iter().fold(F::ZERO, |a, b| {
+      a + b.1
     });
     let res = region.assign_advice(
       || "",
       *self.config.columns.last().unwrap(),
       row_offset,
-      || e,
+      || Value::known(e),
     )?;
 
-    Ok(vec![res])
+    Ok(vec![(res, e)])
   }
 
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    single_inputs: &Vec<&AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     assert_eq!(single_inputs.len(), 1);
 
     let mut inputs = vec_inputs[0].clone();
     let zero = single_inputs[0].clone();
 
     while inputs.len() % self.num_inputs_per_row() != 0 {
-      inputs.push(&zero);
+      inputs.push(zero);
     }
 
     let mut outputs = self.op_aligned_rows(
@@ -128,9 +128,9 @@ impl<F: PrimeField> Gadget<F> for AdderChip<F> {
     )?;
     while outputs.len() != 1 {
       while outputs.len() % self.num_inputs_per_row() != 0 {
-        outputs.push(zero.clone());
+        outputs.push((zero.0.clone(), zero.1));
       }
-      let tmp = outputs.iter().map(|x| x).collect::<Vec<_>>();
+      let tmp = outputs.iter().map(|x| (&x.0, x.1)).collect::<Vec<_>>();
       outputs = self.op_aligned_rows(
         layouter.namespace(|| "adder forward"),
         &vec![tmp],

@@ -40,7 +40,11 @@ impl<F: PrimeField> Layer<F> for MaskNegInfChip {
       if *to_mask == 0 {
         out_vec.push(val.clone());
       } else {
-        out_vec.push(min_val.clone());
+        out_vec.push((
+          min_val.clone(), 
+          // TOCHECK
+          min_val.value().copied().assign().unwrap()
+        ));
       }
     }
 

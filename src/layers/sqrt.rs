@@ -41,24 +41,34 @@ impl<F: PrimeField> Layer<F> for SqrtChip {
       if mask_map.contains_key(&i) {
         let mask_val = *mask_map.get(&i).unwrap();
         if mask_val == 1 {
-          inp_vec.push(max_val);
+          // TOCHECK
+          inp_vec.push(
+            (max_val, max_val.value().cloned().assign().unwrap())
+          );
         } else if mask_val == -1 {
-          inp_vec.push(min_val);
+          inp_vec.push(
+            (min_val, min_val.value().cloned().assign().unwrap())
+          );
         } else {
           panic!();
         }
       } else {
-        inp_vec.push(val.as_ref());
+        inp_vec.push((val.0.as_ref(), val.1));
       }
     }
 
     let zero = constants.get(&0).unwrap().as_ref();
     let sqrt_chip = SqrtGadgetChip::<F>::construct(gadget_config.clone());
     let vec_inps = vec![inp_vec];
-    let constants = vec![zero, min_val, max_val];
+    // TOCHECK
+    let constants = vec![
+      (zero, F::ZERO), 
+      (min_val, min_val.value().cloned().assign().unwrap()), 
+      (max_val, max_val.value().cloned().assign().unwrap())
+    ];
     let out = sqrt_chip.forward(layouter.namespace(|| "sqrt chip"), &vec_inps, &constants)?;
 
-    let out = out.into_iter().map(|x| Rc::new(x)).collect::<Vec<_>>();
+    let out = out.into_iter().map(|x| (Rc::new(x.0), x.1)).collect::<Vec<_>>();
     let out = Array::from_shape_vec(IxDyn(inp.shape()), out).unwrap();
 
     Ok(vec![out])

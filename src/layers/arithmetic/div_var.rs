@@ -25,10 +25,10 @@ impl<F: PrimeField> Arithmetic<F> for DivVarChip {
   fn gadget_forward(
     &self,
     mut layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    constants: &Vec<&AssignedCell<F, F>>,
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    constants: &Vec<(&AssignedCell<F, F>, F)>,
     gadget_config: Rc<GadgetConfig>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     let mul_pairs_chip = MulPairsChip::<F>::construct(gadget_config.clone());
 
     let out = mul_pairs_chip.forward(
@@ -60,7 +60,9 @@ impl<F: PrimeField> Layer<F> for DivVarChip {
       .unwrap()
       .as_ref();
 
-    let sf_tensor = Array::from_shape_vec(IxDyn(&[1]), vec![Rc::new(sf.clone())]).unwrap();
+    // TOCHECK
+    let sf_tensor = 
+      Array::from_shape_vec(IxDyn(&[1]), vec![(Rc::new(sf.clone()), sf.value().cloned().assign().unwrap())]).unwrap();
 
     // out = inp * SF
     let (out, out_shape) = self.arithmetic_forward(
@@ -71,13 +73,13 @@ impl<F: PrimeField> Layer<F> for DivVarChip {
     )?;
 
     let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
-    let div = tensors[1].iter().next().unwrap().as_ref();
-    let zero = constants.get(&0).unwrap().as_ref();
+    let div = tensors[1].iter().next().map(|x| (x.0.as_ref(), x.1)).unwrap();
+    let zero = (constants.get(&0).unwrap().as_ref(), F::ZERO);
     let single_inputs = vec![zero, div];
-    let out = out.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
+    let out = out.iter().map(|x| (x.0.as_ref(), x.1)).collect::<Vec<_>>();
     let out = var_div_chip.forward(layouter.namespace(|| "mul div"), &vec![out], &single_inputs)?;
 
-    let out = out.into_iter().map(|x| Rc::new(x)).collect::<Vec<_>>();
+    let out = out.into_iter().map(|x| (Rc::new(x.0), x.1)).collect::<Vec<_>>();
     let out = Array::from_shape_vec(IxDyn(out_shape.as_slice()), out).unwrap();
     Ok(vec![out])
   }

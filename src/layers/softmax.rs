@@ -25,10 +25,10 @@ impl SoftmaxChip {
   pub fn softmax_flat<F: PrimeField>(
     mut layouter: impl Layouter<F>,
     constants: &HashMap<i64, CellRc<F>>,
-    inp_flat: Vec<&AssignedCell<F, F>>,
+    inp_flat: Vec<(&AssignedCell<F, F>, F)>,
     gadget_config: Rc<GadgetConfig>,
     mask: &Vec<i64>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     let exp_chip = ExpGadgetChip::<F>::construct(gadget_config.clone());
     let adder_chip = AdderChip::<F>::construct(gadget_config.clone());
     let sub_pairs_chip = SubPairsChip::<F>::construct(gadget_config.clone());
@@ -54,46 +54,50 @@ impl SoftmaxChip {
       .forward(
         layouter.namespace(|| format!("max")),
         &vec![inp_take.clone()],
-        &vec![zero],
+        &vec![(zero, F::ZERO)],
       )
       .unwrap();
-    let max = &max[0];
+    let max = (&max[0].0, max[0].1);
 
     // Subtract the max
     let max_flat = vec![max; inp_take.len()];
     let sub = sub_pairs_chip.forward(
       layouter.namespace(|| format!("sub")),
       &vec![inp_take, max_flat],
-      &vec![zero],
+      &vec![(zero, F::ZERO)],
     )?;
 
-    let sub = sub.iter().collect::<Vec<_>>();
+    let sub = sub.iter().map(|x| (&x.0, x.1)).collect::<Vec<_>>();
 
     // Compute the exp
     let exp_slice = exp_chip.forward(
       layouter.namespace(|| format!("exp")),
       &vec![sub],
-      &vec![zero],
+      &vec![(zero, F::ZERO)],
     )?;
 
     // Compute the sum
     let sum = adder_chip.forward(
       layouter.namespace(|| format!("sum")),
-      &vec![exp_slice.iter().collect()],
-      &vec![zero],
+      &vec![exp_slice.iter().map(|x| (&x.0, x.1)).collect()],
+      &vec![(zero, F::ZERO)],
     )?;
-    let sum = sum[0].clone();
+    let sum = (&sum[0].0, sum[0].1);
     let sum_div_sf = var_div_big_chip.forward(
       layouter.namespace(|| format!("sum div sf")),
-      &vec![vec![&sum]],
-      &vec![zero, sf],
+      &vec![vec![sum]],
+      &vec![
+        (zero, F::ZERO), 
+        // TOCHECK
+        (sf, sf.value().cloned().assign().unwrap())
+      ],
     )?;
-    let sum_div_sf = sum_div_sf[0].clone();
+    let sum_div_sf = (&sum_div_sf[0].0, sum_div_sf[0].1);
 
     let dived = var_div_big_chip.forward(
       layouter.namespace(|| format!("div")),
-      &vec![exp_slice.iter().collect()],
-      &vec![zero, &sum_div_sf],
+      &vec![exp_slice.iter().map(|x| (&x.0, x.1)).collect()],
+      &vec![(zero, F::ZERO), sum_div_sf],
     )?;
 
     // Take either zero (softmax(-inf)) or the result
@@ -102,7 +106,7 @@ impl SoftmaxChip {
       .iter()
       .map(|x| {
         if *x == 1 {
-          zero.clone()
+          (zero.clone(), F::ZERO)
         } else {
           let tmp = dived[div_idx].clone();
           div_idx = div_idx + 1;
@@ -158,7 +162,7 @@ impl<F: PrimeField> Layer<F> for SoftmaxChip {
     if inp.ndim() == 2 {
       for i in 0..shape[0] {
         let inp_slice = inp.slice(s![i, ..]);
-        let inp_flat = inp_slice.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
+        let inp_flat = inp_slice.iter().map(|x| (x.0.as_ref(), x.1)).collect::<Vec<_>>();
         let mask_slice = mask.slice(s![i, ..]);
         let mask_flat = mask_slice.iter().map(|x| *x as i64).collect::<Vec<_>>();
         let dived = Self::softmax_flat(
@@ -175,7 +179,7 @@ impl<F: PrimeField> Layer<F> for SoftmaxChip {
       for i in 0..shape[0] {
         for j in 0..shape[1] {
           let inp_slice = inp.slice(s![i, j, ..]);
-          let inp_flat = inp_slice.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
+          let inp_flat = inp_slice.iter().map(|x| (x.0.as_ref(), x.1)).collect::<Vec<_>>();
           let mask_slice = mask.slice(s![i, j, ..]);
           let mask_flat = mask_slice.iter().map(|x| *x as i64).collect::<Vec<_>>();
           let dived = Self::softmax_flat(
@@ -193,7 +197,7 @@ impl<F: PrimeField> Layer<F> for SoftmaxChip {
       panic!("Not implemented");
     }
 
-    let outp = outp.into_iter().map(|x| Rc::new(x)).collect::<Vec<_>>();
+    let outp = outp.into_iter().map(|x| (Rc::new(x.0), x.1)).collect::<Vec<_>>();
     let outp = Array::from_shape_vec(IxDyn(inp.shape()), outp).unwrap();
     Ok(vec![outp])
   }

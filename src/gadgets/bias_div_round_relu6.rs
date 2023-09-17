@@ -170,9 +170,9 @@ impl<F: PrimeField> Gadget<F> for BiasDivRoundRelu6Chip<F> {
     &self,
     region: &mut Region<F>,
     row_offset: usize,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    _single_inputs: &Vec<&AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    _single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     let div_val = self.config.scale_factor as i64;
 
     let div_outp_min_val_i64 = self.config.div_outp_min_val;
@@ -204,38 +204,38 @@ impl<F: PrimeField> Gadget<F> for BiasDivRoundRelu6Chip<F> {
     for (i, (inp, bias)) in inp.iter().zip(bias.iter()).enumerate() {
       let offset = i * NUM_COLS_PER_OP;
 
-      let inp_f = inp.value().map(|x: &F| x.to_owned());
-      let bias_f = bias.value().map(|x: &F| {
-        let a = *x + div_inp_min_val_pos;
+      let inp_f = inp.1;
+      let bias_f = {
+        let a = bias.1 + div_inp_min_val_pos;
         let a = convert_to_u64(&a) as i64 - div_inp_min_val_pos_i64;
         a
-      });
-      let div_mod_res = inp_f.map(|x: F| {
-        let x_pos = x + div_inp_min_val_pos;
+      };
+      let div_mod_res = {
+        let x_pos = inp_f + div_inp_min_val_pos;
         let inp = convert_to_u64(&x_pos) as i64;
         let div_inp = 2 * inp + div_val;
         let div_res = div_inp / (2 * div_val) - div_inp_min_val_pos_i64 / div_val;
         let mod_res = div_inp % (2 * div_val);
         (div_res, mod_res)
-      });
-      let div_res = div_mod_res.map(|x: (i64, i64)| x.0) + bias_f;
-      let mod_res = div_mod_res.map(|x: (i64, i64)| x.1);
+      };
+      let div_res = div_mod_res.0 + bias_f;
+      let mod_res = div_mod_res.1;
 
-      let outp = div_res.map(|x: i64| {
-        let mut x_pos = x - div_outp_min_val_i64;
+      let outp = {
+        let mut x_pos = div_res - div_outp_min_val_i64;
         if !relu_map.contains_key(&(x_pos)) {
           // println!("x: {}, x_pos: {}", x, x_pos);
           x_pos = 0;
         }
         let outp_val = relu_map.get(&(x_pos)).unwrap();
         F::from(*outp_val as u64)
-      });
+      };
 
       // Assign inp, bias
-      inp
+      inp.0
         .copy_advice(|| "", region, self.config.columns[offset + 0], row_offset)
         .unwrap();
-      bias
+      bias.0
         .copy_advice(|| "", region, self.config.columns[offset + 1], row_offset)
         .unwrap();
 
@@ -245,11 +245,8 @@ impl<F: PrimeField> Gadget<F> for BiasDivRoundRelu6Chip<F> {
           || "div_res",
           self.config.columns[offset + 2],
           row_offset,
-          || {
-            div_res.map(|x: i64| {
-              F::from((x - div_outp_min_val_i64) as u64) - F::from(-div_outp_min_val_i64 as u64)
-            })
-          },
+          || 
+              Value::known(F::from((div_res - div_outp_min_val_i64) as u64) - F::from(-div_outp_min_val_i64 as u64)),
         )
         .unwrap();
       let _mod_res_cell = region
@@ -257,7 +254,7 @@ impl<F: PrimeField> Gadget<F> for BiasDivRoundRelu6Chip<F> {
           || "mod_res",
           self.config.columns[offset + 3],
           row_offset,
-          || mod_res.map(|x: i64| F::from(x as u64)),
+          || Value::known(F::from(mod_res as u64)),
         )
         .unwrap();
 
@@ -266,13 +263,17 @@ impl<F: PrimeField> Gadget<F> for BiasDivRoundRelu6Chip<F> {
           || "outp",
           self.config.columns[offset + 4],
           row_offset,
-          || outp.map(|x: F| x.to_owned()),
+          || Value::known(outp)
         )
         .unwrap();
 
       // outp_cells.push((outp_cell, div_res_cell));
-      outp_cells.push(outp_cell);
-      outp_cells.push(div_res_cell);
+      outp_cells.push((outp_cell, outp));
+      outp_cells.push(
+        (
+          div_res_cell, 
+          F::from((div_res - div_outp_min_val_i64) as u64) - F::from(-div_outp_min_val_i64 as u64)
+        ));
     }
 
     Ok(outp_cells)
@@ -281,9 +282,9 @@ impl<F: PrimeField> Gadget<F> for BiasDivRoundRelu6Chip<F> {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    single_inputs: &Vec<&AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     let mut inps = vec_inputs[0].clone();
     let mut biases = vec_inputs[1].clone();
     let initial_len = inps.len();
@@ -291,8 +292,8 @@ impl<F: PrimeField> Gadget<F> for BiasDivRoundRelu6Chip<F> {
     // Needed to pad: bias - bias = 0
     let default = biases[0].clone();
     while inps.len() % self.num_inputs_per_row() != 0 {
-      inps.push(&default);
-      biases.push(&default);
+      inps.push(default);
+      biases.push(default);
     }
 
     let res = self

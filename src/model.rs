@@ -127,7 +127,7 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
                 || Value::known(*val),
               )
               .unwrap();
-            flat.push(Rc::new(cell));
+            flat.push((Rc::new(cell), *val));
             cell_idx += 1;
           }
           let tensor = Array::from_shape_vec(tensor.shape(), flat).unwrap();
@@ -143,7 +143,7 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
 
   pub fn tensor_map_to_vec(
     &self,
-    tensor_map: &BTreeMap<i64, Array<CellRc<F>, IxDyn>>,
+    tensor_map: &BTreeMap<i64, Array<(CellRc<F>, F), IxDyn>>,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let smallest_tensor = tensor_map
       .iter()
@@ -761,16 +761,6 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> Circuit<F> for ModelCircuit<F> 
         _ => panic!("unsupported gadget {:?}", gadget),
       }
     }
-
-    // Assign extra space for challenge generation
-    self
-    .assign_tensors_vec(
-      layouter.namespace(|| "challenge generation"),
-      &config.gadget_config.witness_columns,
-      &self.tensors,
-    )
-    .unwrap();
-
     // Assign weights and constants
     let constants_base = self
       .assign_constants(
@@ -891,9 +881,9 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> Circuit<F> for ModelCircuit<F> 
     for tensor in result {
       for cell in tensor.iter() {
         pub_layouter
-          .constrain_instance(cell.as_ref().cell(), config.public_col, total_idx)
+          .constrain_instance(cell.0.as_ref().cell(), config.public_col, total_idx)
           .unwrap();
-        let val = convert_to_bigint(cell.value().map(|x| x.to_owned()));
+        let val = convert_to_bigint(cell.0.value().map(|x| x.to_owned()));
         new_public_vals.push(val);
         total_idx += 1;
       }

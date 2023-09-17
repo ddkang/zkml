@@ -39,10 +39,10 @@ impl<F: PrimeField> Arithmetic<F> for AddChip {
   fn gadget_forward(
     &self,
     mut layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    constants: &Vec<&AssignedCell<F, F>>,
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    constants: &Vec<(&AssignedCell<F, F>, F)>,
     gadget_config: Rc<GadgetConfig>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     let add_pairs_chip = AddPairsChip::<F>::construct(gadget_config);
     let out = add_pairs_chip.forward(layouter.namespace(|| "add chip"), &vec_inputs, constants)?;
     Ok(out)
@@ -72,13 +72,13 @@ impl<F: PrimeField> Layer<F> for AddChip {
     // Do the fused activation
     let out = if activation == ActivationType::Relu {
       let zero = constants.get(&0).unwrap();
-      let single_inps = vec![zero.as_ref()];
+      let single_inps = vec![(zero.as_ref(), F::ZERO)];
 
-      let out = out.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
+      let out = out.iter().map(|x| (x.0.as_ref(), x.1)).collect::<Vec<_>>();
 
       let relu_chip = ReluChip::<F>::construct(gadget_config);
       let out = relu_chip.forward(layouter.namespace(|| "relu"), &vec![out], &single_inps)?;
-      let out = out.into_iter().map(|x| Rc::new(x)).collect::<Vec<_>>();
+      let out = out.into_iter().map(|x| (Rc::new(x.0), x.1)).collect::<Vec<_>>();
       out
     } else if activation == ActivationType::None {
       out

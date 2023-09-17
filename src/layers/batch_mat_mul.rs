@@ -52,7 +52,7 @@ impl<F: PrimeField> Layer<F> for BatchMatMulChip {
       config: FullyConnectedConfig::construct(true),
     };
 
-    let mut outp: Vec<CellRc<F>> = vec![];
+    let mut outp: Vec<(CellRc<F>, F)> = vec![];
     for i in 0..inp1.shape()[0] {
       let inp1_slice = inp1.index_axis(Axis(0), i).to_owned();
       // Due to tensorflow BS, transpose the "weights"
@@ -77,7 +77,7 @@ impl<F: PrimeField> Layer<F> for BatchMatMulChip {
         gadget_config.clone(),
         &tmp_config,
       )?;
-      outp.extend(outp_slice[0].iter().map(|x| x.clone()).collect::<Vec<_>>());
+      outp.extend(outp_slice[0].iter().map(|x| (x.0.clone(), x.1)).collect::<Vec<_>>());
     }
 
     let outp = Array::from_shape_vec(IxDyn(out_shape.as_slice()), outp).unwrap();
