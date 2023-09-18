@@ -55,14 +55,18 @@ impl<F: PrimeField> Layer<F> for DivVarChip {
     assert_eq!(tensors[1].shape().len(), 1);
     assert_eq!(tensors[1].shape()[0], 1);
 
-    let sf = constants
+    let sf_cell = constants
       .get(&(gadget_config.scale_factor as i64))
       .unwrap()
       .as_ref();
+    let sf = {
+      let shift_val_i64 = -gadget_config.min_val * 2;
+      let shift_val_f = F::from(shift_val_i64 as u64);
+      F::from((gadget_config.scale_factor as i64 + shift_val_i64) as u64) - shift_val_f
+    };
 
-    // TOCHECK
     let sf_tensor = 
-      Array::from_shape_vec(IxDyn(&[1]), vec![(Rc::new(sf.clone()), sf.value().cloned().assign().unwrap())]).unwrap();
+      Array::from_shape_vec(IxDyn(&[1]), vec![(Rc::new(sf_cell.clone()), sf)]).unwrap();
 
     // out = inp * SF
     let (out, out_shape) = self.arithmetic_forward(

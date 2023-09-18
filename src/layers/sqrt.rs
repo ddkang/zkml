@@ -32,22 +32,30 @@ impl<F: PrimeField> Layer<F> for SqrtChip {
       mask_map.insert(mask[2 * i], mask[2 * i + 1]);
     }
 
-    let min_val = gadget_config.min_val;
-    let min_val = constants.get(&min_val).unwrap().as_ref();
-    let max_val = gadget_config.max_val;
-    let max_val = constants.get(&max_val).unwrap().as_ref();
+    let min_val_cell = constants.get(&gadget_config.min_val).unwrap().as_ref();
+    let min_val = {
+      let shift_val_i64 = -gadget_config.min_val * 2;
+      let shift_val_f = F::from(shift_val_i64 as u64);
+      F::from((gadget_config.min_val + shift_val_i64) as u64) - shift_val_f
+    };
+    let max_val_cell = constants.get(&gadget_config.max_val).unwrap().as_ref();
+    let max_val = {
+      let shift_val_i64 = -gadget_config.min_val * 2;
+      let shift_val_f = F::from(shift_val_i64 as u64);
+      F::from((gadget_config.max_val + shift_val_i64) as u64) - shift_val_f
+    };
+
     for (i, val) in inp.iter().enumerate() {
       let i = i as i64;
       if mask_map.contains_key(&i) {
         let mask_val = *mask_map.get(&i).unwrap();
         if mask_val == 1 {
-          // TOCHECK
           inp_vec.push(
-            (max_val, max_val.value().cloned().assign().unwrap())
+            (max_val_cell, max_val)
           );
         } else if mask_val == -1 {
           inp_vec.push(
-            (min_val, min_val.value().cloned().assign().unwrap())
+            (min_val_cell, min_val)
           );
         } else {
           panic!();
@@ -60,11 +68,11 @@ impl<F: PrimeField> Layer<F> for SqrtChip {
     let zero = constants.get(&0).unwrap().as_ref();
     let sqrt_chip = SqrtGadgetChip::<F>::construct(gadget_config.clone());
     let vec_inps = vec![inp_vec];
-    // TOCHECK
+
     let constants = vec![
       (zero, F::ZERO), 
-      (min_val, min_val.value().cloned().assign().unwrap()), 
-      (max_val, max_val.value().cloned().assign().unwrap())
+      (min_val_cell, min_val), 
+      (max_val_cell, max_val)
     ];
     let out = sqrt_chip.forward(layouter.namespace(|| "sqrt chip"), &vec_inps, &constants)?;
 

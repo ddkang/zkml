@@ -202,7 +202,6 @@ impl<F: PrimeField> Gadget<F> for VarDivRoundBigChip<F> {
         (p1, p0)
       };
 
-      // TOCHECK
       let div_val = {
         let offset = F::from(-div_outp_min_val_i64 as u64);
         let c = F::from((div_mod.0 - div_outp_min_val_i64) as u64);

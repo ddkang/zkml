@@ -16,7 +16,6 @@ use crate::{
     var_div::VarDivRoundChip,
   },
   layers::layer::ActivationType,
-  utils::helpers::RAND_START_IDX,
 };
 
 use super::layer::{AssignedTensor, CellRc, GadgetConsumer, Layer, LayerConfig};
@@ -38,7 +37,6 @@ pub struct FullyConnectedChip<F: PrimeField> {
 
 impl<F: PrimeField> FullyConnectedChip<F> {
   pub fn compute_mm(
-    // input: &AssignedTensor<F>,
     input: &ArrayView<(CellRc<F>,F), IxDyn>,
     weight: &AssignedTensor<F>,
   ) -> Array<F, IxDyn> {
@@ -81,23 +79,6 @@ impl<F: PrimeField> FullyConnectedChip<F> {
     let out_shape = [array.shape()[0], array.shape()[1]];
     Ok(Array::from_shape_vec(IxDyn(out_shape.as_slice()), outp).unwrap())
   }
-
-  // pub fn random_vector(
-  //   constants: &HashMap<i64, CellRc<F>>,
-  //   size: usize,
-  // ) -> Result<Vec<CellRc<F>>, Error> {
-  //   let mut outp = vec![];
-  //   for idx in 0..size {
-  //     let idx = RAND_START_IDX + (idx as i64);
-  //     if !constants.contains_key(&idx) {
-  //       println!("Random vector is too small: {:?}", size);
-  //     }
-  //     let cell = constants.get(&idx).unwrap().clone();
-  //     outp.push(cell);
-  //   }
-
-  //   Ok(outp)
-  // }
 
   pub fn random_vector(
     constants: &HashMap<i64, CellRc<F>>,
@@ -160,88 +141,66 @@ impl<F: PrimeField> Layer<F> for FullyConnectedChip<F> {
           let mm_result = Self::compute_mm(&input, weight);
           let result  =
             Self::assign_array(&gadget_config.columns, &mut region, &mm_result).unwrap();
-          
-          // Copy mm result to witness holder
-          let copy_result = 
-            Self::assign_array(&gadget_config.witness_columns, &mut region, &mm_result).unwrap();
-
-          for (l, r) in copy_result.iter().zip(result.iter()) {
-            region.constrain_equal(l.0.cell(), r.0.cell())?;
-          }
-
           Ok(result)
         },
       )
       .unwrap();
 
-    // println!("Shape of Input: {:?}", input.shape());
-    // println!("Shape of Weight: {:?}", weight.shape());
-    // println!("Shape of MM: {:?}", mm_result.shape());
     // Create copy constraint for input, weight, input*weight to witness columns
-    // layouter.assign_region(
-    //   || "test", 
-    //   |mut region| {
-    //     for (i, v) in mm_result.iter().enumerate() {
-    //       let col = i % gadget_config.witness_columns.len();
-    //       let row = i / gadget_config.witness_columns.len();
-    //       region.assign_advice(
-    //         || "test in witness columns", 
-    //         gadget_config.witness_columns[col], row,
-    //         || v.value().map(|x| *x)
-    //       )?;
-    //     }
-    //     Ok(())
-    //   }
-    // ).unwrap();
+    layouter
+    .assign_region(
+      || "copy constraint for input", 
+      |mut region| {
+        for (i, v) in input.iter().enumerate() {
+          let col = i % gadget_config.witness_columns.len();
+          let row = i / gadget_config.witness_columns.len();
+          let tmp = region.assign_advice(
+            || "input in witness columns", 
+            gadget_config.witness_columns[col], 
+            row,
+            || Value::known(v.1)
+          )?;
+          region.constrain_equal(v.0.as_ref().cell(), tmp.cell())?;
+        }
+        Ok(())
+      }
+    )?;
 
-    // layouter
-    // .assign_region(
-    //   || "copy constraint for input", 
-    //   |mut region| {
-    //     for (i, v) in input.iter().enumerate() {
-    //       let col = i % gadget_config.witness_columns.len();
-    //       let row = i / gadget_config.witness_columns.len();
-    //       v.copy_advice(
-    //         || "input in witness columns", 
-    //         &mut region, 
-    //         gadget_config.witness_columns[col], row
-    //       )?;
-    //     }
-    //     Ok(())
-    //   }
-    // )?;
+    layouter.assign_region(
+      || "copy constraint for weight", 
+      |mut region| {
+        for (i, v) in weight.iter().enumerate() {
+          let col = i % gadget_config.witness_columns.len();
+          let row = i / gadget_config.witness_columns.len();
+          let tmp = region.assign_advice(
+            || "input in witness columns", 
+            gadget_config.witness_columns[col], 
+            row,
+            || Value::known(v.1)
+          )?;
+          region.constrain_equal(v.0.as_ref().cell(), tmp.cell())?;
+        }
+        Ok(())
+      }
+    )?;
 
-    // layouter.assign_region(
-    //   || "copy constraint for weight", 
-    //   |mut region| {
-    //     for (i, v) in weight.iter().enumerate() {
-    //       let col = i % gadget_config.witness_columns.len();
-    //       let row = i / gadget_config.witness_columns.len();
-    //       v.copy_advice(
-    //         || "weight in witness columns", 
-    //         &mut region, 
-    //         gadget_config.witness_columns[col], row
-    //       )?;
-    //     }
-    //     Ok(())
-    //   }
-    // )?;
-
-    // layouter.assign_region(
-    //   || "copy constraint for mm", 
-    //   |mut region| {
-    //     for (i, v) in mm_result.iter().enumerate() {
-    //       let col = i % gadget_config.witness_columns.len();
-    //       let row = i / gadget_config.witness_columns.len();
-    //       v.copy_advice(
-    //         || "mm in witness columns", 
-    //         &mut region, 
-    //         gadget_config.witness_columns[col], row
-    //       )?;
-    //     }
-    //     Ok(())
-    //   }
-    // )?;
+    layouter.assign_region(
+      || "copy constraint for mm", 
+      |mut region| {
+        for (i, v) in mm_result.iter().enumerate() {
+          let col = i % gadget_config.witness_columns.len();
+          let row = i / gadget_config.witness_columns.len();
+          let tmp = region.assign_advice(
+            || "input in witness columns", 
+            gadget_config.witness_columns[col], 
+            row,
+            || Value::known(v.1)
+          )?;
+          region.constrain_equal(v.0.cell(), tmp.cell())?;
+        }
+        Ok(())
+      }
+    )?;
 
 
     // Generate random vectors

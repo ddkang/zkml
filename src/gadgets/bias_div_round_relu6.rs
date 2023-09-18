@@ -267,7 +267,6 @@ impl<F: PrimeField> Gadget<F> for BiasDivRoundRelu6Chip<F> {
         )
         .unwrap();
 
-      // outp_cells.push((outp_cell, div_res_cell));
       outp_cells.push((outp_cell, outp));
       outp_cells.push(
         (

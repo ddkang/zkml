@@ -68,7 +68,7 @@ use crate::{
     update::UpdateChip,
   },
   utils::{
-    helpers::{convert_to_bigint, RAND_START_IDX},
+    helpers::convert_to_bigint,
     loader::{load_model_msgpack, ModelMsgpack},
   },
 };
@@ -141,6 +141,37 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
     Ok(tensors)
   }
 
+  pub fn copy_tensors(
+    &self,
+    mut layouter: impl Layouter<F>,
+    columns: &Vec<Column<Advice>>,
+    tensors: &Vec<AssignedTensor<F>>,
+  ) -> Result<(), Error> {
+    layouter.assign_region(
+      || "Public Inputs", 
+      |mut region| {
+        let mut cell_idx = 0;
+        for tensor_row in tensors.iter() {
+          for tensor in tensor_row.iter() {
+            let row_idx = cell_idx / columns.len();
+            let col_idx = cell_idx % columns.len();
+            let tmp = region
+              .assign_advice(
+                || "pi copy",
+                columns[col_idx],
+                row_idx,
+                || Value::known(tensor.1),
+              )?;
+            region.constrain_equal(tensor.0.as_ref().cell(), tmp.cell())?;
+            cell_idx += 1;
+          }
+        }
+        Ok(())
+      }
+    )?;
+    Ok(())
+  }
+
   pub fn tensor_map_to_vec(
     &self,
     tensor_map: &BTreeMap<i64, Array<(CellRc<F>, F), IxDyn>>,
@@ -208,24 +239,6 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
           constants.insert(*val, Rc::new(cell));
         }
 
-        // TODO: I've made some very bad life decisions
-        // TOOD: this needs to be a random oracle
-        // let r_base = F::from(0x123456789abcdef);
-        // let r_base = layouter.get_challenge();
-
-        // let mut r = challenge;
-        
-        // for i in 0..self.num_random {
-        //   let rand = region.assign_fixed(
-        //     || format!("rand_{}", i),
-        //     gadget_config.fixed_columns[0],
-        //     constants.len(),
-        //     || r,
-        //   )?;
-        //   r = r * challenge;
-        //   constants.insert(RAND_START_IDX + (i as i64), Rc::new(rand));
-        // }
-
         Ok(constants)
       },
     )?;
@@ -265,26 +278,6 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
           )?;
           constants.insert(*val, Rc::new(cell));
         }
-
-        // TODO: I've made some very bad life decisions
-        // TOOD: this needs to be a random oracle
-        // let r_base = F::from(0x123456789abcdef);
-        // let r_base = c.assign().unwrap_or(F::from(0x123456789abcdef));
-        // let mut r = challenge;
-
-        // for i in 0..self.num_random {
-        //   let assignment_idx = constants.len();
-        //   let row_idx = assignment_idx / gadget_config.columns.len();
-        //   let col_idx = assignment_idx % gadget_config.columns.len();
-        //   let rand = region.assign_advice(
-        //     || format!("rand_{}", i),
-        //     gadget_config.columns[col_idx],
-        //     row_idx,
-        //     || r,
-        //   )?;
-        //   r = r * challenge;
-        //   constants.insert(RAND_START_IDX + (i as i64), Rc::new(rand));
-        // }
 
         for (k, v) in fixed_constants.iter() {
           let v2 = constants.get(k).unwrap();
@@ -617,7 +610,6 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> Circuit<F> for ModelCircuit<F> 
       meta.enable_equality(columns[i]);
     }
     
-    
     meta.enable_equality(rand_vector);
 
     gadget_config.witness_columns = witness_columns;
@@ -836,6 +828,13 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> Circuit<F> for ModelCircuit<F> 
       layouter.namespace(|| "randomness"), 
       config.challenge, 
       config.rand_vector
+    )?;
+
+    // Copy the public inputs to be included into commitment
+    self.copy_tensors(
+      layouter.namespace(|| "Public Inputs"), 
+      &config.gadget_config.witness_columns, 
+      &tensors
     )?;
 
     // Perform the dag

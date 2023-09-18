@@ -40,14 +40,19 @@ impl<F: PrimeField> Layer<F> for SquareChip {
     )?;
 
     let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
-    let div = constants
+    let div_cell = constants
       .get(&(gadget_config.scale_factor as i64))
       .unwrap()
       .as_ref();
-    // TOCHECK
+    let div = {
+      let shift_val_i64 = -gadget_config.min_val * 2;
+      let shift_val_f = F::from(shift_val_i64 as u64);
+      F::from((gadget_config.scale_factor as i64 + shift_val_i64) as u64) - shift_val_f
+    };
+
     let single_inps = vec![
       (zero, F::ZERO), 
-      (div, div.value().cloned().assign().unwrap())
+      (div_cell, div)
     ];
     let out = out.iter().map(|x| (&x.0, x.1)).collect::<Vec<_>>();
     let vec_inputs = vec![out];

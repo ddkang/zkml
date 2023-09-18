@@ -36,10 +36,15 @@ impl SoftmaxChip {
     let var_div_big_chip = VarDivRoundBig3Chip::<F>::construct(gadget_config.clone());
 
     let zero = constants.get(&0).unwrap().as_ref();
-    let sf = constants
+    let sf_cell = constants
       .get(&(gadget_config.scale_factor as i64))
       .unwrap()
       .as_ref();
+    let sf = {
+      let shift_val_i64 = -gadget_config.min_val * 2;
+      let shift_val_f = F::from(shift_val_i64 as u64);
+      F::from((gadget_config.scale_factor as i64 + shift_val_i64) as u64) - shift_val_f
+    };
 
     // Mask the input for max computation and subtraction
     let inp_take = inp_flat
@@ -88,8 +93,7 @@ impl SoftmaxChip {
       &vec![vec![sum]],
       &vec![
         (zero, F::ZERO), 
-        // TOCHECK
-        (sf, sf.value().cloned().assign().unwrap())
+        (sf_cell, sf)
       ],
     )?;
     let sum_div_sf = (&sum_div_sf[0].0, sum_div_sf[0].1);
