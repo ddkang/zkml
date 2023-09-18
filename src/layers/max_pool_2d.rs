@@ -1,6 +1,10 @@
 use std::{collections::HashMap, rc::Rc};
 
-use halo2_proofs::{circuit::Layouter, halo2curves::ff::PrimeField, plonk::Error};
+use halo2_proofs::{
+  circuit::Layouter, 
+  halo2curves::ff::PrimeField, 
+  plonk::Error
+};
 use ndarray::{Array, IxDyn};
 
 use crate::{
@@ -85,7 +89,7 @@ impl<F: PrimeField> Layer<F> for MaxPool2DChip<F> {
     mut layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,
     _constants: &HashMap<i64, CellRc<F>>,
-    _rand_vector: &HashMap<i64, CellRc<F>>,
+    _rand_vector: &HashMap<i64, (CellRc<F>, F)>,
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {

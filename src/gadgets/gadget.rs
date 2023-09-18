@@ -103,7 +103,7 @@ pub trait Gadget<F: PrimeField> {
     row_offset: usize,
     vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
     single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
-  ) -> Result<Vec<(AssignedCell<F, F>,F)>, Error>;
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error>;
 
   // The caller is required to ensure that the inputs are of the correct length.
   fn op_aligned_rows(

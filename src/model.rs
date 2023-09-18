@@ -294,22 +294,27 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
     mut layouter: impl Layouter<F>,
     challenge: Challenge,
     rand_vector: Column<Advice>,
-  ) -> Result<HashMap<i64, CellRc<F>>, Error> {
-    let c_base = layouter.get_challenge(challenge);
+  ) -> Result<HashMap<i64, (CellRc<F>, F)>, Error> {
+    let c_base = {
+      let c = layouter.get_challenge(challenge);
+      // Default value here is provided to pass mock prover check and it will be fiat shamir
+      // challenge in proof generation
+      c.assign().map_or(F::from(0x123456789abcdef), |x| x)
+    };
     let mut c = c_base;
     let rand_vec = layouter.assign_region(
       || "random vector",
       |mut region| {
-        let mut rand_vec: HashMap<i64, CellRc<F>> = HashMap::new();
+        let mut rand_vec = HashMap::new();
         for i in 0..self.num_random {
           let rand = region.assign_advice(
             || format!("rand_vec_{}", i),
             rand_vector,
             i.try_into().unwrap(),
-            || c,
+            || Value::known(c),
           )?;
+          rand_vec.insert(i as i64, (Rc::new(rand), c));
           c = c * c_base;
-          rand_vec.insert(i as i64, Rc::new(rand));
         }
         Ok(rand_vec)
       }

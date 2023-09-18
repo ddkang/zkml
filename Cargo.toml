@@ -21,10 +21,10 @@ opt-level = 3
 
 [dependencies]
 bitvec = "1.0.1"
-halo2 = { git="https://github.com/privacy-scaling-explorations/halo2", package="halo2", rev="17e9765c199670534c0299c96128d0464a188d0b" }
-halo2_gadgets = { git="https://github.com/privacy-scaling-explorations/halo2", package="halo2_gadgets", rev="17e9765c199670534c0299c96128d0464a188d0b", features = ["circuit-params"] }
-halo2_curves = { git = "https://github.com/privacy-scaling-explorations/halo2curves", tag = "0.3.2", package = "halo2curves" }
-halo2_proofs = { git="https://github.com/privacy-scaling-explorations/halo2", package="halo2_proofs", rev="17e9765c199670534c0299c96128d0464a188d0b", features = ["circuit-params"] }
+halo2 = { git= "https://github.com/span14/halo2", branch="zkml", package="halo2"}
+halo2_gadgets = { git= "https://github.com/span14/halo2", branch="zkml", package="halo2_gadgets", features = ["circuit-params"]}
+halo2_curves = { git = "https://github.com/privacy-scaling-explorations/halo2curves", tag = "0.3.2", package = "halo2curves"}
+halo2_proofs = { git= "https://github.com/span14/halo2", branch="zkml", package="halo2_proofs", features = ["circuit-params", "zkml"]}
 lazy_static = "1.4.0"
 ndarray = "0.15.6"
 num-bigint = "0.4.3"

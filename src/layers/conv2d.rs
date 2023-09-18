@@ -291,7 +291,7 @@ impl<F: PrimeField> Layer<F> for Conv2DChip<F> {
     mut layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, Rc<AssignedCell<F, F>>>,
-    rand_vector: &HashMap<i64, CellRc<F>>,
+    rand_vector: &HashMap<i64, (CellRc<F>, F)>,
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {

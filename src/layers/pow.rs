@@ -1,6 +1,10 @@
 use std::{collections::HashMap, rc::Rc, vec};
 
-use halo2_proofs::{circuit::Layouter, halo2curves::ff::PrimeField, plonk::Error};
+use halo2_proofs::{
+  circuit::Layouter, 
+  halo2curves::ff::PrimeField, 
+  plonk::Error
+};
 use ndarray::{Array, IxDyn};
 
 use crate::gadgets::{
@@ -19,7 +23,7 @@ impl<F: PrimeField> Layer<F> for PowChip {
     mut layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, CellRc<F>>,
-    _rand_vector: &HashMap<i64, CellRc<F>>,
+    _rand_vector: &HashMap<i64, (CellRc<F>, F)>,
     gadget_config: Rc<GadgetConfig>,
     _layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {

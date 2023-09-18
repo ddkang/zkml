@@ -1,6 +1,10 @@
 use std::{collections::HashMap, fs::File, io::BufWriter, marker::PhantomData, rc::Rc};
 
-use halo2_proofs::{circuit::Layouter, halo2curves::ff::PrimeField, plonk::Error};
+use halo2_proofs::{
+  circuit::Layouter, 
+  halo2curves::ff::PrimeField, 
+  plonk::Error
+};
 
 use crate::{
   gadgets::gadget::{convert_to_u64, GadgetConfig},
@@ -28,7 +32,6 @@ use crate::{
     tanh::TanhChip,
     update::UpdateChip,
   },
-  utils::helpers::print_assigned_arr,
 };
 
 use super::{
@@ -64,7 +67,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
     mut layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, CellRc<F>>,
-    rand_vector: &HashMap<i64, CellRc<F>>,
+    rand_vector: &HashMap<i64, (CellRc<F>, F)>,
     gadget_config: Rc<GadgetConfig>,
     _layer_config: &LayerConfig,
   ) -> Result<(HashMap<usize, AssignedTensor<F>>, Vec<AssignedTensor<F>>), Error> {
@@ -486,7 +489,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
       }
     };
 
-    let tmp = print_arr.iter().map(|x| x.0.as_ref()).collect::<Vec<_>>();
+    // let tmp = print_arr.iter().map(|x| x.0.as_ref()).collect::<Vec<_>>();
     // print_assigned_arr("final out", &tmp.to_vec(), gadget_config.scale_factor);
     // println!("final out idxes: {:?}", self.dag_config.final_out_idxes);
 

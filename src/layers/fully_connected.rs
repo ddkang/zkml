@@ -81,9 +81,9 @@ impl<F: PrimeField> FullyConnectedChip<F> {
   }
 
   pub fn random_vector(
-    constants: &HashMap<i64, CellRc<F>>,
+    constants: &HashMap<i64, (CellRc<F>, F)>,
     size: usize,
-  ) -> Result<Vec<CellRc<F>>, Error> {
+  ) -> Result<Vec<(CellRc<F>, F)>, Error> {
     let mut outp = vec![];
 
     for idx in 0..size {
@@ -116,7 +116,7 @@ impl<F: PrimeField> Layer<F> for FullyConnectedChip<F> {
     mut layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, CellRc<F>>,
-    rand_vector: &HashMap<i64, CellRc<F>>,
+    rand_vector: &HashMap<i64, (CellRc<F>, F)>,
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
@@ -209,10 +209,10 @@ impl<F: PrimeField> Layer<F> for FullyConnectedChip<F> {
 
     let dot_prod_chip = DotProductChip::<F>::construct(gadget_config.clone());
     let r1_ref = r1.iter().map(
-      |x| (x.as_ref(), x.value().cloned().assign().unwrap_or(F::from(0x123456789abcdef)))
+      |x| (x.0.as_ref(), x.1)
     ).collect::<Vec<_>>();
     let r2_ref = r2.iter().map(
-      |x| (x.as_ref(), x.value().cloned().assign().unwrap_or(F::from(0x123456789abcdef)))
+      |x| (x.0.as_ref(), x.1)
     ).collect::<Vec<_>>();
 
     // Compute r1 * result
@@ -307,15 +307,20 @@ impl<F: PrimeField> Layer<F> for FullyConnectedChip<F> {
     let final_result_flat = if self.config.normalize {
       let mm_flat = mm_result.iter().map(|x| (&x.0, x.1)).collect::<Vec<_>>();
       let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
-      let sf = constants
-        .get(&(gadget_config.scale_factor as i64))
-        .unwrap()
-        .as_ref();
+      let sf_cell = constants
+      .get(&(gadget_config.scale_factor as i64))
+      .unwrap()
+      .as_ref();
+      let sf = {
+        let shift_val_i64 = -gadget_config.min_val * 2;
+        let shift_val_f = F::from(shift_val_i64 as u64);
+        F::from((gadget_config.scale_factor as i64 + shift_val_i64) as u64) - shift_val_f
+      };
       let mm_div = var_div_chip
         .forward(
           layouter.namespace(|| "mm_div"),
           &vec![mm_flat],
-          &vec![(zero, F::ZERO), (sf, sf.value().cloned().assign().unwrap())],
+          &vec![(zero, F::ZERO), (sf_cell, sf)],
         )
         .unwrap();
 
