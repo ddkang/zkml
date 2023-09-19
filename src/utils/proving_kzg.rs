@@ -125,7 +125,6 @@ pub fn time_circuit_kzg(circuit: ModelCircuit<Fr>) {
     .collect();
   let public_vals_u8_size = serialize(&public_vals_u8, "public_vals");
   println!("Public vals size: {} bytes", public_vals_u8_size);
-  // println!("{:?}", public_vals);
   let mut transcript = Blake2bWrite::<_, G1Affine, Challenge255<_>>::init(vec![]);
   create_proof::<
     KZGCommitmentScheme<Bn256>,

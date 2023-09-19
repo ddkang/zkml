@@ -4,7 +4,6 @@ use std::{
   rc::Rc,
   sync::{Arc, Mutex},
 };
-// use blake2b_simd::{Params as Blake2bParams, State as Blake2bState};
 use halo2_proofs::{
   circuit::{Layouter, SimpleFloorPlanner, Value},
   halo2curves::ff::{FromUniformBytes, PrimeField},

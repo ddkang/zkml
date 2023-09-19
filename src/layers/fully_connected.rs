@@ -37,6 +37,7 @@ pub struct FullyConnectedChip<F: PrimeField> {
 
 impl<F: PrimeField> FullyConnectedChip<F> {
   pub fn compute_mm(
+    // input: &AssignedTensor<F>,
     input: &ArrayView<(CellRc<F>,F), IxDyn>,
     weight: &AssignedTensor<F>,
   ) -> Array<F, IxDyn> {
@@ -106,8 +107,6 @@ impl<F: PrimeField> FullyConnectedChip<F> {
       _ => panic!("Unsupported activation type for fully connected"),
     }
   }
-
-  
 }
 
 impl<F: PrimeField> Layer<F> for FullyConnectedChip<F> {

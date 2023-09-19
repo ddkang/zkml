@@ -32,6 +32,7 @@ use crate::{
     tanh::TanhChip,
     update::UpdateChip,
   },
+  utils::helpers::print_assigned_arr,
 };
 
 use super::{
@@ -76,7 +77,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
     for (idx, tensor) in tensors.iter().enumerate() {
       tensor_map.insert(idx, tensor.clone());
     }
-    // println!("Tensors Length: {}", tensors.len());
+
     // Compute the dag
     for (layer_idx, layer_config) in self.dag_config.ops.iter().enumerate() {
       let layer_type = &layer_config.layer_type;
@@ -489,9 +490,9 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
       }
     };
 
-    // let tmp = print_arr.iter().map(|x| x.0.as_ref()).collect::<Vec<_>>();
-    // print_assigned_arr("final out", &tmp.to_vec(), gadget_config.scale_factor);
-    // println!("final out idxes: {:?}", self.dag_config.final_out_idxes);
+    let tmp = print_arr.iter().map(|x| x.0.as_ref()).collect::<Vec<_>>();
+    print_assigned_arr("final out", &tmp.to_vec(), gadget_config.scale_factor);
+    println!("final out idxes: {:?}", self.dag_config.final_out_idxes);
 
     let mut x = vec![];
     for cell in print_arr.iter() {
