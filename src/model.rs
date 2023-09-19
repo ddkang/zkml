@@ -688,7 +688,6 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> Circuit<F> for ModelCircuit<F> 
   }
 
   fn synthesize(&self, config: Self::Config, mut layouter: impl Layouter<F>) -> Result<(), Error> {
-
     // Assign tables
     let gadget_rc: Rc<GadgetConfig> = config.gadget_config.clone().into();
     for gadget in self.used_gadgets.iter() {
@@ -764,7 +763,6 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> Circuit<F> for ModelCircuit<F> 
         config.gadget_config.clone(),
       )
       .unwrap();
-
     // Some halo2 cancer
     let constants = self
       .assign_constants2(
