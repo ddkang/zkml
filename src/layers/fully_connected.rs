@@ -86,7 +86,6 @@ impl<F: PrimeField> FullyConnectedChip<F> {
     size: usize,
   ) -> Result<Vec<(CellRc<F>, F)>, Error> {
     let mut outp = vec![];
-
     for idx in 0..size {
       let idx = idx as i64;
       if !constants.contains_key(&idx) {
