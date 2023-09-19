@@ -467,7 +467,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
       };
 
       for (idx, tensor_idx) in out_idxes.iter().enumerate() {
-        // println!("Out {} shape: {:?}", idx, out[idx].shape());
+        println!("Out {} shape: {:?}", idx, out[idx].shape());
         tensor_map.insert(*tensor_idx, out[idx].clone());
       }
       println!();
