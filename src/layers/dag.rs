@@ -23,7 +23,7 @@ use crate::{
       broadcast::BroadcastChip, concatenation::ConcatenationChip, mask_neg_inf::MaskNegInfChip,
       pack::PackChip, pad::PadChip, permute::PermuteChip, reshape::ReshapeChip,
       resize_nn::ResizeNNChip, rotate::RotateChip, slice::SliceChip, split::SplitChip,
-      transpose::TransposeChip,
+      transpose::TransposeChip, gather::GatherChip,
     },
     softmax::SoftmaxChip,
     sqrt::SqrtChip,
@@ -193,6 +193,17 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
           };
           fc_chip.forward(
             layouter.namespace(|| "dag fully connected"),
+            &vec_inps,
+            constants,
+            rand_vector,
+            gadget_config.clone(),
+            &layer_config,
+          )?
+        }
+        LayerType::Gather => {
+          let gather_chip = GatherChip {};
+          gather_chip.forward(
+            layouter.namespace(|| "dag gather"),
             &vec_inps,
             constants,
             rand_vector,

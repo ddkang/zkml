@@ -20,6 +20,7 @@ pub enum LayerType {
   DivVar,
   DivFixed,
   FullyConnected,
+  Gather,
   Logistic,
   MaskNegInf,
   MaxPool2D,

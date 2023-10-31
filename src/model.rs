@@ -57,7 +57,7 @@ use crate::{
       broadcast::BroadcastChip, concatenation::ConcatenationChip, mask_neg_inf::MaskNegInfChip,
       pack::PackChip, pad::PadChip, permute::PermuteChip, reshape::ReshapeChip,
       resize_nn::ResizeNNChip, rotate::RotateChip, slice::SliceChip, split::SplitChip,
-      transpose::TransposeChip,
+      transpose::TransposeChip, gather::GatherChip,
     },
     softmax::SoftmaxChip,
     sqrt::SqrtChip,
@@ -343,6 +343,7 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
       "Div" => LayerType::DivFixed, // TODO: rename to DivFixed
       "DivVar" => LayerType::DivVar,
       "FullyConnected" => LayerType::FullyConnected,
+      "Gather" => LayerType::Gather,
       "Logistic" => LayerType::Logistic,
       "MaskNegInf" => LayerType::MaskNegInf,
       "MaxPool2D" => LayerType::MaxPool2D,
@@ -412,6 +413,7 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
               config: FullyConnectedConfig { normalize: true },
               _marker: PhantomData::<F>,
             }) as Box<dyn GadgetConsumer>,
+            LayerType::Gather => Box::new(GatherChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Logistic => Box::new(LogisticChip {}) as Box<dyn GadgetConsumer>,
             LayerType::MaskNegInf => Box::new(MaskNegInfChip {}) as Box<dyn GadgetConsumer>,
             LayerType::MaxPool2D => Box::new(MaxPool2DChip {

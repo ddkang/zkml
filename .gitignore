@@ -27,3 +27,5 @@ params_ipa
 examples
 testing/data
 *.diff
+
+ignore/*
