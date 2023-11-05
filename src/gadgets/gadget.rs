@@ -67,9 +67,9 @@ pub struct GadgetConfig {
 pub fn convert_to_u64<F: PrimeField>(x: &F) -> u64 {
   let big = BigUint::from_bytes_le(x.to_repr().as_ref());
   let big_digits = big.to_u64_digits();
-  if big_digits.len() > 2 {
-    println!("big_digits: {:?}", big_digits);
-  }
+  // if big_digits.len() > 2 {
+  //   println!("big_digits: {:?}", big_digits);
+  // }
   if big_digits.len() == 1 {
     big_digits[0] as u64
   } else if big_digits.len() == 0 {

@@ -27,8 +27,8 @@ impl<F: PrimeField> Layer<F> for BatchMatMulChip {
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let inp1 = &tensors[0];
     let inp2 = &tensors[1];
-    println!("inp1: {:?}", inp1.shape());
-    println!("inp2: {:?}", inp2.shape());
+    // println!("inp1: {:?}", inp1.shape());
+    // println!("inp2: {:?}", inp2.shape());
 
     assert_eq!(inp1.ndim(), 3);
     assert_eq!(inp2.ndim(), 3);
@@ -61,8 +61,8 @@ impl<F: PrimeField> Layer<F> for BatchMatMulChip {
       } else {
         inp2.index_axis(Axis(0), i).t().to_owned()
       };
-      println!("inp1_slice: {:?}", inp1_slice.shape());
-      println!("inp2_slice: {:?}", inp2_slice.shape());
+      // println!("inp1_slice: {:?}", inp1_slice.shape());
+      // println!("inp2_slice: {:?}", inp2_slice.shape());
       // Batch MM doesn't have a fused activation, so insert it here
       // TODO: consider putting this in the converter?
       let tmp_config = LayerConfig {

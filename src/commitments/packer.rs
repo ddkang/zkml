@@ -51,16 +51,16 @@ impl<F: PrimeField> PackerChip<F> {
       // TODO: for many columns, pack many in a single row
       NUM_BITS_PER_FIELD_ELEM / num_bits_per_elem
     };
-    println!("column len: {}", columns.len());
-    println!("num_bits_per_elem: {}", num_bits_per_elem);
-    println!("NUM_BITS_PER_FIELD_ELEM: {}", NUM_BITS_PER_FIELD_ELEM);
-    println!("num_elem_per_packed: {}", num_elem_per_packed);
+    // println!("column len: {}", columns.len());
+    // println!("num_bits_per_elem: {}", num_bits_per_elem);
+    // println!("NUM_BITS_PER_FIELD_ELEM: {}", NUM_BITS_PER_FIELD_ELEM);
+    // println!("num_elem_per_packed: {}", num_elem_per_packed);
 
     let num_packed_per_row = max(
       1,
       columns.len() / (num_elem_per_packed * (num_bits_per_elem + 1)),
     );
-    println!("num_packed_per_row: {}", num_packed_per_row);
+    // println!("num_packed_per_row: {}", num_packed_per_row);
 
     let exponents = Self::get_exponents(num_bits_per_elem, num_elem_per_packed);
 

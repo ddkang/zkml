@@ -223,10 +223,10 @@ impl<F: PrimeField> Gadget<F> for BiasDivRoundRelu6Chip<F> {
 
       let outp = {
         let mut x_pos = div_res - div_outp_min_val_i64;
-        if !relu_map.contains_key(&(x_pos)) {
-          println!("x: {}, x_pos: {}", div_res, x_pos);
-          x_pos = 0;
-        }
+        // if !relu_map.contains_key(&(x_pos)) {
+        //   println!("x: {}, x_pos: {}", div_res, x_pos);
+        //   x_pos = 0;
+        // }
         let outp_val = relu_map.get(&(x_pos)).unwrap();
         F::from(*outp_val as u64)
       };

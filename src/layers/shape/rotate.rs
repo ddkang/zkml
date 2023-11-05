@@ -43,7 +43,7 @@ impl<F: PrimeField> Layer<F> for RotateChip {
     }
     let shape = inp.shape();
 
-    println!("Rotate: {:?} -> {:?}", inp.shape(), shape);
+    // println!("Rotate: {:?} -> {:?}", inp.shape(), shape);
 
     let mut out = inp.clone();
 

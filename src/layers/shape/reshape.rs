@@ -25,7 +25,7 @@ impl<F: PrimeField> Layer<F> for ReshapeChip {
     let inp = &tensors[0];
     let shape = layer_config.out_shapes[0].clone();
 
-    println!("Reshape: {:?} -> {:?}", inp.shape(), shape);
+    // println!("Reshape: {:?} -> {:?}", inp.shape(), shape);
     let flat = inp.iter().map(|x| x.clone()).collect();
     let out = Array::from_shape_vec(shape, flat).unwrap();
     Ok(vec![out])

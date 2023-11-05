@@ -59,7 +59,7 @@ impl<F: PrimeField> Layer<F> for BroadcastChip {
       }
     }
 
-    println!("Broadcast : {:?} -> {:?}", inp.shape(), output_shape);
+    // println!("Broadcast : {:?} -> {:?}", inp.shape(), output_shape);
     let out = Array::from_shape_vec(output_shape, output_flat).unwrap();
     Ok(vec![out])
   }

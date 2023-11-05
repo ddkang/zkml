@@ -143,9 +143,9 @@ pub trait NonLinearGadget<F: PrimeField>: Gadget<F> {
       let outp = {
         let pos = convert_to_u128(&(inp[i].1 + shift_val_pos)) as i128 - shift_val_pos_i64 as i128;
         let x = pos as i64 - min_val;
-        if ((*map).get(&x)).is_none() {
-          println!("x: {}", x);
-        }
+        // if ((*map).get(&x)).is_none() {
+        //   println!("x: {}", x);
+        // }
         let val = *map.get(&x).unwrap();
         if x == 0 {
           F::ZERO
