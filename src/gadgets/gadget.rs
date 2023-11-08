@@ -52,6 +52,7 @@ pub struct GadgetConfig {
   pub shift_min_val: i64, // MUST be divisible by 2 * scale_factor
   pub num_rows: usize,
   pub num_cols: usize,
+  pub num_witness_cols: usize,
   pub k: usize,
   pub eta: f64,
   pub min_val: i64,

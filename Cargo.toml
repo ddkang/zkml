@@ -22,10 +22,10 @@ opt-level = 3
 [dependencies]
 ark-std = { version = "^0.4.0", default-features = false}
 bitvec = "1.0.1"
-halo2 = { git= "https://github.com/span14/halo2", branch="benchmark", package="halo2"}
-halo2_gadgets = { git= "https://github.com/span14/halo2", branch="benchmark", package="halo2_gadgets", features = ["circuit-params"]}
+halo2 = { git="https://github.com/span14/halo2", package="halo2", branch="benchmark" }
+halo2_gadgets = { git="https://github.com/span14/halo2", package="halo2_gadgets", branch="benchmark", features = ["circuit-params"]}
+halo2_proofs = { git="https://github.com/span14/halo2", package="halo2_proofs", branch="benchmark", features = ["circuit-params", "zkml"]}
 halo2_curves = { git = "https://github.com/privacy-scaling-explorations/halo2curves", tag = "0.3.2", package = "halo2curves"}
-halo2_proofs = { git= "https://github.com/span14/halo2", branch="benchmark", package="halo2_proofs", features = ["circuit-params", "zkml"]}
 lazy_static = "1.4.0"
 ndarray = "0.15.6"
 num-bigint = "0.4.3"

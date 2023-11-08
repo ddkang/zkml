@@ -7,7 +7,7 @@ use std::{
 use halo2_proofs::{
   circuit::{Layouter, SimpleFloorPlanner, Value},
   halo2curves::ff::{FromUniformBytes, PrimeField},
-  plonk::{Advice, Circuit, Column, ConstraintSystem, Error, FirstPhase, Instance, Challenge, SecondPhase},
+  plonk::{Advice, Circuit, Column, ConstraintSystem, Error, FirstPhase, Instance, Challenge, SecondPhase, Selector}, poly::Rotation,
 };
 use lazy_static::lazy_static;
 use ndarray::{Array, IxDyn};
@@ -96,6 +96,7 @@ pub struct ModelConfig<F: PrimeField + Ord + FromUniformBytes<64>> {
   pub public_col: Column<Instance>,
   pub hasher: Option<PoseidonCommitChip<F, WIDTH, RATE, L>>,
   pub challenge: Challenge,
+  pub rand_increment_selector: Selector,
   pub rand_vector: Column<Advice>,
   pub _marker: PhantomData<F>,
 }
@@ -292,18 +293,18 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
     &self, 
     mut layouter: impl Layouter<F>,
     challenge: Challenge,
+    rand_increment_selector: Selector,
     rand_vector: Column<Advice>,
   ) -> Result<HashMap<i64, (CellRc<F>, F)>, Error> {
-    let c_base = {
-      let c = layouter.get_challenge(challenge);
-      // Default value here is provided to pass mock prover check and it will be fiat shamir
-      // challenge in proof generation
-      c.assign().map_or(F::from(0x123456789abcdef), |x| x)
-    };
-    let mut c = c_base;
+    let c_base = layouter.get_challenge(challenge);
+
     let rand_vec = layouter.assign_region(
       || "random vector",
       |mut region| {
+        // Default value here is provided to pass mock prover check and it will be fiat shamir
+        // challenge in proof generation
+        let c_base = c_base.assign().map_or(F::from(0x123456789abcdef), |x| x);
+        let mut c = F::ONE;
         let mut rand_vec = HashMap::new();
         for i in 0..self.num_random {
           let rand = region.assign_advice(
@@ -314,6 +315,9 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
           )?;
           rand_vec.insert(i as i64, (Rc::new(rand), c));
           c = c * c_base;
+        }
+        for i in 0..(self.num_random-1) {
+          rand_increment_selector.enable(&mut region, i as usize)?;
         }
         Ok(rand_vec)
       }
@@ -492,6 +496,7 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
       k: config.k as usize,
       num_rows: (1 << config.k) - 10 + 1,
       num_cols: config.num_cols as usize,
+      num_witness_cols: config.num_witness_cols.unwrap() as usize,
       used_gadgets: used_gadgets.clone(),
       commit_before: config.commit_before.clone().unwrap_or(vec![]),
       commit_after: config.commit_after.clone().unwrap_or(vec![]),
@@ -602,17 +607,21 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> Circuit<F> for ModelCircuit<F> 
   fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
     let mut gadget_config = crate::model::GADGET_CONFIG.lock().unwrap().clone();
     // TODO: Allocate less columns
-    let witness_columns = (0..gadget_config.num_cols)
+    let witness_columns = (0..gadget_config.num_witness_cols)
       .map(|_| meta.advice_column())
       .collect::<Vec<_>>();
-    let c = meta.challenge_usable_after(FirstPhase);
+    let challenge = meta.challenge_usable_after(FirstPhase);
     let columns = (0..gadget_config.num_cols)
       .map(|_| meta.advice_column_in(SecondPhase))
       .collect::<Vec<_>>();
+
+    let rand_increment_selector = meta.selector();
     let rand_vector = meta.advice_column_in(SecondPhase);
 
-    for i in 0..gadget_config.num_cols {
+    for i in 0..gadget_config.num_witness_cols {
       meta.enable_equality(witness_columns[i]);
+    }
+    for i in 0..gadget_config.num_cols {
       meta.enable_equality(columns[i]);
     }
     
@@ -679,12 +688,22 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> Circuit<F> for ModelCircuit<F> 
       None
     };
 
+
+    meta.create_gate("Randomness Constraint Increment", |meta| {
+      let selector = meta.query_selector(rand_increment_selector);
+      let challenge = challenge.expr();
+      let x = meta.query_advice(rand_vector, Rotation::cur());
+      let x_n = meta.query_advice(rand_vector, Rotation::next());
+      vec![selector * (x_n - challenge * x)]
+    });
+
     ModelConfig {
       gadget_config: gadget_config.into(),
       public_col,
       hasher,
-      challenge: c,
+      challenge,
       rand_vector,
+      rand_increment_selector,
       _marker: PhantomData,
     }
   }
@@ -831,6 +850,7 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> Circuit<F> for ModelCircuit<F> 
     let rand_vector = self.fill_random_vectors(
       layouter.namespace(|| "randomness"), 
       config.challenge, 
+      config.rand_increment_selector,
       config.rand_vector
     )?;
 
