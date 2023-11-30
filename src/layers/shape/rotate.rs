@@ -28,6 +28,7 @@ impl<F: PrimeField> Layer<F> for RotateChip {
     _layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,
     _constants: &HashMap<i64, CellRc<F>>,
+    _rand_vector: &HashMap<i64, (CellRc<F>, F)>,
     _gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
@@ -42,7 +43,7 @@ impl<F: PrimeField> Layer<F> for RotateChip {
     }
     let shape = inp.shape();
 
-    println!("Rotate: {:?} -> {:?}", inp.shape(), shape);
+    // println!("Rotate: {:?} -> {:?}", inp.shape(), shape);
 
     let mut out = inp.clone();
 

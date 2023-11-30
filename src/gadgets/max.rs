@@ -1,7 +1,7 @@
 use std::{marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
-  circuit::{AssignedCell, Layouter, Region},
+  circuit::{AssignedCell, Layouter, Region, Value},
   halo2curves::ff::PrimeField,
   plonk::{ConstraintSystem, Error},
   poly::Rotation,
@@ -101,9 +101,9 @@ impl<F: PrimeField> Gadget<F> for MaxChip<F> {
     &self,
     region: &mut Region<F>,
     row_offset: usize,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    _single_inputs: &Vec<&AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    _single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     assert_eq!(vec_inputs.len(), 1);
     let inp = &vec_inputs[0];
 
@@ -116,30 +116,30 @@ impl<F: PrimeField> Gadget<F> for MaxChip<F> {
 
     let mut outp = vec![];
 
-    let chunks: Vec<&[&AssignedCell<F, F>]> = inp.chunks(self.num_outputs_per_row()).collect();
+    let chunks: Vec<&[(&AssignedCell<F, F>, F)]> = inp.chunks(self.num_outputs_per_row()).collect();
     let i1 = chunks[0];
     let i2 = chunks[1];
     for (idx, (inp1, inp2)) in i1.iter().zip(i2.iter()).enumerate() {
       let offset = idx * self.num_cols_per_op();
-      inp1
+      inp1.0
         .copy_advice(|| "", region, self.config.columns[offset + 0], row_offset)
         .unwrap();
-      inp2
+      inp2.0
         .copy_advice(|| "", region, self.config.columns[offset + 1], row_offset)
         .unwrap();
 
-      let max = inp1.value().zip(inp2.value()).map(|(a, b)| {
-        let a = convert_to_u64(&(*a + min_val_pos));
-        let b = convert_to_u64(&(*b + min_val_pos));
+      let max = {
+        let a = convert_to_u64(&(inp1.1 + min_val_pos));
+        let b = convert_to_u64(&(inp2.1 + min_val_pos));
         let max = a.max(b);
         let max = F::from(max) - min_val_pos;
         max
-      });
+      };
 
       let res = region
-        .assign_advice(|| "", self.config.columns[offset + 2], row_offset, || max)
+        .assign_advice(|| "", self.config.columns[offset + 2], row_offset, || Value::known(max))
         .unwrap();
-      outp.push(res);
+      outp.push((res, max));
     }
 
     Ok(outp)
@@ -148,9 +148,9 @@ impl<F: PrimeField> Gadget<F> for MaxChip<F> {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    single_inputs: &Vec<&AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     let mut inputs = vec_inputs[0].clone();
     let first = inputs[0];
 
@@ -168,9 +168,9 @@ impl<F: PrimeField> Gadget<F> for MaxChip<F> {
     )?;
     for _ in 0..num_iters {
       while outputs.len() % self.num_inputs_per_row() != 0 {
-        outputs.push(first.clone());
+        outputs.push((first.0.clone(), first.1));
       }
-      let tmp = outputs.iter().map(|x| x).collect::<Vec<_>>();
+      let tmp = outputs.iter().map(|x| (&x.0, x.1)).collect::<Vec<_>>();
       outputs = self.op_aligned_rows(
         layouter.namespace(|| "max forward"),
         &vec![tmp],

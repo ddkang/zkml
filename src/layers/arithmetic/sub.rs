@@ -27,10 +27,10 @@ impl<F: PrimeField> Arithmetic<F> for SubChip {
   fn gadget_forward(
     &self,
     mut layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    constants: &Vec<&AssignedCell<F, F>>,
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    constants: &Vec<(&AssignedCell<F, F>, F)>,
     gadget_config: Rc<GadgetConfig>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     let sub_pairs_chip = SubPairsChip::<F>::construct(gadget_config);
     let out = sub_pairs_chip.forward(layouter.namespace(|| "sub chip"), &vec_inputs, constants)?;
     Ok(out)
@@ -43,6 +43,7 @@ impl<F: PrimeField> Layer<F> for SubChip {
     mut layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, CellRc<F>>,
+    _rand_vector: &HashMap<i64, (CellRc<F>, F)>,
     gadget_config: Rc<GadgetConfig>,
     _layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {

@@ -24,6 +24,7 @@ impl<F: PrimeField> Layer<F> for BroadcastChip {
     _layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,
     _constants: &HashMap<i64, CellRc<F>>,
+    _rand_vector: &HashMap<i64, (CellRc<F>, F)>,
     _gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
@@ -58,7 +59,7 @@ impl<F: PrimeField> Layer<F> for BroadcastChip {
       }
     }
 
-    println!("Broadcast : {:?} -> {:?}", inp.shape(), output_shape);
+    // println!("Broadcast : {:?} -> {:?}", inp.shape(), output_shape);
     let out = Array::from_shape_vec(output_shape, output_flat).unwrap();
     Ok(vec![out])
   }

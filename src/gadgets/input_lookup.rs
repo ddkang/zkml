@@ -79,9 +79,9 @@ impl<F: PrimeField> Gadget<F> for InputLookupChip<F> {
     &self,
     _region: &mut Region<F>,
     _row_offset: usize,
-    _vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    _single_inputs: &Vec<&AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    _vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    _single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     panic!("InputLookupChip should not be called directly")
   }
 }

@@ -43,6 +43,7 @@ pub enum GadgetType {
 pub struct GadgetConfig {
   pub used_gadgets: Arc<BTreeSet<GadgetType>>,
   pub columns: Vec<Column<Advice>>,
+  pub witness_columns: Vec<Column<Advice>>,
   pub fixed_columns: Vec<Column<Fixed>>,
   pub selectors: HashMap<GadgetType, Vec<Selector>>,
   pub tables: HashMap<GadgetType, Vec<TableColumn>>,
@@ -51,6 +52,7 @@ pub struct GadgetConfig {
   pub shift_min_val: i64, // MUST be divisible by 2 * scale_factor
   pub num_rows: usize,
   pub num_cols: usize,
+  pub num_witness_cols: usize,
   pub k: usize,
   pub eta: f64,
   pub min_val: i64,
@@ -66,9 +68,9 @@ pub struct GadgetConfig {
 pub fn convert_to_u64<F: PrimeField>(x: &F) -> u64 {
   let big = BigUint::from_bytes_le(x.to_repr().as_ref());
   let big_digits = big.to_u64_digits();
-  if big_digits.len() > 2 {
-    println!("big_digits: {:?}", big_digits);
-  }
+  // if big_digits.len() > 2 {
+  //   println!("big_digits: {:?}", big_digits);
+  // }
   if big_digits.len() == 1 {
     big_digits[0] as u64
   } else if big_digits.len() == 0 {
@@ -100,17 +102,17 @@ pub trait Gadget<F: PrimeField> {
     &self,
     region: &mut Region<F>,
     row_offset: usize,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    single_inputs: &Vec<&AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error>;
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error>;
 
   // The caller is required to ensure that the inputs are of the correct length.
   fn op_aligned_rows(
     &self,
     mut layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    single_inputs: &Vec<&AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     // Sanity check inputs
     for inp in vec_inputs.iter() {
       assert_eq!(inp.len() % self.num_inputs_per_row(), 0);
@@ -141,9 +143,9 @@ pub trait Gadget<F: PrimeField> {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    single_inputs: &Vec<&AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     self.op_aligned_rows(
       layouter.namespace(|| format!("forward row {}", self.name())),
       vec_inputs,

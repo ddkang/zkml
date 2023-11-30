@@ -24,12 +24,12 @@ impl DivFixedChip {
     _tensors: &Vec<AssignedTensor<F>>,
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
-  ) -> Result<AssignedCell<F, F>, Error> {
+  ) -> Result<(AssignedCell<F, F>, F), Error> {
     // FIXME: this needs to be revealed
     let div = layer_config.layer_params[0];
     let div = F::from(div as u64);
 
-    let div = layouter
+    let divc = layouter
       .assign_region(
         || "division",
         |mut region| {
@@ -43,10 +43,9 @@ impl DivFixedChip {
             .unwrap();
           Ok(div)
         },
-      )
-      .unwrap();
+      )?;
 
-    Ok(div)
+    Ok((divc, div))
   }
 }
 
@@ -56,13 +55,14 @@ impl<F: PrimeField> Layer<F> for DivFixedChip {
     mut layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, CellRc<F>>,
+    _rand_vector: &HashMap<i64, (CellRc<F>, F)>,
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let inp = &tensors[0];
-    let inp_flat = inp.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
+    let inp_flat = inp.iter().map(|x| (x.0.as_ref(), x.1)).collect::<Vec<_>>();
 
-    let zero = constants.get(&0).unwrap().as_ref();
+    let zero = (constants.get(&0).unwrap().as_ref(), F::ZERO);
     let shape = inp.shape();
 
     let div = self.get_div_val(
@@ -71,15 +71,16 @@ impl<F: PrimeField> Layer<F> for DivFixedChip {
       gadget_config.clone(),
       layer_config,
     )?;
+    let div = (&div.0, div.1);
 
     let var_div_chip = VarDivRoundChip::<F>::construct(gadget_config.clone());
 
     let dived = var_div_chip.forward(
       layouter.namespace(|| "average div"),
       &vec![inp_flat],
-      &vec![zero, &div],
+      &vec![zero, div],
     )?;
-    let dived = dived.into_iter().map(|x| Rc::new(x)).collect::<Vec<_>>();
+    let dived = dived.into_iter().map(|x| (Rc::new(x.0), x.1)).collect::<Vec<_>>();
     let out = Array::from_shape_vec(IxDyn(shape), dived).unwrap();
 
     Ok(vec![out])

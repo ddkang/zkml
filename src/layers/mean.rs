@@ -53,7 +53,7 @@ impl MeanChip {
 }
 
 impl<F: PrimeField> Averager<F> for MeanChip {
-  fn splat(&self, input: &AssignedTensor<F>, layer_config: &LayerConfig) -> Vec<Vec<CellRc<F>>> {
+  fn splat(&self, input: &AssignedTensor<F>, layer_config: &LayerConfig) -> Vec<Vec<(CellRc<F>,F)>> {
     // Only support batch size = 1
     assert_eq!(input.shape()[0], 1);
     // Only support batch + 2D, summing over one axis
@@ -78,7 +78,7 @@ impl<F: PrimeField> Averager<F> for MeanChip {
     tensors: &Vec<AssignedTensor<F>>,
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
-  ) -> Result<AssignedCell<F, F>, Error> {
+  ) -> Result<(AssignedCell<F, F>, F), Error> {
     let inp = &tensors[0];
     let keep_axis = self.get_keep_axis(layer_config);
     let mut div = 1;
@@ -90,7 +90,7 @@ impl<F: PrimeField> Averager<F> for MeanChip {
 
     let div = F::from(div as u64);
     // FIXME: put this in the fixed column
-    let div = layouter.assign_region(
+    let divc = layouter.assign_region(
       || "mean div",
       |mut region| {
         let div = region.assign_advice(
@@ -103,7 +103,7 @@ impl<F: PrimeField> Averager<F> for MeanChip {
       },
     )?;
 
-    Ok(div)
+    Ok((divc, div))
   }
 }
 
@@ -113,6 +113,7 @@ impl<F: PrimeField> Layer<F> for MeanChip {
     layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, CellRc<F>>,
+    _rand_vector: &HashMap<i64, (CellRc<F>, F)>,
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {

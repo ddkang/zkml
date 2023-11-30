@@ -4,11 +4,10 @@ use std::{
   rc::Rc,
   sync::{Arc, Mutex},
 };
-
 use halo2_proofs::{
   circuit::{Layouter, SimpleFloorPlanner, Value},
   halo2curves::ff::{FromUniformBytes, PrimeField},
-  plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance},
+  plonk::{Advice, Circuit, Column, ConstraintSystem, Error, FirstPhase, Instance, Challenge, SecondPhase, Selector}, poly::Rotation,
 };
 use lazy_static::lazy_static;
 use ndarray::{Array, IxDyn};
@@ -58,7 +57,7 @@ use crate::{
       broadcast::BroadcastChip, concatenation::ConcatenationChip, mask_neg_inf::MaskNegInfChip,
       pack::PackChip, pad::PadChip, permute::PermuteChip, reshape::ReshapeChip,
       resize_nn::ResizeNNChip, rotate::RotateChip, slice::SliceChip, split::SplitChip,
-      transpose::TransposeChip,
+      transpose::TransposeChip, gather::GatherChip,
     },
     softmax::SoftmaxChip,
     sqrt::SqrtChip,
@@ -68,7 +67,7 @@ use crate::{
     update::UpdateChip,
   },
   utils::{
-    helpers::{convert_to_bigint, RAND_START_IDX},
+    helpers::convert_to_bigint,
     loader::{load_model_msgpack, ModelMsgpack},
   },
 };
@@ -96,6 +95,9 @@ pub struct ModelConfig<F: PrimeField + Ord + FromUniformBytes<64>> {
   pub gadget_config: Rc<GadgetConfig>,
   pub public_col: Column<Instance>,
   pub hasher: Option<PoseidonCommitChip<F, WIDTH, RATE, L>>,
+  pub challenge: Challenge,
+  pub rand_increment_selector: Selector,
+  pub rand_vector: Column<Advice>,
   pub _marker: PhantomData<F>,
 }
 
@@ -107,7 +109,7 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
     tensors: &BTreeMap<i64, Array<F, IxDyn>>,
   ) -> Result<BTreeMap<i64, AssignedTensor<F>>, Error> {
     let tensors = layouter.assign_region(
-      || "asssignment",
+      || "assignment",
       |mut region| {
         let mut cell_idx = 0;
         let mut assigned_tensors = BTreeMap::new();
@@ -125,7 +127,7 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
                 || Value::known(*val),
               )
               .unwrap();
-            flat.push(Rc::new(cell));
+            flat.push((Rc::new(cell), *val));
             cell_idx += 1;
           }
           let tensor = Array::from_shape_vec(tensor.shape(), flat).unwrap();
@@ -139,9 +141,40 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
     Ok(tensors)
   }
 
+  pub fn copy_tensors(
+    &self,
+    mut layouter: impl Layouter<F>,
+    columns: &Vec<Column<Advice>>,
+    tensors: &Vec<AssignedTensor<F>>,
+  ) -> Result<(), Error> {
+    layouter.assign_region(
+      || "Public Inputs", 
+      |mut region| {
+        let mut cell_idx = 0;
+        for tensor_row in tensors.iter() {
+          for tensor in tensor_row.iter() {
+            let row_idx = cell_idx / columns.len();
+            let col_idx = cell_idx % columns.len();
+            let tmp = region
+              .assign_advice(
+                || "pi copy",
+                columns[col_idx],
+                row_idx,
+                || Value::known(tensor.1),
+              )?;
+            region.constrain_equal(tensor.0.as_ref().cell(), tmp.cell())?;
+            cell_idx += 1;
+          }
+        }
+        Ok(())
+      }
+    )?;
+    Ok(())
+  }
+
   pub fn tensor_map_to_vec(
     &self,
-    tensor_map: &BTreeMap<i64, Array<CellRc<F>, IxDyn>>,
+    tensor_map: &BTreeMap<i64, Array<(CellRc<F>, F), IxDyn>>,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let smallest_tensor = tensor_map
       .iter()
@@ -206,21 +239,6 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
           constants.insert(*val, Rc::new(cell));
         }
 
-        // TODO: I've made some very bad life decisions
-        // TOOD: this needs to be a random oracle
-        let r_base = F::from(0x123456789abcdef);
-        let mut r = r_base.clone();
-        for i in 0..self.num_random {
-          let rand = region.assign_fixed(
-            || format!("rand_{}", i),
-            gadget_config.fixed_columns[0],
-            constants.len(),
-            || Value::known(r),
-          )?;
-          r = r * r_base;
-          constants.insert(RAND_START_IDX + (i as i64), Rc::new(rand));
-        }
-
         Ok(constants)
       },
     )?;
@@ -261,24 +279,6 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
           constants.insert(*val, Rc::new(cell));
         }
 
-        // TODO: I've made some very bad life decisions
-        // TOOD: this needs to be a random oracle
-        let r_base = F::from(0x123456789abcdef);
-        let mut r = r_base.clone();
-        for i in 0..self.num_random {
-          let assignment_idx = constants.len();
-          let row_idx = assignment_idx / gadget_config.columns.len();
-          let col_idx = assignment_idx % gadget_config.columns.len();
-          let rand = region.assign_advice(
-            || format!("rand_{}", i),
-            gadget_config.columns[col_idx],
-            row_idx,
-            || Value::known(r),
-          )?;
-          r = r * r_base;
-          constants.insert(RAND_START_IDX + (i as i64), Rc::new(rand));
-        }
-
         for (k, v) in fixed_constants.iter() {
           let v2 = constants.get(k).unwrap();
           region.constrain_equal(v.cell(), v2.cell()).unwrap();
@@ -287,6 +287,42 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
       },
     )?;
     Ok(constants)
+  }
+
+  fn fill_random_vectors(
+    &self, 
+    mut layouter: impl Layouter<F>,
+    challenge: Challenge,
+    rand_increment_selector: Selector,
+    rand_vector: Column<Advice>,
+  ) -> Result<HashMap<i64, (CellRc<F>, F)>, Error> {
+    let c_base = layouter.get_challenge(challenge);
+
+    let rand_vec = layouter.assign_region(
+      || "random vector",
+      |mut region| {
+        // Default value here is provided to pass mock prover check and it will be fiat shamir
+        // challenge in proof generation
+        let c_base = c_base.assign().map_or(F::from(0x123456789abcdef), |x| x);
+        let mut c = F::ONE;
+        let mut rand_vec = HashMap::new();
+        for i in 0..self.num_random {
+          let rand = region.assign_advice(
+            || format!("rand_vec_{}", i),
+            rand_vector,
+            i.try_into().unwrap(),
+            || Value::known(c),
+          )?;
+          rand_vec.insert(i as i64, (Rc::new(rand), c));
+          c = c * c_base;
+        }
+        for i in 0..(self.num_random-1) {
+          rand_increment_selector.enable(&mut region, i as usize)?;
+        }
+        Ok(rand_vec)
+      }
+    )?;
+    Ok(rand_vec)
   }
 
   pub fn generate_from_file(config_file: &str, inp_file: &str) -> ModelCircuit<F> {
@@ -311,6 +347,7 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
       "Div" => LayerType::DivFixed, // TODO: rename to DivFixed
       "DivVar" => LayerType::DivVar,
       "FullyConnected" => LayerType::FullyConnected,
+      "Gather" => LayerType::Gather,
       "Logistic" => LayerType::Logistic,
       "MaskNegInf" => LayerType::MaskNegInf,
       "MaxPool2D" => LayerType::MaxPool2D,
@@ -380,6 +417,7 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
               config: FullyConnectedConfig { normalize: true },
               _marker: PhantomData::<F>,
             }) as Box<dyn GadgetConsumer>,
+            LayerType::Gather => Box::new(GatherChip {}) as Box<dyn GadgetConsumer>,
             LayerType::Logistic => Box::new(LogisticChip {}) as Box<dyn GadgetConsumer>,
             LayerType::MaskNegInf => Box::new(MaskNegInfChip {}) as Box<dyn GadgetConsumer>,
             LayerType::MaxPool2D => Box::new(MaxPool2DChip {
@@ -458,6 +496,7 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> ModelCircuit<F> {
       k: config.k as usize,
       num_rows: (1 << config.k) - 10 + 1,
       num_cols: config.num_cols as usize,
+      num_witness_cols: config.num_witness_cols.unwrap() as usize,
       used_gadgets: used_gadgets.clone(),
       commit_before: config.commit_before.clone().unwrap_or(vec![]),
       commit_after: config.commit_after.clone().unwrap_or(vec![]),
@@ -567,12 +606,28 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> Circuit<F> for ModelCircuit<F> 
 
   fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
     let mut gadget_config = crate::model::GADGET_CONFIG.lock().unwrap().clone();
-    let columns = (0..gadget_config.num_cols)
+    // TODO: Allocate less columns
+    let witness_columns = (0..gadget_config.num_witness_cols)
       .map(|_| meta.advice_column())
       .collect::<Vec<_>>();
-    for col in columns.iter() {
-      meta.enable_equality(*col);
+    let challenge = meta.challenge_usable_after(FirstPhase);
+    let columns = (0..gadget_config.num_cols)
+      .map(|_| meta.advice_column_in(SecondPhase))
+      .collect::<Vec<_>>();
+
+    let rand_increment_selector = meta.selector();
+    let rand_vector = meta.advice_column_in(SecondPhase);
+
+    for i in 0..gadget_config.num_witness_cols {
+      meta.enable_equality(witness_columns[i]);
     }
+    for i in 0..gadget_config.num_cols {
+      meta.enable_equality(columns[i]);
+    }
+    
+    meta.enable_equality(rand_vector);
+
+    gadget_config.witness_columns = witness_columns;
     gadget_config.columns = columns;
 
     let public_col = meta.instance_column();
@@ -633,10 +688,22 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> Circuit<F> for ModelCircuit<F> 
       None
     };
 
+
+    meta.create_gate("Randomness Constraint Increment", |meta| {
+      let selector = meta.query_selector(rand_increment_selector);
+      let challenge = challenge.expr();
+      let x = meta.query_advice(rand_vector, Rotation::cur());
+      let x_n = meta.query_advice(rand_vector, Rotation::next());
+      vec![selector * (x_n - challenge * x)]
+    });
+
     ModelConfig {
       gadget_config: gadget_config.into(),
       public_col,
       hasher,
+      challenge,
+      rand_vector,
+      rand_increment_selector,
       _marker: PhantomData,
     }
   }
@@ -710,7 +777,6 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> Circuit<F> for ModelCircuit<F> 
         _ => panic!("unsupported gadget {:?}", gadget),
       }
     }
-
     // Assign weights and constants
     let constants_base = self
       .assign_constants(
@@ -780,12 +846,28 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> Circuit<F> for ModelCircuit<F> 
         .unwrap()
     };
 
+    // Create Randomness Vector
+    let rand_vector = self.fill_random_vectors(
+      layouter.namespace(|| "randomness"), 
+      config.challenge, 
+      config.rand_increment_selector,
+      config.rand_vector
+    )?;
+
+    // Copy the public inputs to be included into commitment
+    self.copy_tensors(
+      layouter.namespace(|| "Public Inputs"), 
+      &config.gadget_config.witness_columns, 
+      &tensors
+    )?;
+
     // Perform the dag
     let dag_chip = DAGLayerChip::<F>::construct(self.dag_config.clone());
     let (final_tensor_map, result) = dag_chip.forward(
       layouter.namespace(|| "dag"),
       &tensors,
       &constants,
+      &rand_vector,
       config.gadget_config.clone(),
       &LayerConfig::default(),
     )?;
@@ -822,9 +904,9 @@ impl<F: PrimeField + Ord + FromUniformBytes<64>> Circuit<F> for ModelCircuit<F> 
     for tensor in result {
       for cell in tensor.iter() {
         pub_layouter
-          .constrain_instance(cell.as_ref().cell(), config.public_col, total_idx)
+          .constrain_instance(cell.0.as_ref().cell(), config.public_col, total_idx)
           .unwrap();
-        let val = convert_to_bigint(cell.value().map(|x| x.to_owned()));
+        let val = convert_to_bigint(cell.0.value().map(|x| x.to_owned()));
         new_public_vals.push(val);
         total_idx += 1;
       }

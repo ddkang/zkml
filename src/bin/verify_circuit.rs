@@ -14,7 +14,6 @@ fn main() {
   if kzg_or_ipa != "kzg" && kzg_or_ipa != "ipa" {
     panic!("Must specify kzg or ipa");
   }
-
   if kzg_or_ipa == "kzg" {
     let config = load_config_msgpack(&config_fname);
     let circuit = ModelCircuit::<Fr>::generate_from_msgpack(config, false);

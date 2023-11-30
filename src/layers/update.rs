@@ -1,6 +1,10 @@
 use std::{collections::HashMap, rc::Rc, vec};
 
-use halo2_proofs::{circuit::Layouter, halo2curves::ff::PrimeField, plonk::Error};
+use halo2_proofs::{
+  circuit::Layouter, 
+  halo2curves::ff::PrimeField, 
+  plonk::Error
+};
 use ndarray::{Array, IxDyn};
 
 use crate::gadgets::{
@@ -19,6 +23,7 @@ impl<F: PrimeField + Ord> Layer<F> for UpdateChip {
     mut layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, CellRc<F>>,
+    _rand_vector: &HashMap<i64, (CellRc<F>, F)>,
     gadget_config: Rc<GadgetConfig>,
     _layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
@@ -28,16 +33,16 @@ impl<F: PrimeField + Ord> Layer<F> for UpdateChip {
     let zero = constants.get(&0).unwrap().as_ref();
     let update_chip = UpdateGadgetChip::<F>::construct((*gadget_config).clone());
 
-    let flattened_w = w.into_iter().map(|x| (**x).clone()).collect::<Vec<_>>();
-    let flattened_dw = dw.into_iter().map(|x| (**x).clone()).collect::<Vec<_>>();
-    let flattened_w_ref = flattened_w.iter().collect::<Vec<_>>();
-    let flattened_dw_ref = flattened_dw.iter().collect::<Vec<_>>();
+    let flattened_w = w.into_iter().map(|x| (x.0.as_ref(), x.1)).collect::<Vec<_>>();
+    let flattened_dw = dw.into_iter().map(|x| (x.0.as_ref(), x.1)).collect::<Vec<_>>();
+    let flattened_w_ref = flattened_w.iter().map(|x| (x.0, x.1)).collect::<Vec<_>>();
+    let flattened_dw_ref = flattened_dw.iter().map(|x| (x.0, x.1)).collect::<Vec<_>>();
 
     let vec_inps = vec![flattened_w_ref, flattened_dw_ref];
-    let constants = vec![zero];
+    let constants = vec![(zero, F::ZERO)];
     let out = update_chip.forward(layouter.namespace(|| "update chip"), &vec_inps, &constants)?;
 
-    let out = out.into_iter().map(|x| Rc::new(x)).collect::<Vec<_>>();
+    let out = out.into_iter().map(|x| (Rc::new(x.0), x.1)).collect::<Vec<_>>();
     let out = Array::from_shape_vec(IxDyn(w.shape()), out).unwrap();
 
     Ok(vec![out])

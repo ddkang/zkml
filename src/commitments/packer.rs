@@ -51,16 +51,16 @@ impl<F: PrimeField> PackerChip<F> {
       // TODO: for many columns, pack many in a single row
       NUM_BITS_PER_FIELD_ELEM / num_bits_per_elem
     };
-    println!("column len: {}", columns.len());
-    println!("num_bits_per_elem: {}", num_bits_per_elem);
-    println!("NUM_BITS_PER_FIELD_ELEM: {}", NUM_BITS_PER_FIELD_ELEM);
-    println!("num_elem_per_packed: {}", num_elem_per_packed);
+    // println!("column len: {}", columns.len());
+    // println!("num_bits_per_elem: {}", num_bits_per_elem);
+    // println!("NUM_BITS_PER_FIELD_ELEM: {}", NUM_BITS_PER_FIELD_ELEM);
+    // println!("num_elem_per_packed: {}", num_elem_per_packed);
 
     let num_packed_per_row = max(
       1,
       columns.len() / (num_elem_per_packed * (num_bits_per_elem + 1)),
     );
-    println!("num_packed_per_row: {}", num_packed_per_row);
+    // println!("num_packed_per_row: {}", num_packed_per_row);
 
     let exponents = Self::get_exponents(num_bits_per_elem, num_elem_per_packed);
 
@@ -143,7 +143,7 @@ impl<F: PrimeField> PackerChip<F> {
     &self,
     mut layouter: impl Layouter<F>,
     gadget_config: Rc<GadgetConfig>,
-    cells: Vec<CellRc<F>>,
+    cells: Vec<(CellRc<F>, F)>,
     zero: &AssignedCell<F, F>,
   ) -> Result<Vec<CellRc<F>>, Error> {
     let columns = &gadget_config.columns;
@@ -170,9 +170,9 @@ impl<F: PrimeField> PackerChip<F> {
             .iter()
             .enumerate()
             .map(|(i, x)| {
-              x.copy_advice(|| "", &mut region, columns[col_offset + i], 0)
+              x.0.copy_advice(|| "", &mut region, columns[col_offset + i], 0)
                 .unwrap();
-              x.value().copied()
+              x.0.value().copied()
             })
             .collect::<Vec<_>>();
 
@@ -216,7 +216,7 @@ impl<F: PrimeField> PackerChip<F> {
     gadget_config: Rc<GadgetConfig>,
     values: Vec<&F>,
     zero: &AssignedCell<F, F>,
-  ) -> Result<(Vec<CellRc<F>>, Vec<CellRc<F>>), Error> {
+  ) -> Result<(Vec<CellRc<F>>, Vec<(CellRc<F>, F)>), Error> {
     let columns = &gadget_config.columns;
     let selector = gadget_config.selectors.get(&GadgetType::Packer).unwrap()[0];
 
@@ -249,7 +249,7 @@ impl<F: PrimeField> PackerChip<F> {
               let tmp = region
                 .assign_advice(|| "", columns[col_offset + i], 0, || Value::known(*x))
                 .unwrap();
-              Rc::new(tmp)
+              (Rc::new(tmp), *x)
             })
             .collect::<Vec<_>>();
           assigned.extend(vals);

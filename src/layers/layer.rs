@@ -20,6 +20,7 @@ pub enum LayerType {
   DivVar,
   DivFixed,
   FullyConnected,
+  Gather,
   Logistic,
   MaskNegInf,
   MaxPool2D,
@@ -70,7 +71,7 @@ pub struct LayerConfig {
 }
 
 pub type CellRc<F> = Rc<AssignedCell<F, F>>;
-pub type AssignedTensor<F> = Array<CellRc<F>, IxDyn>;
+pub type AssignedTensor<F> = Array<(CellRc<F>, F), IxDyn>;
 // General issue with rust: I'm not sure how to pass named arguments to a trait...
 // Currently, the caller must be aware of the order of the tensors and results
 pub trait Layer<F: PrimeField> {
@@ -79,6 +80,7 @@ pub trait Layer<F: PrimeField> {
     layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, CellRc<F>>,
+    rand_vector: &HashMap<i64, (CellRc<F>, F)>,
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error>;

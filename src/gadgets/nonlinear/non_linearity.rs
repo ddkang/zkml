@@ -120,10 +120,10 @@ pub trait NonLinearGadget<F: PrimeField>: Gadget<F> {
     &self,
     region: &mut Region<F>,
     row_offset: usize,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    _single_inputs: &Vec<&AssignedCell<F, F>>,
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    _single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
     gadget_config: Rc<GadgetConfig>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     let columns = &gadget_config.columns;
     let inp = &vec_inputs[0];
     let map = self.get_map();
@@ -139,10 +139,13 @@ pub trait NonLinearGadget<F: PrimeField>: Gadget<F> {
     let mut outps = vec![];
     for i in 0..inp.len() {
       let offset = i * 2;
-      inp[i].copy_advice(|| "", region, columns[offset + 0], row_offset)?;
-      let outp = inp[i].value().map(|x: &F| {
-        let pos = convert_to_u128(&(*x + shift_val_pos)) as i128 - shift_val_pos_i64 as i128;
+      inp[i].0.copy_advice(|| "", region, columns[offset + 0], row_offset)?;
+      let outp = {
+        let pos = convert_to_u128(&(inp[i].1 + shift_val_pos)) as i128 - shift_val_pos_i64 as i128;
         let x = pos as i64 - min_val;
+        // if ((*map).get(&x)).is_none() {
+        //   println!("x: {}", x);
+        // }
         let val = *map.get(&x).unwrap();
         if x == 0 {
           F::ZERO
@@ -154,11 +157,11 @@ pub trait NonLinearGadget<F: PrimeField>: Gadget<F> {
             F::from(val_pos as u64) - F::from(shift_val_pos_i64 as u64)
           }
         }
-      });
+      };
 
-      let outp =
-        region.assign_advice(|| "nonlinearity", columns[offset + 1], row_offset, || outp)?;
-      outps.push(outp);
+      let outpc =
+        region.assign_advice(|| "nonlinearity", columns[offset + 1], row_offset, || Value::known(outp))?;
+      outps.push((outpc, outp));
     }
 
     Ok(outps)
@@ -167,15 +170,15 @@ pub trait NonLinearGadget<F: PrimeField>: Gadget<F> {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    single_inputs: &Vec<&AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     let zero = &single_inputs[0];
     let inp_len = vec_inputs[0].len();
     let mut inp = vec_inputs[0].clone();
 
     while inp.len() % self.num_inputs_per_row() != 0 {
-      inp.push(zero);
+      inp.push(*zero);
     }
 
     let vec_inputs = vec![inp];

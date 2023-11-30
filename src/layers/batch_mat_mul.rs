@@ -21,13 +21,14 @@ impl<F: PrimeField> Layer<F> for BatchMatMulChip {
     mut layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, CellRc<F>>,
+    rand_vector: &HashMap<i64, (CellRc<F>, F)>,
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
     let inp1 = &tensors[0];
     let inp2 = &tensors[1];
-    println!("inp1: {:?}", inp1.shape());
-    println!("inp2: {:?}", inp2.shape());
+    // println!("inp1: {:?}", inp1.shape());
+    // println!("inp2: {:?}", inp2.shape());
 
     assert_eq!(inp1.ndim(), 3);
     assert_eq!(inp2.ndim(), 3);
@@ -51,7 +52,7 @@ impl<F: PrimeField> Layer<F> for BatchMatMulChip {
       config: FullyConnectedConfig::construct(true),
     };
 
-    let mut outp: Vec<CellRc<F>> = vec![];
+    let mut outp: Vec<(CellRc<F>, F)> = vec![];
     for i in 0..inp1.shape()[0] {
       let inp1_slice = inp1.index_axis(Axis(0), i).to_owned();
       // Due to tensorflow BS, transpose the "weights"
@@ -60,8 +61,8 @@ impl<F: PrimeField> Layer<F> for BatchMatMulChip {
       } else {
         inp2.index_axis(Axis(0), i).t().to_owned()
       };
-      println!("inp1_slice: {:?}", inp1_slice.shape());
-      println!("inp2_slice: {:?}", inp2_slice.shape());
+      // println!("inp1_slice: {:?}", inp1_slice.shape());
+      // println!("inp2_slice: {:?}", inp2_slice.shape());
       // Batch MM doesn't have a fused activation, so insert it here
       // TODO: consider putting this in the converter?
       let tmp_config = LayerConfig {
@@ -72,10 +73,11 @@ impl<F: PrimeField> Layer<F> for BatchMatMulChip {
         layouter.namespace(|| ""),
         &vec![inp1_slice, inp2_slice],
         constants,
+        rand_vector,
         gadget_config.clone(),
         &tmp_config,
       )?;
-      outp.extend(outp_slice[0].iter().map(|x| x.clone()).collect::<Vec<_>>());
+      outp.extend(outp_slice[0].iter().map(|x| (x.0.clone(), x.1)).collect::<Vec<_>>());
     }
 
     let outp = Array::from_shape_vec(IxDyn(out_shape.as_slice()), outp).unwrap();

@@ -1,7 +1,7 @@
 use std::{marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
-  circuit::{AssignedCell, Layouter, Region},
+  circuit::{AssignedCell, Layouter, Region, Value},
   halo2curves::ff::PrimeField,
   plonk::{ConstraintSystem, Error},
   poly::Rotation,
@@ -80,9 +80,9 @@ impl<F: PrimeField> Gadget<F> for SubPairsChip<F> {
     &self,
     region: &mut Region<F>,
     row_offset: usize,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    _single_inputs: &Vec<&AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    _single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     let inp1 = &vec_inputs[0];
     let inp2 = &vec_inputs[1];
     assert_eq!(inp1.len(), inp2.len());
@@ -97,12 +97,12 @@ impl<F: PrimeField> Gadget<F> for SubPairsChip<F> {
     let mut outps = vec![];
     for i in 0..inp1.len() {
       let offset = i * self.num_cols_per_op();
-      let inp1 = inp1[i].copy_advice(|| "", region, columns[offset + 0], row_offset)?;
-      let inp2 = inp2[i].copy_advice(|| "", region, columns[offset + 1], row_offset)?;
-      let outp = inp1.value().map(|x: &F| x.to_owned()) - inp2.value().map(|x: &F| x.to_owned());
+      inp1[i].0.copy_advice(|| "", region, columns[offset + 0], row_offset)?;
+      inp2[i].0.copy_advice(|| "", region, columns[offset + 1], row_offset)?;
+      let outp = inp1[i].1 - inp2[i].1;
 
-      let outp = region.assign_advice(|| "", columns[offset + 2], row_offset, || outp)?;
-      outps.push(outp);
+      let outpc = region.assign_advice(|| "", columns[offset + 2], row_offset, || Value::known(outp))?;
+      outps.push((outpc, outp));
     }
     Ok(outps)
   }
@@ -110,17 +110,17 @@ impl<F: PrimeField> Gadget<F> for SubPairsChip<F> {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    single_inputs: &Vec<&AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     let zero = &single_inputs[0];
 
     let mut inp1 = vec_inputs[0].clone();
     let mut inp2 = vec_inputs[1].clone();
     let initial_len = inp1.len();
     while inp1.len() % self.num_inputs_per_row() != 0 {
-      inp1.push(zero);
-      inp2.push(zero);
+      inp1.push(*zero);
+      inp2.push(*zero);
     }
 
     let vec_inputs = vec![inp1, inp2];

@@ -19,10 +19,10 @@ pub trait Arithmetic<F: PrimeField> {
   fn gadget_forward(
     &self,
     layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    constants: &Vec<&AssignedCell<F, F>>,
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    constants: &Vec<(&AssignedCell<F, F>, F)>,
     gadget_config: Rc<GadgetConfig>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error>;
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error>;
 
   fn arithmetic_forward(
     &self,
@@ -30,7 +30,7 @@ pub trait Arithmetic<F: PrimeField> {
     tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, CellRc<F>>,
     gadget_config: Rc<GadgetConfig>,
-  ) -> Result<(Vec<CellRc<F>>, Vec<usize>), Error> {
+  ) -> Result<(Vec<(CellRc<F>, F)>, Vec<usize>), Error> {
     assert_eq!(tensors.len(), 2);
     // println!("tensors: {:?} {:?}", tensors[0].shape(), tensors[1].shape());
     let (inp1, inp2) = broadcast(&tensors[0], &tensors[1]);
@@ -39,17 +39,17 @@ pub trait Arithmetic<F: PrimeField> {
 
     let zero = constants.get(&0).unwrap().as_ref();
 
-    let inp1_vec = inp1.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
-    let inp2_vec = inp2.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
+    let inp1_vec = inp1.iter().map(|x| (x.0.as_ref(), x.1)).collect::<Vec<_>>();
+    let inp2_vec = inp2.iter().map(|x| (x.0.as_ref(), x.1)).collect::<Vec<_>>();
     let vec_inputs = vec![inp1_vec, inp2_vec];
-    let constants = vec![zero];
+    let constants = vec![(zero, F::ZERO)];
     let out = self.gadget_forward(
       layouter.namespace(|| ""),
       &vec_inputs,
       &constants,
       gadget_config.clone(),
     )?;
-    let out = out.into_iter().map(|x| Rc::new(x)).collect::<Vec<_>>();
+    let out = out.into_iter().map(|x| (Rc::new(x.0), x.1)).collect::<Vec<_>>();
     Ok((out, out_shape.to_vec()))
   }
 }

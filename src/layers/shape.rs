@@ -10,3 +10,4 @@ pub mod rotate;
 pub mod slice;
 pub mod split;
 pub mod transpose;
+pub mod gather;

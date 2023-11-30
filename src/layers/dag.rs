@@ -1,6 +1,10 @@
 use std::{collections::HashMap, fs::File, io::BufWriter, marker::PhantomData, rc::Rc};
 
-use halo2_proofs::{circuit::Layouter, halo2curves::ff::PrimeField, plonk::Error};
+use halo2_proofs::{
+  circuit::Layouter, 
+  halo2curves::ff::PrimeField, 
+  plonk::Error
+};
 
 use crate::{
   gadgets::gadget::{convert_to_u64, GadgetConfig},
@@ -19,7 +23,7 @@ use crate::{
       broadcast::BroadcastChip, concatenation::ConcatenationChip, mask_neg_inf::MaskNegInfChip,
       pack::PackChip, pad::PadChip, permute::PermuteChip, reshape::ReshapeChip,
       resize_nn::ResizeNNChip, rotate::RotateChip, slice::SliceChip, split::SplitChip,
-      transpose::TransposeChip,
+      transpose::TransposeChip, gather::GatherChip,
     },
     softmax::SoftmaxChip,
     sqrt::SqrtChip,
@@ -64,6 +68,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
     mut layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, CellRc<F>>,
+    rand_vector: &HashMap<i64, (CellRc<F>, F)>,
     gadget_config: Rc<GadgetConfig>,
     _layer_config: &LayerConfig,
   ) -> Result<(HashMap<usize, AssignedTensor<F>>, Vec<AssignedTensor<F>>), Error> {
@@ -78,10 +83,10 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
       let layer_type = &layer_config.layer_type;
       let inp_idxes = &self.dag_config.inp_idxes[layer_idx];
       let out_idxes = &self.dag_config.out_idxes[layer_idx];
-      println!(
-        "Processing layer {}, type: {:?}, inp_idxes: {:?}, out_idxes: {:?}, layer_params: {:?}",
-        layer_idx, layer_type, inp_idxes, out_idxes, layer_config.layer_params
-      );
+      // println!(
+      //   "Processing layer {}, type: {:?}, inp_idxes: {:?}, out_idxes: {:?}, layer_params: {:?}",
+      //   layer_idx, layer_type, inp_idxes, out_idxes, layer_config.layer_params
+      // );
       let vec_inps = inp_idxes
         .iter()
         .map(|idx| tensor_map.get(idx).unwrap().clone())
@@ -94,6 +99,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag add"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -104,6 +110,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag avg pool 2d"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -116,6 +123,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag max pool 2d"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -126,6 +134,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag batch mat mul"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -136,6 +145,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag batch mat mul"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -149,6 +159,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag conv 2d"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -159,6 +170,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag div"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -169,6 +181,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag div"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -182,6 +195,18 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag fully connected"),
             &vec_inps,
             constants,
+            rand_vector,
+            gadget_config.clone(),
+            &layer_config,
+          )?
+        }
+        LayerType::Gather => {
+          let gather_chip = GatherChip {};
+          gather_chip.forward(
+            layouter.namespace(|| "dag gather"),
+            &vec_inps,
+            constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -192,6 +217,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag softmax"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -202,6 +228,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag mean"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -212,6 +239,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag pad"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -222,6 +250,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag permute"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -232,6 +261,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag squared diff"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -242,6 +272,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag rsqrt"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -252,6 +283,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag sqrt"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -262,6 +294,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag logistic"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -272,6 +305,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag logistic"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -282,6 +316,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag tanh"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -292,6 +327,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag mul"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -302,6 +338,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag sub"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -312,6 +349,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag noop"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -322,6 +360,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag transpose"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -332,6 +371,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag reshape"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -342,6 +382,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag resize nn"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -352,6 +393,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag rotate"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -362,6 +404,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag concatenation"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -372,6 +415,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag pack"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -382,6 +426,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag split"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -392,6 +437,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag update"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -402,6 +448,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag slice"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -412,6 +459,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag mask neg inf"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -422,6 +470,7 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
             layouter.namespace(|| "dag square"),
             &vec_inps,
             constants,
+            rand_vector,
             gadget_config.clone(),
             &layer_config,
           )?
@@ -429,10 +478,10 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
       };
 
       for (idx, tensor_idx) in out_idxes.iter().enumerate() {
-        println!("Out {} shape: {:?}", idx, out[idx].shape());
+        // println!("Out {} shape: {:?}", idx, out[idx].shape());
         tensor_map.insert(*tensor_idx, out[idx].clone());
       }
-      println!();
+      // println!();
     }
 
     let mut final_out = vec![];
@@ -452,13 +501,13 @@ impl<F: PrimeField + Ord> DAGLayerChip<F> {
       }
     };
 
-    let tmp = print_arr.iter().map(|x| x.as_ref()).collect::<Vec<_>>();
-    print_assigned_arr("final out", &tmp.to_vec(), gadget_config.scale_factor);
-    println!("final out idxes: {:?}", self.dag_config.final_out_idxes);
+    let tmp = print_arr.iter().map(|x| x.0.as_ref()).collect::<Vec<_>>();
+    // print_assigned_arr("final out", &tmp.to_vec(), gadget_config.scale_factor);
+    // println!("final out idxes: {:?}", self.dag_config.final_out_idxes);
 
     let mut x = vec![];
     for cell in print_arr.iter() {
-      cell.value().map(|v| {
+      cell.0.value().map(|v| {
         let bias = 1 << 60 as i64;
         let v_pos = *v + F::from(bias as u64);
         let v = convert_to_u64(&v_pos) as i64 - bias;

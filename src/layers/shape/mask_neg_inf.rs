@@ -18,6 +18,7 @@ impl<F: PrimeField> Layer<F> for MaskNegInfChip {
     _layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,
     constants: &HashMap<i64, CellRc<F>>,
+    _rand_vector: &HashMap<i64, (CellRc<F>, F)>,
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
@@ -32,14 +33,22 @@ impl<F: PrimeField> Layer<F> for MaskNegInfChip {
     let mask = Array::from_shape_vec(IxDyn(&mask_shape), mask_vec).unwrap();
     let mask = mask.broadcast(inp.raw_dim()).unwrap();
 
-    let min_val = gadget_config.min_val;
-    let min_val = constants.get(&min_val).unwrap().clone();
+    let min_val_cell = constants.get(&gadget_config.min_val).unwrap();
+    let min_val = {
+      let shift_val_i64 = -gadget_config.min_val * 2;
+      let shift_val_f = F::from(shift_val_i64 as u64);
+      F::from((gadget_config.min_val + shift_val_i64) as u64) - shift_val_f
+    };
+
     let mut out_vec = vec![];
     for (val, to_mask) in inp.iter().zip(mask.iter()) {
       if *to_mask == 0 {
         out_vec.push(val.clone());
       } else {
-        out_vec.push(min_val.clone());
+        out_vec.push((
+          min_val_cell.clone(),
+          min_val
+        ));
       }
     }
 

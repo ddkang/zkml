@@ -1,6 +1,10 @@
 use std::{collections::HashMap, rc::Rc};
 
-use halo2_proofs::{circuit::Layouter, halo2curves::ff::PrimeField, plonk::Error};
+use halo2_proofs::{
+  circuit::Layouter, 
+  halo2curves::ff::PrimeField, 
+  plonk::Error
+};
 use ndarray::{Array, IxDyn};
 
 use crate::{
@@ -44,7 +48,7 @@ impl<F: PrimeField> MaxPool2DChip<F> {
   pub fn splat(
     inp: &AssignedTensor<F>,
     layer_config: &LayerConfig,
-  ) -> Result<Vec<Vec<CellRc<F>>>, Error> {
+  ) -> Result<Vec<Vec<(CellRc<F>, F)>>, Error> {
     let params = &layer_config.layer_params;
     let (fx, fy) = (params[0], params[1]);
     let (fx, fy) = (fx as usize, fy as usize);
@@ -85,6 +89,7 @@ impl<F: PrimeField> Layer<F> for MaxPool2DChip<F> {
     mut layouter: impl Layouter<F>,
     tensors: &Vec<AssignedTensor<F>>,
     _constants: &HashMap<i64, CellRc<F>>,
+    _rand_vector: &HashMap<i64, (CellRc<F>, F)>,
     gadget_config: Rc<GadgetConfig>,
     layer_config: &LayerConfig,
   ) -> Result<Vec<AssignedTensor<F>>, Error> {
@@ -95,7 +100,7 @@ impl<F: PrimeField> Layer<F> for MaxPool2DChip<F> {
     let mut out = vec![];
     for i in 0..splat.len() {
       let inps = &splat[i];
-      let inps = inps.iter().map(|x| x.as_ref()).collect();
+      let inps = inps.iter().map(|x| (x.0.as_ref(), x.1)).collect();
       let max = max_chip
         .forward(
           layouter.namespace(|| format!("max {}", i)),
@@ -105,7 +110,7 @@ impl<F: PrimeField> Layer<F> for MaxPool2DChip<F> {
         .unwrap();
       out.push(max[0].clone());
     }
-    let out = out.into_iter().map(|x| Rc::new(x)).collect();
+    let out = out.into_iter().map(|x| (Rc::new(x.0), x.1)).collect();
 
     // TODO: refactor this
     let out_xy = Self::shape(inp, layer_config);

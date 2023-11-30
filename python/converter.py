@@ -315,9 +315,6 @@ class Converter:
       elif op_code == tflite.BuiltinOperator.SHAPE:
         layer_type = 'Noop'
         params = [0]
-      elif op_code == tflite.BuiltinOperator.GATHER:
-        layer_type = 'Noop'
-        params = [0]
       elif op_code == tflite.BuiltinOperator.REDUCE_PROD:
         # TODO: not sure if this is in general a no-op
         layer_type = 'Noop'
@@ -334,6 +331,10 @@ class Converter:
         params = [0]
 
       ## Shape
+      elif op_code == tflite.BuiltinOperator.GATHER:
+        pos = interpreter.get_tensor(op.Inputs(1)).flatten().astype(np.int64)
+        layer_type = 'Gather'
+        params = pos.tolist()
       elif op_code == tflite.BuiltinOperator.RESHAPE:
         layer_type = 'Reshape'
         params = []

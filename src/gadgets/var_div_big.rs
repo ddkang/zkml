@@ -1,7 +1,7 @@
 use std::{marker::PhantomData, rc::Rc};
 
 use halo2_proofs::{
-  circuit::{AssignedCell, Layouter, Region},
+  circuit::{AssignedCell, Layouter, Region, Value},
   halo2curves::ff::PrimeField,
   plonk::{ConstraintSystem, Error, Expression},
   poly::Rotation,
@@ -134,9 +134,9 @@ impl<F: PrimeField> Gadget<F> for VarDivRoundBigChip<F> {
     &self,
     region: &mut Region<F>,
     row_offset: usize,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    single_inputs: &Vec<&AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     let a_vec = &vec_inputs[0];
     // let zero = single_inputs[0].clone();
     let b = &single_inputs[1];
@@ -154,7 +154,7 @@ impl<F: PrimeField> Gadget<F> for VarDivRoundBigChip<F> {
       selector.enable(region, row_offset)?;
     }
 
-    b.copy_advice(
+    b.0.copy_advice(
       || "",
       region,
       self.config.columns[self.config.columns.len() - 1],
@@ -164,16 +164,16 @@ impl<F: PrimeField> Gadget<F> for VarDivRoundBigChip<F> {
     let mut div_out = vec![];
     for (i, a) in a_vec.iter().enumerate() {
       let offset = i * self.num_cols_per_op();
-      a.copy_advice(|| "", region, self.config.columns[offset], row_offset)
+      a.0.copy_advice(|| "", region, self.config.columns[offset], row_offset)
         .unwrap();
 
-      let div_mod = a.value().zip(b.value()).map(|(a, b)| {
-        let b = convert_to_u128(b);
+      let div_mod = {
+        let b = convert_to_u128(&b.1);
         // Needs to be divisible by b
         let div_inp_min_val_pos_i64 = div_inp_min_val_pos_i64 / (b as i64) * (b as i64);
         let div_inp_min_val_pos = F::from(div_inp_min_val_pos_i64 as u64);
 
-        let a_pos = *a + div_inp_min_val_pos;
+        let a_pos = a.1 + div_inp_min_val_pos;
         let a = convert_to_u128(&a_pos);
         // c = (2 * a + b) / (2 * b)
         let c_pos = a.rounded_div(b);
@@ -184,70 +184,70 @@ impl<F: PrimeField> Gadget<F> for VarDivRoundBigChip<F> {
         let r = 2 * rem_floor + (b as i128);
         let r = r as i64;
         (c, r)
-      });
+      };
 
-      let br_split = div_mod.zip(b.value()).map(|((_, r), b)| {
-        let b = convert_to_u128(b) as i64;
-        let val = 2 * b - r;
+      let br_split =  {
+        let b = convert_to_u128(&b.1) as i64;
+        let val = 2 * b - div_mod.1;
         let p1 = val / num_rows;
         let p0 = val % num_rows;
         // val = p1 * max_val + p0
         (p1, p0)
-      });
+      };
 
-      let r_split = div_mod.map(|(_, r)| {
-        let p1 = r / num_rows;
-        let p0 = r % num_rows;
+      let r_split = {
+        let p1 = div_mod.1 / num_rows;
+        let p0 = div_mod.1 % num_rows;
         // val = p1 * max_val + p0
         (p1, p0)
-      });
+      };
+
+      let div_val = {
+        let offset = F::from(-div_outp_min_val_i64 as u64);
+        let c = F::from((div_mod.0 - div_outp_min_val_i64) as u64);
+        c - offset
+      };
 
       let div_cell = region.assign_advice(
         || "",
         self.config.columns[offset + 1],
         row_offset,
-        || {
-          div_mod.map(|(c, _)| {
-            let offset = F::from(-div_outp_min_val_i64 as u64);
-            let c = F::from((c - div_outp_min_val_i64) as u64);
-            c - offset
-          })
-        },
+        || Value::known(div_val)
       )?;
       let _mod_cell = region.assign_advice(
         || "",
         self.config.columns[offset + 2],
         row_offset,
-        || div_mod.map(|(_, r)| F::from(r as u64)),
+        || Value::known(F::from(div_mod.1 as u64)),
       )?;
       // Assign 2 * b - r to the next 2 columns
       let _br_split_cell_1 = region.assign_advice(
         || "",
         self.config.columns[offset + 3],
         row_offset,
-        || br_split.map(|(p1, _)| F::from(p1 as u64)),
+        ||  Value::known(F::from(br_split.0 as u64)),
       )?;
       let _br_split_cell_2 = region.assign_advice(
         || "",
         self.config.columns[offset + 4],
         row_offset,
-        || br_split.map(|(_, p0)| F::from(p0 as u64)),
+        || Value::known(F::from(br_split.1 as u64)),
       )?;
       // Assign r to the next 2 columns
       let _r_split_cell_1 = region.assign_advice(
         || "",
         self.config.columns[offset + 5],
         row_offset,
-        || r_split.map(|(p1, _)| F::from(p1 as u64)),
+        || Value::known(F::from(r_split.0 as u64)),
       )?;
       let _r_split_cell_2 = region.assign_advice(
         || "",
         self.config.columns[offset + 6],
         row_offset,
-        || r_split.map(|(_, p0)| F::from(p0 as u64)),
+        || Value::known(F::from(r_split.1 as u64)),
       )?;
 
-      div_out.push(div_cell);
+      div_out.push((div_cell, div_val));
     }
 
     Ok(div_out)
@@ -256,16 +256,16 @@ impl<F: PrimeField> Gadget<F> for VarDivRoundBigChip<F> {
   fn forward(
     &self,
     mut layouter: impl Layouter<F>,
-    vec_inputs: &Vec<Vec<&AssignedCell<F, F>>>,
-    single_inputs: &Vec<&AssignedCell<F, F>>,
-  ) -> Result<Vec<AssignedCell<F, F>>, Error> {
+    vec_inputs: &Vec<Vec<(&AssignedCell<F, F>, F)>>,
+    single_inputs: &Vec<(&AssignedCell<F, F>, F)>,
+  ) -> Result<Vec<(AssignedCell<F, F>, F)>, Error> {
     let mut inps = vec_inputs[0].clone();
     let initial_len = inps.len();
 
     // Needed to pad
     let default = &single_inputs[0];
     while inps.len() % self.num_inputs_per_row() != 0 {
-      inps.push(&default);
+      inps.push(*default);
     }
 
     let res = self.op_aligned_rows(
